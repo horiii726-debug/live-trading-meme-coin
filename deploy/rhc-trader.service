@@ -1,0 +1,25 @@
+[Unit]
+Description=rhc-trader: Robinhood Chain memecoin strategy + execution (mode from EXEC_MODE)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rhc
+Group=rhc
+WorkingDirectory=/opt/rhc/bot
+# A restart replays stored history WITHOUT trading it, then sells any real position the strategy no longer holds.
+ExecStart=/opt/rhc/bin/rhc-trader live --bot /opt/rhc/bot --env /opt/rhc/bot/.env
+Restart=always
+RestartSec=5
+MemoryMax=3G
+LimitNOFILE=65536
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/rhc/bot
+ReadOnlyPaths=/opt/rhc/secrets
+
+[Install]
+WantedBy=multi-user.target

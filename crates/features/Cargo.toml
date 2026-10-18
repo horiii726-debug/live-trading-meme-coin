@@ -1,0 +1,23 @@
+[package]
+name = "port_features"
+version = "0.1.0"
+edition = "2021"
+description = "Port Rust dari rhc_vps/bot/filter_feats.js (fitur filter menit-1), identik bit dengan JS/V8"
+
+[lib]
+name = "port_features"
+path = "src/lib.rs"
+
+[[bin]]
+name = "feat_dump"
+path = "src/bin/feat_dump.rs"
+
+[[bin]]
+name = "math_check"
+path = "src/bin/math_check.rs"
+
+[dependencies]
+# arbitrary_precision: angka JSON disimpan sebagai teks asli lalu di-parse dengan
+# str::parse::<f64>() (pembulatan IEEE terdekat) = sama dengan JSON.parse di V8.
+# raw_value: swaps/transfers dibaca tanpa pohon Value (cepat), sel diurai dari teks asli.
+serde_json = { version = "1", features = ["arbitrary_precision", "raw_value"] }

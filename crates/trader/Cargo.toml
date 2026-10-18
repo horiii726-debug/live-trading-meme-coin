@@ -1,0 +1,28 @@
+[package]
+name = "rhc-trader"
+version = "0.1.0"
+edition = "2021"
+description = "Robinhood Chain memecoin strategy (backtest-identical decision engine) with an optional Uniswap v4 execution layer"
+
+[[bin]]
+name = "rhc-trader"
+path = "src/main.rs"
+
+[[bin]]
+name = "cek_net"
+path = "src/bin/cek_net.rs"
+
+[dependencies]
+port_engine = { path = "../engine" }
+port_features = { path = "../features" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+num-bigint = "0.5"
+num-traits = "0.2"
+native-tls = "=0.2.12"
+alloy-primitives = { version = "1.7.3", features = ["serde"] }
+alloy-sol-types = "1.7.3"
+alloy-consensus = "2.5.0"
+alloy-eips = "2.5.0"
+alloy-signer = "2.5.0"
+alloy-signer-local = "2.5.0"
+serde = { version = "1.0.229", features = ["derive"] }

@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["crates/engine", "crates/features", "crates/trader"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

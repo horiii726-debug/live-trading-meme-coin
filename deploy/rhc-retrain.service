@@ -1,0 +1,12 @@
+[Unit]
+Description=Quality-gated retrain of the entry filter (the old model stays if the new one is not better)
+
+[Service]
+Type=oneshot
+User=rhc
+Group=rhc
+WorkingDirectory=/opt/rhc/training
+Environment=BOT_DIR=/opt/rhc/bot
+Environment=DATA_DIR=/opt/rhc/training/data
+ExecStart=/opt/rhc/venv/bin/python /opt/rhc/training/latih_ulang.py
+Nice=15

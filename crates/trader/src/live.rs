@@ -1,0 +1,1384 @@
+//! MODE LIVE (KERTAS) — dirancang jalan terus di VPS tanpa pengawasan.
+//! Alur sama dengan paper_live.js; logika keputusan = bot.rs (terbukti sama dengan backtest):
+//!  1. polling: SATU permintaan batch [eth_blockNumber, eth_getLogs(PoolManager, Initialize/Swap/ModifyLiquidity)]
+//!  2. event disimpan ke store/ (format CSV collect.js) + state.json (blok terakhir)
+//!  3. di menit-1 tiap koin: transfer token + dev pembuat diambil PARALEL di thread -> fitur -> skor
+//!  4. gerbang beli & posisi: bot.rs + mesin keluar v4 Rust
+//!  5. simulasi bayangan tiap koin -> labels.jsonl (bahan latih ulang otomatis)
+//!  6. model filter baru di disk dimuat otomatis SETELAH lolos cek kesamaan
+//!  7. restart: muat checkpoint (dibuat saat akun tanpa posisi) lalu putar ulang event sesudahnya
+//!     secara mengalir (tanpa jaringan) -> akun & posisi pulih persis; store dipadatkan bila besar
+//! TIDAK ADA transaksi, dompet, atau kunci privat di kode ini.
+use crate::bot::{Akun, Keputusan, Mesin, ModelOrder, SwapState};
+use crate::catmodel::CatModel;
+use crate::cfg::Cfg;
+use crate::kelas::{self, Kelas};
+use crate::net::{doh_resolve, Conn, Rpc};
+use crate::radar::{self, MetaPool, Radar};
+use std::sync::Mutex;
+use num_bigint::BigInt;
+use num_traits::{One, ToPrimitive};
+use port_engine::engine::{PoolMeta, Swap};
+use port_engine::model::Model;
+use serde_json::{json, Value};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+const VERSI: &str = "rhc-live 1.0";
+const PM: &str = "0x8366a39cc670b4001a1121b8f6a443a643e40951"; // config.toml: pool_manager (terverifikasi)
+const T_INIT: &str = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438";
+const T_SWAP: &str = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
+const T_MOD: &str = "0xf208f4912782fd25c7f114ca3723a2d5dd6f3bcc3ac8db5af63baa85f711d5ec";
+const T_TRANSFER: &str = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const ZERO32: &str = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const ETH_POOL: &str = "0x24107d152f14a76d292123265ae3f3c71f863fc2f4ef7ba49d64e78d28ea379e"; // ETH/USDG fee 100
+const NATIVE: &str = "0x0000000000000000000000000000000000000000";
+const Q96: f64 = 79228162514264337593543950336.0;
+const HEAD_SWAP: &str = "pool_id,block,log_idx,tx_hash,a0,a1,sqrt_price,liquidity,tick,fee";
+const HEAD_POOL: &str = "pool_id,c0,c1,fee,tick_spacing,hooks,init_block,log_idx";
+const HEAD_LIQ: &str = "pool_id,block,log_idx,tick_lo,tick_hi,liq_delta";
+
+// ---------- waktu, log, berkas ----------
+pub fn sekarang_iso() -> String {
+    let s = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let (d, r) = (s.div_euclid(86400), s.rem_euclid(86400));
+    // tanggal sipil dari jumlah hari sejak 1970-01-01 (algoritma Howard Hinnant)
+    let z = d + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let dd = doy - (153 * mp + 2) / 5 + 1;
+    let mm = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if mm <= 2 { y + 1 } else { y };
+    format!("{y:04}-{mm:02}-{dd:02}T{:02}:{:02}:{:02}Z", r / 3600, (r % 3600) / 60, r % 60)
+}
+
+struct Log {
+    path: PathBuf,
+    n: std::cell::Cell<u64>,
+}
+impl Log {
+    fn tulis(&self, s: &str) {
+        let l = format!("[{}] {s}", &sekarang_iso()[..19]);
+        println!("{l}");
+        self.n.set(self.n.get() + 1);
+        if self.n.get() % 500 == 0 {
+            // rotasi: live.log > 50 MB -> live.log.1 (yang lama ditimpa)
+            if std::fs::metadata(&self.path).map(|m| m.len() > 50_000_000).unwrap_or(false) {
+                let _ = std::fs::rename(&self.path, self.path.with_extension("log.1"));
+            }
+        }
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&self.path) {
+            let _ = writeln!(f, "{l}");
+        }
+    }
+}
+fn tulis_aman(p: &Path, isi: &str) {
+    let t = p.with_extension("tmp");
+    if std::fs::write(&t, isi).is_ok() {
+        let _ = std::fs::rename(&t, p);
+    }
+}
+fn tambah(p: &Path, baris: &str) {
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
+        let _ = writeln!(f, "{baris}");
+    }
+}
+
+/// Notifikasi Telegram (opsional: TELEGRAM_TOKEN + TELEGRAM_CHAT_ID). Dikirim di thread, tidak menahan bot.
+#[derive(Clone)]
+struct Kabar {
+    token: String,
+    chat: String,
+    doh: bool,
+    /// message prefix: "kertas" (paper), "SHADOW" or "LIVE"
+    label: &'static str,
+}
+impl Kabar {
+    fn kirim(&self, teks: String) {
+        if self.token.is_empty() || self.chat.is_empty() {
+            return;
+        }
+        let k = self.clone();
+        std::thread::spawn(move || {
+            let host = "api.telegram.org";
+            let ip = if k.doh {
+                doh_resolve(host).ok()
+            } else {
+                use std::net::ToSocketAddrs;
+                (host, 443).to_socket_addrs().ok().and_then(|mut a| a.next()).map(|a| a.ip())
+            };
+            if let Some(ip) = ip {
+                let mut c = Conn::new(host, ip);
+                let body = json!({"chat_id": k.chat, "text": format!("[RHC {}] {teks}", k.label)}).to_string();
+                let _ = c.request(&format!("/bot{}/sendMessage", k.token), Some(&body), "", Duration::from_secs(15));
+            }
+        });
+    }
+}
+
+// ---------- dekode ABI ----------
+fn kata(data: &str, k: usize) -> &str {
+    let d = data.trim_start_matches("0x");
+    d.get(64 * k..64 * (k + 1)).unwrap_or("")
+}
+fn uint(w: &str) -> BigInt {
+    BigInt::parse_bytes(w.as_bytes(), 16).unwrap_or_default()
+}
+/// int256 two's complement (int128/int24 di ABI sudah sign-extend ke 256 bit)
+fn sint(w: &str) -> BigInt {
+    let v = uint(w);
+    if w.len() == 64 && w.as_bytes()[0] >= b'8' {
+        v - (BigInt::one() << 256)
+    } else {
+        v
+    }
+}
+fn alamat(t: &str) -> String {
+    format!("0x{}", &t[t.len().saturating_sub(40)..]).to_lowercase()
+}
+fn hexnum(v: &Value) -> f64 {
+    v.as_str().and_then(|s| u64::from_str_radix(s.trim_start_matches("0x"), 16).ok()).map(|x| x as f64).unwrap_or(f64::NAN)
+}
+fn big_f64(b: &BigInt) -> f64 {
+    b.to_string().parse::<f64>().unwrap_or(f64::NAN)
+}
+
+#[derive(Clone)]
+pub(crate) enum Ev {
+    Init { id: String, c0: String, c1: String, fee: f64, ts: i64, hooks: String, blk: f64, li: f64 },
+    Swap { id: String, blk: f64, li: f64, tx: String, a0: BigInt, a1: BigInt, sp: BigInt, l: BigInt, tick: i64, fee: f64 },
+    Mod { id: String, blk: f64, li: f64, tlo: i64, thi: i64, d: BigInt },
+}
+impl Ev {
+    fn blk(&self) -> f64 {
+        match self {
+            Ev::Init { blk, .. } | Ev::Swap { blk, .. } | Ev::Mod { blk, .. } => *blk,
+        }
+    }
+    fn li(&self) -> f64 {
+        match self {
+            Ev::Init { li, .. } | Ev::Swap { li, .. } | Ev::Mod { li, .. } => *li,
+        }
+    }
+    /// Deliver a late log at another position (see loggate.rs); the store records it where the engine saw it.
+    fn restamp(&mut self, at_blk: f64, at_li: f64) {
+        match self {
+            Ev::Init { blk, li, .. } | Ev::Swap { blk, li, .. } | Ev::Mod { blk, li, .. } => {
+                *blk = at_blk;
+                *li = at_li;
+            }
+        }
+    }
+    pub(crate) fn csv(&self) -> (&'static str, String) {
+        match self {
+            Ev::Swap { id, blk, li, tx, a0, a1, sp, l, tick, fee } => ("swaps.csv", format!("{id},{blk},{li},{tx},{a0},{a1},{sp},{l},{tick},{fee}")),
+            Ev::Init { id, c0, c1, fee, ts, hooks, blk, li } => ("pools.csv", format!("{id},{c0},{c1},{fee},{ts},{hooks},{blk},{li}")),
+            Ev::Mod { id, blk, li, tlo, thi, d } => ("liq.csv", format!("{id},{blk},{li},{tlo},{thi},{d}")),
+        }
+    }
+}
+pub(crate) fn dekode(l: &Value) -> Option<Ev> {
+    let tp: Vec<&str> = l["topics"].as_array()?.iter().filter_map(|t| t.as_str()).collect();
+    let data = l["data"].as_str().unwrap_or("0x");
+    let blk = hexnum(&l["blockNumber"]);
+    let li = hexnum(&l["logIndex"]);
+    let id = tp.get(1)?.to_lowercase();
+    match *tp.first()? {
+        T_SWAP => Some(Ev::Swap {
+            id,
+            blk,
+            li,
+            tx: l["transactionHash"].as_str().unwrap_or("").to_string(),
+            a0: sint(kata(data, 0)),
+            a1: sint(kata(data, 1)),
+            sp: uint(kata(data, 2)),
+            l: uint(kata(data, 3)),
+            tick: sint(kata(data, 4)).to_i64().unwrap_or(0),
+            fee: big_f64(&uint(kata(data, 5))),
+        }),
+        T_INIT => Some(Ev::Init {
+            id,
+            c0: alamat(tp.get(2)?),
+            c1: alamat(tp.get(3)?),
+            fee: big_f64(&uint(kata(data, 0))),
+            ts: sint(kata(data, 1)).to_i64().unwrap_or(0),
+            hooks: alamat(kata(data, 2)),
+            blk,
+            li,
+        }),
+        T_MOD => Some(Ev::Mod { id, blk, li, tlo: sint(kata(data, 0)).to_i64().unwrap_or(0), thi: sint(kata(data, 1)).to_i64().unwrap_or(0), d: sint(kata(data, 2)) }),
+        _ => None,
+    }
+}
+fn baris_ke_ev(f: &str, l: &str) -> Option<Ev> {
+    let q: Vec<&str> = l.trim().split(',').collect();
+    if q.len() < 6 || q[0] == "pool_id" {
+        return None;
+    }
+    let n = |i: usize| q.get(i).and_then(|s| s.parse::<f64>().ok()).unwrap_or(f64::NAN);
+    let b = |i: usize| q.get(i).and_then(|s| port_engine::engine::parse_bigint(s).ok());
+    let e = match f {
+        "pools.csv" if q.len() >= 8 => Some(Ev::Init { id: q[0].into(), c0: q[1].into(), c1: q[2].into(), fee: n(3), ts: n(4) as i64, hooks: q[5].into(), blk: n(6), li: n(7) }),
+        "swaps.csv" if q.len() >= 10 => match (b(4), b(5), b(6), b(7)) {
+            (Some(a0), Some(a1), Some(sp), Some(lq)) => Some(Ev::Swap { id: q[0].into(), blk: n(1), li: n(2), tx: q[3].into(), a0, a1, sp, l: lq, tick: n(8) as i64, fee: n(9) }),
+            _ => None,
+        },
+        "liq.csv" => b(5).map(|d| Ev::Mod { id: q[0].into(), blk: n(1), li: n(2), tlo: n(3) as i64, thi: n(4) as i64, d }),
+        _ => None,
+    }?;
+    if e.blk().is_finite() && e.li().is_finite() {
+        Some(e)
+    } else {
+        None
+    }
+}
+
+/// Rows an older version stored twice (see loggate.rs) are replayed once. Only rows of the same block are compared.
+fn once_each(g: Vec<Ev>, dropped: &mut u64) -> Vec<Ev> {
+    let mut seen = HashSet::new();
+    g.into_iter()
+        .filter(|e| {
+            let first = seen.insert(e.csv());
+            *dropped += u64::from(!first);
+            first
+        })
+        .collect()
+}
+
+/// Pembaca store MENGALIR: menggabungkan 3 berkas CSV (masing-masing berurutan waktu) menurut (blok, log).
+/// Memori tetap kecil walau store berisi berbulan-bulan data. Baris rusak dilewati.
+struct Aliran {
+    src: Vec<(&'static str, std::io::Lines<BufReader<std::fs::File>>, Option<Ev>)>,
+}
+impl Aliran {
+    fn buka(dir: &Path) -> Aliran {
+        let mut src = Vec::new();
+        for f in ["pools.csv", "swaps.csv", "liq.csv"] {
+            if let Ok(fh) = std::fs::File::open(dir.join(f)) {
+                let mut it = BufReader::with_capacity(1 << 20, fh).lines();
+                let first = Self::maju(f, &mut it);
+                src.push((f, it, first));
+            }
+        }
+        Aliran { src }
+    }
+    fn maju(f: &str, it: &mut std::io::Lines<BufReader<std::fs::File>>) -> Option<Ev> {
+        for l in it.by_ref().map_while(Result::ok) {
+            if let Some(e) = baris_ke_ev(f, &l) {
+                return Some(e);
+            }
+        }
+        None
+    }
+    fn berikut(&mut self) -> Option<Ev> {
+        let mut best: Option<usize> = None;
+        for (i, s) in self.src.iter().enumerate() {
+            if let Some(e) = &s.2 {
+                let lebih_awal = match best.and_then(|b| self.src[b].2.as_ref()) {
+                    None => true,
+                    Some(o) => (e.blk(), e.li()) < (o.blk(), o.li()),
+                };
+                if lebih_awal {
+                    best = Some(i);
+                }
+            }
+        }
+        let i = best?;
+        let f = self.src[i].0;
+        let nxt = Self::maju(f, &mut self.src[i].1);
+        std::mem::replace(&mut self.src[i].2, nxt)
+    }
+}
+
+// ---------- pengecekan menit-1 (thread) ----------
+struct HasilCek {
+    pool: String,
+    k: Option<Keputusan>,
+    err: Option<String>,
+}
+
+fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, meta: PoolMeta, token: String, sw: Vec<Swap>, eth: f64) -> Result<Keputusan, String> {
+    let init = meta.init;
+    // KLASIFIKASI DULU: saham ter-tokenisasi & token yang gagal diklasifikasi tidak boleh dibeli
+    let (rpc3, tok3, kc3) = (rpc.clone(), token.clone(), kc.clone());
+    let th_kelas = std::thread::spawn(move || -> Option<String> {
+        if let Some(k) = kc3.lock().unwrap().peta.get(&tok3).cloned() {
+            return if k == Kelas::Meme { None } else { Some(format!("aset {}", k.nama())) };
+        }
+        match kelas::klasifikasi(&rpc3, &tok3) {
+            Ok(k) => {
+                kc3.lock().unwrap().peta.insert(tok3, k);
+                if k == Kelas::Meme { None } else { Some(format!("aset {}", k.nama())) }
+            }
+            Err(_) => Some("klasifikasi gagal".into()),
+        }
+    });
+    let hx = |b: f64| format!("0x{:x}", b as u64);
+    // dev pembuat token (pengirim transaksi mint) — paralel dengan pengambilan transfer menit-1
+    let (rpc2, tok2) = (rpc.clone(), token.clone());
+    let th_dev = std::thread::spawn(move || -> Option<String> {
+        // first mint in [init - 36000, init + 600], in 1000-block parts (private RPCs cap the getLogs range)
+        let mint = rpc2.logs_ranged(&json!({"address": tok2, "topics": [T_TRANSFER, ZERO32]}), (init - 36000.0).max(0.0) as u64, (init + 600.0) as u64, 1000, 5000).ok()?;
+        let h = mint.first()?["transactionHash"].as_str()?.to_string();
+        let tx = rpc2.quick("eth_getTransactionByHash", json!([h]), 2000).ok()?;
+        tx["from"].as_str().map(|s| s.to_lowercase())
+    });
+    let logs = rpc.quick("eth_getLogs", json!([{"address": token, "topics": [T_TRANSFER], "fromBlock": hx(init), "toBlock": hx(init + 600.0)}]), 3000)?;
+    let mut tr = Vec::new();
+    for l in logs.as_array().ok_or("transfer bukan array")? {
+        let tp: Vec<&str> = l["topics"].as_array().map(|a| a.iter().filter_map(|t| t.as_str()).collect()).unwrap_or_default();
+        if tp.len() < 3 {
+            continue;
+        }
+        let amt = uint(l["data"].as_str().unwrap_or("0x0").trim_start_matches("0x"));
+        tr.push(port_features::Transfer { blk: hexnum(&l["blockNumber"]), li: hexnum(&l["logIndex"]), from: alamat(tp[1]), to: alamat(tp[2]), amt: big_f64(&amt) });
+    }
+    let fm = port_features::Meta { c0: meta.c0.clone(), c1: meta.c1.clone(), fee: meta.fee, hooks: meta.hooks.clone(), init };
+    let fsw: Vec<port_features::Swap> = sw.iter().filter(|x| x.blk <= init + 600.0).map(|x| port_features::Swap { blk: x.blk, li: x.li, a0: x.a0, a1: x.a1, sqrt_p: x.sqrt_p, l: x.l }).collect();
+    let fe = port_features::features(&fm, &fsw, &tr, eth);
+    // WAJIB -1 untuk nilai hilang (model dilatih dengan fillna(-1))
+    let x: Vec<f64> = cat.feats.iter().map(|k| fe.get(k).filter(|v| v.is_finite()).unwrap_or(-1.0)).collect();
+    let score = cat.predict(&x);
+    let q1 = meta.c1 == NATIVE;
+    let jual = fsw.iter().filter(|s| (if q1 { s.a0 } else { s.a1 }) < 0.0).count() as i64;
+    let dev = th_dev.join().ok().flatten();
+    let dikecualikan = th_kelas.join().unwrap_or(Some("klasifikasi gagal".into()));
+    Ok(Keputusan { score, ml_ok: false, dev, jual_m1: jual, lp_m1: fe.get("lp_m1").unwrap_or(f64::NAN), feats: x, dikecualikan })
+}
+
+fn muat_model_filter(bot_dir: &str) -> Result<(CatModel, f64), String> {
+    let cat = CatModel::load(&format!("{bot_dir}/filter_cat.json")).map_err(|e| e.to_string())?;
+    let thr0 = serde_json::from_str::<Value>(&std::fs::read_to_string(format!("{bot_dir}/filter_cat.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?["thr_start"]
+        .as_f64()
+        .unwrap_or(0.195);
+    cek_parity(bot_dir, "filter", &|x| cat.predict(x), "filter_cat_check.json")?;
+    Ok((cat, thr0))
+}
+fn cek_parity(bot_dir: &str, nama: &str, pred: &dyn Fn(&[f64]) -> f64, f: &str) -> Result<(), String> {
+    let ck: Value = serde_json::from_str(&std::fs::read_to_string(format!("{bot_dir}/{f}")).map_err(|e| format!("{f}: {e}"))?).map_err(|e| e.to_string())?;
+    let (xs, ps) = (ck["X"].as_array().ok_or("X")?, ck["p"].as_array().ok_or("p")?);
+    let mut mx = 0.0f64;
+    for (x, p) in xs.iter().zip(ps) {
+        let xv: Vec<f64> = x.as_array().map(|a| a.iter().map(|e| e.as_f64().unwrap_or(f64::NAN)).collect()).unwrap_or_default();
+        mx = mx.max((pred(&xv) - p.as_f64().unwrap_or(f64::NAN)).abs());
+    }
+    if !(mx <= 1e-9) || xs.is_empty() {
+        return Err(format!("model {nama} Rust != Python ({mx:e})"));
+    }
+    eprintln!("model {nama}: parity {mx:.2e} OK ({} sampel)", xs.len());
+    Ok(())
+}
+fn mtime(p: &str) -> Option<SystemTime> {
+    std::fs::metadata(p).and_then(|m| m.modified()).ok()
+}
+
+// ---------- bot ----------
+struct Live {
+    cfg: Cfg,
+    bot_dir: String,
+    dir: PathBuf,
+    store: PathBuf,
+    log: Log,
+    kabar: Kabar,
+    m: Mesin,
+    eth: f64,
+    replaying: bool,
+    salin_ke: Option<PathBuf>,
+    sudah_dicek: HashSet<String>,
+    keputusan_simpan: VecDeque<(f64, String, Value)>,
+    tx: mpsc::Sender<HasilCek>,
+    rx: mpsc::Receiver<HasilCek>,
+    rpc: Rpc,
+    cat: Arc<CatModel>,
+    cat_mtime: Option<SystemTime>,
+    last: f64,
+    tip: f64,
+    cp_blk: f64,
+    ok_poll: Instant,
+    aman: bool,
+    pulih_sejak: Option<Instant>,
+    n_basi: u64,
+    n_cek_gagal: u64,
+    n_label: u64,
+    mulai: Instant,
+    last_err: String,
+    killed_dikabarkan: bool,
+    ringkas_t: Instant,
+    // radar (jalur terpisah dari trading)
+    radar: Radar,
+    kc: Arc<Mutex<kelas::Cache>>,
+    minta_tx: mpsc::Sender<Minta>,
+    hasil_rx: mpsc::Receiver<HasilLatar>,
+    ds_mau: Arc<Mutex<Vec<String>>>,
+    // live execution (None = paper only)
+    exec: Option<crate::exec::ExecHandle>,
+    pool_keys: HashMap<String, crate::exec::uniswap::Key>,
+    // exactly-once log delivery and the largest getLogs block range the endpoint accepts
+    gate: crate::loggate::LogGate,
+    range_cap: u64,
+    t_err_log: Instant,
+    // blocks processed in MODE AMAN while live (from decisions.jsonl), replayed identically
+    aman_simpan: HashSet<u64>,
+}
+
+/// Wait after a failed poll: doubles from 0.25 s up to 3 s, back to 0.25 s after a good poll (a rate limit costs a
+/// fraction of a second of data, not a fixed 3 s).
+const POLL_BACKOFF_MIN: Duration = Duration::from_millis(250);
+const POLL_BACKOFF_MAX: Duration = Duration::from_secs(3);
+
+/// Pekerjaan latar radar (RPC baca saja)
+enum Minta {
+    Meta(String, Option<MetaPool>),
+    Kelas(Vec<String>),
+    Desimal(Vec<String>),
+    Pabrik(String, bool, u64),
+    BootV4(u64, u64),
+}
+enum HasilLatar {
+    Meta(String, Option<MetaPool>),
+    Kelas(Vec<String>, Result<Vec<(String, Kelas)>, String>),
+    Desimal(Vec<String>, Option<Vec<(String, f64)>>),
+    MetaBanyak(Vec<(String, MetaPool)>, String),
+    Ds(Vec<Value>, Vec<(String, f64, bool)>),
+}
+
+impl Live {
+    fn simpan_event(&self, e: &Ev) {
+        let dir = match (&self.salin_ke, self.replaying) {
+            (Some(d), true) => d.clone(),
+            (_, true) => return,
+            _ => self.store.clone(),
+        };
+        let (f, l) = e.csv();
+        let p = dir.join(f);
+        let baru = !p.exists();
+        if let Ok(mut fh) = std::fs::OpenOptions::new().create(true).append(true).open(&p) {
+            if baru {
+                let h = match f {
+                    "swaps.csv" => HEAD_SWAP,
+                    "pools.csv" => HEAD_POOL,
+                    _ => HEAD_LIQ,
+                };
+                let _ = writeln!(fh, "{h}");
+            }
+            let _ = writeln!(fh, "{l}");
+        }
+    }
+    /// Terapkan hasil cek (urutan kedatangan). Disimpan ke decisions.jsonl agar putar ulang identik.
+    fn terapkan(&mut self, blk: f64, pool: &str, k: Keputusan) {
+        let mut a = self.m.akun.lock().unwrap();
+        a.terima_skor(pool, k.clone());
+        let ok = a.kep.get(pool).map_or(false, |x| x.ml_ok);
+        let n = a.recent.len();
+        drop(a);
+        if !self.replaying {
+            let d = json!({"pool": pool, "pada": blk, "score": k.score, "ml_ok": ok, "dev": k.dev, "jual_m1": k.jual_m1, "lp_m1": k.lp_m1, "feats": k.feats, "dikecualikan": k.dikecualikan, "t": sekarang_iso()});
+            tambah(&self.dir.join("decisions.jsonl"), &d.to_string());
+            self.log.tulis(&format!(
+                "SARING {} | skor {:.3} {} | dev {} | penjual menit-1 {} | LP ${:.0} | skor ke-{}",
+                &pool[..10.min(pool.len())],
+                k.score,
+                if k.dikecualikan.is_some() { "DIKECUALIKAN" } else if ok { "LOLOS" } else { "tolak(ml)" },
+                k.dev.as_deref().map(|d| &d[..8.min(d.len())]).unwrap_or("?"),
+                k.jual_m1,
+                k.lp_m1,
+                n
+            ));
+        }
+    }
+    fn mulai_cek(&mut self, blk: f64) {
+        let perlu: Vec<String> = self
+            .m
+            .sims
+            .iter()
+            .filter(|(id, s)| !id.starts_with("b:") && s.ei < 0 && !s.skip && blk >= s.m.init + 600.0 && !self.sudah_dicek.contains(*id))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in perlu {
+            self.sudah_dicek.insert(id.clone());
+            if self.replaying {
+                continue; // putar ulang: keputusan tersimpan diterapkan pada blok yang sama seperti saat live
+            }
+            let s = &self.m.sims[&id];
+            if self.tip - (s.m.init + 630.0) > self.cfg.fresh_blocks {
+                self.n_basi += 1;
+                continue; // pasti ditolak "data basi" -> jangan habiskan RPC
+            }
+            let (rpc, meta, sw, eth) = (self.rpc.clone(), s.m.clone(), s.sw.clone(), s.eth_usd);
+            let token = if meta.c0 == NATIVE { meta.c1.clone() } else { meta.c0.clone() };
+            let (tx, cat, pool, kc) = (self.tx.clone(), self.cat.clone(), id.clone(), self.kc.clone());
+            std::thread::spawn(move || {
+                let r = cek_koin(&rpc, &cat, kc, meta, token, sw, eth);
+                let _ = match r {
+                    Ok(k) => tx.send(HasilCek { pool, k: Some(k), err: None }),
+                    Err(e) => tx.send(HasilCek { pool, k: None, err: Some(e) }),
+                };
+            });
+        }
+    }
+    fn ambil_hasil(&mut self, blk: f64) {
+        while let Ok(h) = self.rx.try_recv() {
+            match h.k {
+                Some(k) => self.terapkan(blk, &h.pool, k),
+                None => {
+                    self.n_cek_gagal += 1;
+                    self.log.tulis(&format!("CEK GAGAL {} dilewati ({})", &h.pool[..10.min(h.pool.len())], h.err.unwrap_or_default().chars().take(50).collect::<String>()));
+                }
+            }
+        }
+    }
+    fn proses_blok(&mut self, blk: f64, evs: &[Ev]) {
+        let mut per: BTreeMap<String, (Vec<BigInt>, Vec<Swap>)> = BTreeMap::new();
+        for e in evs {
+            match e {
+                Ev::Init { id, c0, c1, fee, ts, hooks, .. } => {
+                    self.simpan_event(e);
+                    let m = PoolMeta { id: id.clone(), c0: c0.clone(), c1: c1.clone(), fee: *fee, hooks: hooks.clone(), init: blk };
+                    let tracked = self.m.pool_baru(m, self.eth);
+                    if tracked && self.exec.is_some() {
+                        if let (Ok(a0), Ok(a1), Ok(h)) = (c0.parse(), c1.parse(), hooks.parse()) {
+                            let key = crate::exec::uniswap::Key { currency0: a0, currency1: a1, fee: *fee as u32, tick_spacing: *ts as i32, hooks: h };
+                            self.pool_keys.insert(id.clone(), key);
+                        }
+                    }
+                }
+                Ev::Swap { id, sp, .. } if id == ETH_POOL => {
+                    self.simpan_event(e);
+                    let s = big_f64(sp) / Q96;
+                    let baru = s * s * 1e12;
+                    // batas kewajaran: satu swap manipulatif di pool ETH/USDG tidak boleh menggeser seluruh valuasi
+                    if baru > 500.0 && baru < 20000.0 && (!self.eth.is_finite() || (baru / self.eth - 1.0).abs() < 0.10) {
+                        self.eth = baru;
+                        for s in self.m.sims.values_mut() {
+                            s.eth_usd = baru;
+                        }
+                    }
+                }
+                Ev::Swap { id, li, tx, a0, a1, sp, l, fee, .. } => {
+                    if !self.m.sims.contains_key(id) {
+                        continue;
+                    }
+                    self.simpan_event(e);
+                    per.entry(id.clone()).or_default().1.push(Swap { blk, li: *li, tx: tx.clone(), a0: big_f64(a0), a1: big_f64(a1), sqrt_p: big_f64(sp) / Q96, l: big_f64(l), fee: *fee });
+                }
+                Ev::Mod { id, d, .. } => {
+                    if !self.m.sims.contains_key(id) {
+                        continue;
+                    }
+                    self.simpan_event(e);
+                    per.entry(id.clone()).or_default().0.push(d.clone());
+                }
+            }
+        }
+        if self.replaying {
+            // keputusan tersimpan diterapkan pada blok yang sama seperti saat live
+            while self.keputusan_simpan.front().map_or(false, |x| x.0 <= blk) {
+                let (_, pool, v) = self.keputusan_simpan.pop_front().unwrap();
+                let k = Keputusan {
+                    score: v["score"].as_f64().unwrap_or(f64::NAN),
+                    ml_ok: false,
+                    dev: v["dev"].as_str().map(|s| s.to_string()),
+                    jual_m1: v["jual_m1"].as_i64().unwrap_or(0),
+                    lp_m1: v["lp_m1"].as_f64().unwrap_or(f64::NAN),
+                    feats: v["feats"].as_array().map(|a| a.iter().map(|x| x.as_f64().unwrap_or(-1.0)).collect()).unwrap_or_default(),
+                    dikecualikan: v["dikecualikan"].as_str().map(|s| s.to_string()),
+                };
+                self.terapkan(blk, &pool, k);
+            }
+        } else {
+            self.ambil_hasil(blk);
+        }
+        {
+            let mut a = self.m.akun.lock().unwrap();
+            a.tip = if self.replaying { blk } else { self.tip };
+            a.live = !self.replaying;
+            a.replay = self.replaying;
+            // MODE AMAN: RPC tidak sehat -> tidak boleh membeli (posisi terbuka tetap dikelola). Each such block is
+            // recorded in decisions.jsonl, so a replay drops the same decisions at the same blocks.
+            let aman = if self.replaying { self.aman_simpan.contains(&(blk as u64)) } else { self.aman };
+            if aman {
+                let ids: Vec<String> = self.m.sims.iter().filter(|(k, s)| !k.starts_with("b:") && s.ei < 0).map(|(k, _)| k.clone()).collect();
+                for id in ids {
+                    a.kep.remove(&id);
+                }
+                if !self.replaying {
+                    tambah(&self.dir.join("decisions.jsonl"), &json!({"aman": blk, "t": sekarang_iso()}).to_string());
+                }
+            }
+        }
+        self.m.blok(blk, &per);
+        self.mulai_cek(blk);
+        self.lapor();
+    }
+    /// Hand the account's new orders to the executor first (lowest latency). Replayed history is never executed.
+    fn kirim_order(&mut self) {
+        if self.m.orders.is_empty() {
+            return;
+        }
+        let orders: Vec<ModelOrder> = self.m.orders.drain(..).collect();
+        let Some(ex) = &self.exec else { return };
+        if self.replaying {
+            return;
+        }
+        let now = Instant::now();
+        let ps = |s: Option<SwapState>| s.map(|s| crate::exec::amm::PoolState { sqrt_p: s.sqrt_p, liquidity: s.l, fee_pips: s.fee, blk: s.blk });
+        for o in orders {
+            let (pool, kind, state) = match o {
+                ModelOrder::Buy { pool, size_usd, lp_cap_usd, model_equity_usd, state } => (pool, crate::exec::OrderKind::Buy { size_usd, model_equity_usd, lp_cap_usd }, state),
+                ModelOrder::TakeProfit { pool, frac, state } => (pool, crate::exec::OrderKind::TakeProfit { frac }, state),
+                ModelOrder::Exit { pool, why, state } => (pool, crate::exec::OrderKind::Exit { why }, state),
+                ModelOrder::Closed { pool, reason, ret, state } => (pool, crate::exec::OrderKind::Closed { reason, ret }, state),
+            };
+            let key = self.pool_keys.get(&pool).copied();
+            let order = crate::exec::Order { pool, kind, key, state: ps(state), eth_usd: self.eth, created: now };
+            if !ex.submit(order) {
+                self.log.tulis("EXEC: executor thread is not running; order dropped");
+            }
+        }
+    }
+    fn lapor(&mut self) {
+        self.kirim_order();
+        for e in self.m.event_log.drain(..) {
+            if !self.replaying {
+                tambah(&self.dir.join("events.jsonl"), &e);
+            }
+        }
+        let selesai: Vec<_> = self.m.selesai.drain(..).collect();
+        for (t, r) in selesai {
+            if self.replaying {
+                continue;
+            }
+            tambah(&self.dir.join("trades.jsonl"), &t.to_json());
+            if let Some((pos, back)) = r {
+                self.log.tulis(&format!(
+                    "TUTUP {} {:+.0}% | akun ${:.2} -> ${:.2} ({:+.2}) | {:.0} mnt | {}",
+                    &t.pool[..10.min(t.pool.len())],
+                    100.0 * (t.ret - 1.0),
+                    pos,
+                    back,
+                    back - pos,
+                    t.hold,
+                    t.reason
+                ));
+            }
+        }
+        // label latihan: hasil simulasi bayangan + fitur menit-1 koin itu
+        let labels: Vec<_> = self.m.label_selesai.drain(..).collect();
+        if !labels.is_empty() && !self.replaying {
+            let a = self.m.akun.lock().unwrap();
+            let mut out = String::new();
+            for t in &labels {
+                if let Some(k) = a.kep.get(&t.pool) {
+                    if k.feats.len() == self.cat.feats.len() {
+                        let f: serde_json::Map<String, Value> = self.cat.feats.iter().cloned().zip(k.feats.iter().map(|v| json!(v))).collect();
+                        let j = json!({"pool": t.pool, "init": t.init, "decide": t.init + 600.0, "entry": t.entry_blk, "exit": t.exit_blk,
+                            "ret": t.ret, "reason": t.reason, "dev": k.dev, "jual_m1": k.jual_m1, "score": k.score, "f": f});
+                        out.push_str(&j.to_string());
+                        out.push('\n');
+                        self.n_label += 1;
+                    }
+                }
+            }
+            drop(a);
+            if !out.is_empty() {
+                if let Ok(mut fh) = std::fs::OpenOptions::new().create(true).append(true).open(self.dir.join("labels.jsonl")) {
+                    let _ = fh.write_all(out.as_bytes());
+                }
+            }
+        }
+    }
+    fn status(&mut self) {
+        let a = self.m.akun.lock().unwrap();
+        let killed = a.killed;
+        let j = json!({
+            "versi": VERSI, "updated": sekarang_iso(),
+            "mode": match self.kabar.label { "LIVE" => "LIVE (real transactions) — Rust engine", "SHADOW" => "SHADOW (simulated execution, no transactions) — Rust engine", _ => "KERTAS (tanpa transaksi) — mesin Rust" },
+            "last_block": self.last, "tip": self.tip, "lag_blocks": self.tip - self.last, "checkpoint_blok": self.cp_blk,
+            "rpc_diam_dtk": self.ok_poll.elapsed().as_secs(), "mode_aman": self.aman, "eth_usd": self.eth,
+            "pools_dipantau": self.m.sims.keys().filter(|k| !k.starts_with("b:")).count(), "uptime_menit": self.mulai.elapsed().as_secs() / 60, "last_error": self.last_err,
+            "akun": {
+                "modal_awal": self.cfg.start_usd, "kas": a.cash, "posisi_terbuka": a.open.len(),
+                "equity_harga_beli": a.ekuitas_beli(), "equity_harga_pasar": a.ekuitas_pasar(),
+                "drawdown_maks_pct": 100.0 * a.dd_max, "stop_darurat": a.killed, "kelly": a.kelly(),
+                "trade_dibeli": a.n_beli, "trade_selesai": a.n_tutup, "menang": a.n_menang,
+            },
+            "saringan": { "skor_tersimpan": a.recent.len(), "ambang_awal": a.thr0, "tolak": a.tolak, "data_basi": self.n_basi, "cek_gagal": self.n_cek_gagal },
+            "label_latihan_ditulis": self.n_label,
+            "log_gate": { "reread_ok": self.gate.stats.reread, "duplicate_dropped": self.gate.stats.duplicate, "outside_range_dropped": self.gate.stats.outside_range,
+                          "removed_dropped": self.gate.stats.removed, "late_delivered": self.gate.stats.late, "range_cap_blocks": self.range_cap },
+            "radar": { "pool_dikenal": self.radar.meta.len(), "swap_tercatat": self.radar.n_swap, "token_terklasifikasi": self.radar.kelas.len(), "label_radar": self.radar.n_label },
+            "setelan": { "MAX_POS": self.cfg.max_pos, "EXP_MAX": self.cfg.exp_max, "LP_CAP": self.cfg.lp_cap, "KELLY_MAKS": self.cfg.kelly_maks,
+                "KILL_DD": self.cfg.kill_dd, "QTHR": self.cfg.qthr, "DUMP_FRAC": self.cfg.dump_frac, "TRAIL_PUNCAK": self.cfg.trail, "TUTUP_SAAT_RUG": self.cfg.rug_exit },
+        });
+        let ringkas = format!(
+            "equity ${:.2} (kas ${:.2}, {} posisi) | {} trade, menang {} | DD maks {:.1}% | lag {} blok",
+            a.ekuitas_pasar(),
+            a.cash,
+            a.open.len(),
+            a.n_tutup,
+            a.n_menang,
+            100.0 * a.dd_max,
+            self.tip - self.last
+        );
+        let akun_json = a.ke_json().to_string();
+        drop(a);
+        tulis_aman(&self.dir.join("status.json"), &serde_json::to_string_pretty(&j).unwrap_or_default());
+        tulis_aman(&self.dir.join("account_rust.json"), &akun_json);
+        if killed && !self.killed_dikabarkan {
+            self.killed_dikabarkan = true;
+            self.kabar.kirim(format!("STOP DARURAT aktif (drawdown > {:.0}%). Bot berhenti membeli. {ringkas}", 100.0 * self.cfg.kill_dd));
+        }
+        if self.ringkas_t.elapsed() > Duration::from_secs(86400) {
+            self.ringkas_t = Instant::now();
+            self.kabar.kirim(format!("ringkasan harian: {ringkas}"));
+        }
+    }
+    /// Checkpoint hanya saat akun tanpa posisi & tanpa pesanan: cukup simpan akun (posisi kosong = tidak ada yang hilang).
+    fn coba_checkpoint(&mut self) {
+        if self.last - self.cp_blk < self.cfg.cp_tiap {
+            return;
+        }
+        let a = self.m.akun.lock().unwrap();
+        if !a.open.is_empty() || !a.pending.is_empty() {
+            return;
+        }
+        let j = json!({"block": self.last, "eth": self.eth, "akun": a.ke_json(), "t": sekarang_iso()});
+        drop(a);
+        tulis_aman(&self.dir.join("checkpoint.json"), &j.to_string());
+        self.cp_blk = self.last;
+        // bersihkan keputusan koin yang sudah tidak dipantau (memori tetap kecil)
+        let sims = &self.m.sims;
+        let mut a = self.m.akun.lock().unwrap();
+        let open: HashSet<String> = a.open.keys().cloned().collect();
+        a.kep.retain(|k, _| sims.contains_key(k) || sims.contains_key(&format!("b:{k}")) || open.contains(k));
+        a.mtm.retain(|k, _| open.contains(k));
+        drop(a);
+        self.pool_keys.retain(|k, _| sims.contains_key(k) || open.contains(k));
+    }
+    /// A failed poll: keep the error for status.json, log it at most every 10 s, then back off.
+    fn poll_error(&mut self, e: &str, backoff: &mut Duration) {
+        self.last_err = format!("{}: {e}", self.rpc.current_host()).chars().take(160).collect();
+        if self.t_err_log.elapsed() > Duration::from_secs(10) {
+            self.t_err_log = Instant::now();
+            self.log.tulis(&format!("error: {}", self.last_err));
+        }
+        std::thread::sleep(*backoff);
+        *backoff = (*backoff * 2).min(POLL_BACKOFF_MAX);
+    }
+    /// One getLogs answer for `[from, to]` (every block `<= last` already delivered) -> the events to deliver: each
+    /// chain log exactly once; logs a lagging node returned only now go first into block `last + 1`, in chain order.
+    fn terima_log(&mut self, logs: &[Value], from: u64, last: u64, to: u64) -> Vec<Ev> {
+        use crate::loggate::{late_log_index, Admit};
+        let mut fresh = Vec::new();
+        let mut late = Vec::new();
+        for l in logs {
+            let (blk, li) = (hexnum(&l["blockNumber"]), hexnum(&l["logIndex"]));
+            if !(blk.is_finite() && li.is_finite() && blk >= 0.0 && li >= 0.0) {
+                continue;
+            }
+            let removed = l["removed"].as_bool().unwrap_or(false);
+            match self.gate.classify(blk as u64, li as u64, removed, from, last, to) {
+                Admit::New => fresh.extend(dekode(l)),
+                Admit::Late => late.extend(dekode(l)),
+                Admit::Drop => {}
+            }
+        }
+        if !late.is_empty() {
+            late.sort_by(|a, b| a.blk().partial_cmp(&b.blk()).unwrap().then(a.li().partial_cmp(&b.li()).unwrap()));
+            let n = late.len();
+            self.log.tulis(&format!("log gate: {n} log(s) from block {} on that a lagging RPC node had not returned are delivered at block {}", late[0].blk(), last + 1));
+            for (rank, e) in late.iter_mut().enumerate() {
+                e.restamp((last + 1) as f64, late_log_index(rank, n));
+            }
+            fresh.extend(late);
+        }
+        fresh
+    }
+    fn proses_daftar(&mut self, mut ev: Vec<Ev>) {
+        ev.sort_by(|a, b| a.blk().partial_cmp(&b.blk()).unwrap().then(a.li().partial_cmp(&b.li()).unwrap()));
+        let mut i = 0;
+        while i < ev.len() {
+            let b = ev[i].blk();
+            let mut j = i;
+            while j < ev.len() && ev[j].blk() == b {
+                j += 1;
+            }
+            let grp: Vec<Ev> = ev[i..j].to_vec();
+            self.proses_blok(b, &grp);
+            i = j;
+        }
+    }
+    fn cek_rpc_sehat(&mut self) {
+        let diam = self.ok_poll.elapsed();
+        if diam > Duration::from_secs(60) {
+            if !self.aman {
+                self.aman = true;
+                self.pulih_sejak = None;
+                let s = format!("MODE AMAN AKTIF: RPC tidak sehat {} dtk. BERHENTI MEMBELI. Posisi terbuka tetap dipantau.", diam.as_secs());
+                self.log.tulis(&s);
+                self.kabar.kirim(s);
+            }
+        } else if self.aman {
+            match self.pulih_sejak {
+                None => self.pulih_sejak = Some(Instant::now()),
+                Some(t) if t.elapsed() > Duration::from_secs(30) => {
+                    self.aman = false;
+                    self.log.tulis("MODE AMAN SELESAI: RPC sehat kembali. Boleh membeli lagi.");
+                    self.kabar.kirim("RPC sehat kembali, mode aman selesai.".into());
+                }
+                _ => {}
+            }
+        }
+    }
+    /// Umpan radar dengan event v4 (setelah jalur trading memprosesnya) — radar tidak memengaruhi trading.
+    fn radar_v4(&mut self, ev: &[Ev]) {
+        self.radar.eth = self.eth;
+        if self.radar.mulai_blk.is_nan() {
+            self.radar.mulai_blk = self.last;
+        }
+        for e in ev {
+            match e {
+                Ev::Init { id, c0, c1, fee, blk, .. } => self.radar.v4_lahir(id, c0, c1, *fee, *blk),
+                Ev::Swap { id, blk, a0, a1, sp, l, tx, .. } if id != ETH_POOL => self.radar.v4_swap(id, *blk, big_f64(a0), big_f64(a1), big_f64(sp), big_f64(l), tx),
+                _ => {}
+            }
+        }
+    }
+    fn radar_latar(&mut self) {
+        while let Ok(h) = self.hasil_rx.try_recv() {
+            match h {
+                HasilLatar::Meta(p, Some(m)) => self.radar.meta_satu(p, m),
+                HasilLatar::Meta(p, None) => self.radar.lupakan_meta(&p),
+                HasilLatar::Kelas(_, Ok(v)) => {
+                    let mut kc = self.kc.lock().unwrap();
+                    for (t, k) in v {
+                        self.radar.kelas.insert(t.clone(), k);
+                        kc.peta.insert(t, k);
+                    }
+                }
+                HasilLatar::Kelas(t, Err(_)) => {
+                    for x in t {
+                        self.radar.lupakan_kelas(&x);
+                    }
+                }
+                HasilLatar::Desimal(_, Some(v)) => self.radar.desimal_masuk(v),
+                HasilLatar::Desimal(t, None) => {
+                    for x in t {
+                        self.radar.lupakan_desimal(&x);
+                    }
+                }
+                HasilLatar::MetaBanyak(v, asal) => {
+                    self.log.tulis(&format!("radar: {} meta {} dimuat sekaligus", v.len(), asal));
+                    self.radar.meta_banyak(v);
+                }
+                HasilLatar::Ds(pairs, tanda) => {
+                    let ms = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as f64).unwrap_or(0.0);
+                    for p in &pairs {
+                        self.radar.gabung_ds(p, ms);
+                    }
+                    for (t, b, pr) in tanda {
+                        self.radar.tandai_token_ds(&t, b, pr);
+                    }
+                }
+            }
+        }
+        // kelas dari cache bersama (hasil cek trading) ikut dipakai radar
+        {
+            let kc = self.kc.lock().unwrap();
+            for (t, k) in kc.peta.iter() {
+                self.radar.kelas.entry(t.clone()).or_insert(*k);
+            }
+        }
+        // pabrik baru -> semua pool-nya diambil sekaligus (sekali per pabrik)
+        while let Some((f, v3)) = self.radar.perlu_pabrik.pop_front() {
+            let _ = self.minta_tx.send(Minta::Pabrik(f, v3, self.last as u64));
+        }
+        for _ in 0..6 {
+            let Some(p) = self.radar.perlu_meta.pop_front() else { break };
+            let lama = self.radar.meta.get(&p).cloned();
+            let _ = self.minta_tx.send(Minta::Meta(p, lama));
+        }
+        for _ in 0..3 {
+            let t: Vec<String> = (0..50).filter_map(|_| self.radar.perlu_desimal.pop_front()).collect();
+            if t.is_empty() {
+                break;
+            }
+            let _ = self.minta_tx.send(Minta::Desimal(t));
+        }
+        for _ in 0..2 {
+            let t: Vec<String> = (0..50).filter_map(|_| self.radar.perlu_kelas.pop_front()).filter(|t| !self.radar.kelas.contains_key(t)).collect();
+            if t.is_empty() {
+                break;
+            }
+            let _ = self.minta_tx.send(Minta::Kelas(t));
+        }
+        let ms = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as f64).unwrap_or(0.0);
+        *self.ds_mau.lock().unwrap() = self.radar.perlu_ds(ms, 30);
+    }
+    /// Model filter baru (dari latih ulang otomatis) dimuat hanya kalau lolos cek kesamaan Rust vs Python.
+    fn cek_model_baru(&mut self) {
+        let p = format!("{}/filter_cat.json", self.bot_dir);
+        let t = mtime(&p);
+        if t.is_none() || t == self.cat_mtime {
+            return;
+        }
+        self.cat_mtime = t;
+        match muat_model_filter(&self.bot_dir) {
+            Ok((cat, thr0)) => {
+                let s = format!("MODEL FILTER BARU dimuat: {} pohon, ambang awal {:.3} (cek kesamaan lolos)", cat.trees.len(), thr0);
+                self.cat = Arc::new(cat);
+                self.m.akun.lock().unwrap().thr0 = thr0;
+                self.log.tulis(&s);
+                self.kabar.kirim(s);
+            }
+            Err(e) => self.log.tulis(&format!("model filter baru DITOLAK ({e}); model lama tetap dipakai")),
+        }
+    }
+}
+
+/// Thread DEX Screener (sumber terindeks, untuk penemuan & pengayaan — BUKAN untuk waktu eksekusi).
+fn ds_loop(tx: mpsc::Sender<HasilLatar>, mau: Arc<Mutex<Vec<String>>>, doh: bool) {
+    let host = "api.dexscreener.com";
+    let mut conn: Option<Conn> = None;
+    let mut t_prof: Option<Instant> = None;
+    loop {
+        if conn.is_none() {
+            let ip = if doh {
+                doh_resolve(host).ok()
+            } else {
+                use std::net::ToSocketAddrs;
+                (host, 443).to_socket_addrs().ok().and_then(|mut a| a.next()).map(|a| a.ip())
+            };
+            conn = ip.map(|ip| Conn::new(host, ip));
+        }
+        if let Some(c) = conn.as_mut() {
+            let mut get = |path: &str| -> Option<Value> { c.request(path, None, "accept: application/json\r\n", Duration::from_secs(15)).ok().and_then(|t| serde_json::from_str(&t).ok()) };
+            let mut tanda: Vec<(String, f64, bool)> = Vec::new();
+            if t_prof.map_or(true, |t| t.elapsed() > Duration::from_secs(60)) {
+                t_prof = Some(Instant::now());
+                for ep in ["/token-profiles/latest/v1", "/token-boosts/latest/v1", "/token-boosts/top/v1"] {
+                    if let Some(Value::Array(a)) = get(ep) {
+                        for x in a.iter().filter(|x| x["chainId"].as_str() == Some("robinhood")) {
+                            if let Some(t) = x["tokenAddress"].as_str() {
+                                let b = x["totalAmount"].as_f64().or(x["amount"].as_f64()).unwrap_or(0.0);
+                                tanda.push((t.to_lowercase(), b, ep.contains("profiles")));
+                            }
+                        }
+                    }
+                }
+            }
+            let mut daftar: Vec<String> = mau.lock().unwrap().clone();
+            for (t, _, _) in &tanda {
+                if !daftar.contains(t) {
+                    daftar.push(t.clone());
+                }
+            }
+            daftar.truncate(30);
+            let mut pairs = Vec::new();
+            if !daftar.is_empty() {
+                if let Some(Value::Array(a)) = get(&format!("/tokens/v1/robinhood/{}", daftar.join(","))) {
+                    pairs = a;
+                }
+            }
+            if !pairs.is_empty() || !tanda.is_empty() {
+                if tx.send(HasilLatar::Ds(pairs, tanda)).is_err() {
+                    return;
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_secs(20));
+    }
+}
+
+pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), String> {
+    // execution settings are validated before anything else runs (fail closed on a bad live configuration)
+    let exec_cfg = crate::exec::config::ExecConfig::load(env_file, bot_dir, &cfg.rpc_urls, cfg.doh, cfg.max_pos)?;
+    let label: &'static str = match exec_cfg.mode {
+        crate::exec::config::Mode::Off => "kertas",
+        crate::exec::config::Mode::Shadow => "SHADOW",
+        crate::exec::config::Mode::Live => "LIVE",
+    };
+    let dir = PathBuf::from(bot_dir).join("rust_live");
+    let store = dir.join("store");
+    std::fs::create_dir_all(&store).map_err(|e| e.to_string())?;
+    let log = Log { path: dir.join("live.log"), n: std::cell::Cell::new(0) };
+    if dir.join("stop.txt").exists() {
+        return Err("stop.txt ada — hapus dulu untuk menjalankan bot".into());
+    }
+    let lp = dir.join("live.log");
+    std::panic::set_hook(Box::new(move |info| {
+        tambah(&lp, &format!("[{}] PANIK: {info}", &sekarang_iso()[..19]));
+    }));
+    // model + cek kesamaan model (WAJIB, sama dengan paper_live.js)
+    let (cat, thr0) = muat_model_filter(bot_dir)?;
+    let model = Model::load(&format!("{bot_dir}/danger_model.json"))?;
+    cek_parity(bot_dir, "p_bahaya", &|x| model.predict(x), "danger_check.json")?;
+    let model_up = Model::load(&format!("{bot_dir}/pnaik_model.json")).ok();
+    if let Some(mu) = &model_up {
+        cek_parity(bot_dir, "p_naik", &|x| mu.predict(x), "pnaik_check.json")?;
+    }
+    let rpc = Rpc::new(&cfg.rpc_urls, cfg.doh)?;
+    let mut akun = Akun::new(cfg.clone(), thr0);
+    let kabar = Kabar { token: cfg.telegram_token.clone(), chat: cfg.telegram_chat.clone(), doh: cfg.doh, label };
+    // live executor (started before the replay so a bad wallet/RPC setup stops the bot before it trades)
+    let exec = {
+        let k = kabar.clone();
+        let logp = dir.join("live.log");
+        let alert: crate::exec::Alert = Arc::new(move |msg: String| {
+            tambah(&logp, &format!("[{}] EXEC: {msg}", &sekarang_iso()[..19]));
+            k.kirim(format!("EXEC: {msg}"));
+        });
+        crate::exec::start(exec_cfg, alert)?
+    };
+    // radar: cache klasifikasi & meta pool, 4 pekerja RPC latar, thread DEX Screener
+    let kc = Arc::new(Mutex::new(kelas::Cache::muat(&dir.join("kelas_token.json"))));
+    let (minta_tx, minta_rx) = mpsc::channel::<Minta>();
+    let (hasil_tx, hasil_rx) = mpsc::channel::<HasilLatar>();
+    let minta_rx = Arc::new(Mutex::new(minta_rx));
+    let laju = Arc::new(radar::Laju::new());
+    for _ in 0..2 {
+        let (rx, tx2, rpc2, laju2) = (minta_rx.clone(), hasil_tx.clone(), rpc.clone(), laju.clone());
+        std::thread::spawn(move || loop {
+            let m = { rx.lock().unwrap().recv() };
+            let r = match m {
+                Ok(Minta::Meta(p, lama)) => {
+                    let r = radar::ambil_meta(&rpc2, &laju2, &p, lama);
+                    HasilLatar::Meta(p, r)
+                }
+                Ok(Minta::Kelas(t)) => {
+                    laju2.tunggu();
+                    let r = kelas::klasifikasi_batch(&rpc2, &t);
+                    if let Err(e) = &r {
+                        if e.contains("429") {
+                            laju2.mundur();
+                        }
+                    }
+                    HasilLatar::Kelas(t, r)
+                }
+                Ok(Minta::Desimal(t)) => {
+                    let r = radar::ambil_desimal(&rpc2, &laju2, &t);
+                    HasilLatar::Desimal(t, r)
+                }
+                Ok(Minta::Pabrik(f, v3, sampai)) => {
+                    let r = radar::boot_pabrik(&rpc2, &laju2, &f, v3, sampai);
+                    HasilLatar::MetaBanyak(r, format!("pabrik {}", &f[..10.min(f.len())]))
+                }
+                Ok(Minta::BootV4(dari, sampai)) => {
+                    let r = radar::boot_v4(&rpc2, &laju2, dari, sampai);
+                    HasilLatar::MetaBanyak(r, "pool v4".into())
+                }
+                Err(_) => return,
+            };
+            if tx2.send(r).is_err() {
+                return;
+            }
+        });
+    }
+    let ds_mau = Arc::new(Mutex::new(Vec::<String>::new()));
+    if std::env::var("DS").map(|v| v == "1").unwrap_or(false) {
+        let (tx3, mau, doh) = (hasil_tx.clone(), ds_mau.clone(), cfg.doh);
+        std::thread::spawn(move || ds_loop(tx3, mau, doh));
+    }
+    let mut radar_obj = Radar::new();
+    radar_obj.mulai_blk = f64::NAN;
+    radar_obj.muat_meta(&dir.join("radar_meta.json"));
+    {
+        let hari: f64 = std::env::var("RADAR_BOOT_HARI").ok().and_then(|s| s.parse().ok()).unwrap_or(if radar_obj.meta.len() > 1000 { 2.0 } else { 14.0 });
+        let tip = hexnum(&rpc.call("eth_blockNumber", json!([]))?);
+        let _ = minta_tx.send(Minta::BootV4((tip - hari * 864000.0).max(0.0) as u64, tip as u64));
+        for m in radar_obj.meta.values() {
+            if !m.pabrik.is_empty() {
+                radar_obj.pabrik_dikenal.insert(m.pabrik.clone());
+            }
+        }
+    }
+    // checkpoint (akun saat tanpa posisi) -> putar ulang cukup dari sana
+    let cp: Value = std::fs::read_to_string(dir.join("checkpoint.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(Value::Null);
+    let cp_blk = cp["block"].as_f64().unwrap_or(f64::NEG_INFINITY);
+    if cp_blk.is_finite() {
+        akun.dari_json(&cp["akun"]);
+    }
+    let mut m = Mesin::new(akun, model, model_up);
+    m.bayangan = cfg.label;
+    m.emit_orders = exec.is_some();
+    let (tx, rx) = mpsc::channel();
+    let mut b = Live {
+        cfg: cfg.clone(),
+        bot_dir: bot_dir.to_string(),
+        dir: dir.clone(),
+        store: store.clone(),
+        log,
+        kabar,
+        m,
+        eth: cp["eth"].as_f64().unwrap_or(f64::NAN),
+        replaying: false,
+        salin_ke: None,
+        sudah_dicek: HashSet::new(),
+        keputusan_simpan: VecDeque::new(),
+        tx,
+        rx,
+        rpc: rpc.clone(),
+        cat: Arc::new(cat),
+        cat_mtime: mtime(&format!("{bot_dir}/filter_cat.json")),
+        last: 0.0,
+        tip: 0.0,
+        cp_blk: if cp_blk.is_finite() { cp_blk } else { 0.0 },
+        ok_poll: Instant::now(),
+        aman: false,
+        pulih_sejak: None,
+        n_basi: 0,
+        n_cek_gagal: 0,
+        n_label: 0,
+        mulai: Instant::now(),
+        last_err: String::new(),
+        killed_dikabarkan: false,
+        ringkas_t: Instant::now(),
+        radar: radar_obj,
+        kc,
+        minta_tx,
+        hasil_rx,
+        ds_mau,
+        exec,
+        pool_keys: HashMap::new(),
+        gate: crate::loggate::LogGate::new(crate::loggate::OVERLAP_BLOCKS),
+        range_cap: cfg.chunk.max(2 * crate::loggate::OVERLAP_BLOCKS),
+        t_err_log: Instant::now() - Duration::from_secs(60),
+        aman_simpan: HashSet::new(),
+    };
+    b.tip = hexnum(&rpc.call("eth_blockNumber", json!([]))?);
+    let state_p = dir.join("state.json");
+    if !state_p.exists() {
+        let start = std::env::var("START_BLOCK").ok().and_then(|s| s.parse::<f64>().ok()).unwrap_or(b.tip);
+        // harga ETH awal: swap terakhir pool ETH/USDG sebelum blok mulai
+        // newest ETH/USDG swap before `start`, searched backwards 20,000 blocks at a time in 1000-block parts
+        let mut seed: Vec<Value> = Vec::new();
+        let mut hi = (start - 1.0).max(0.0) as u64;
+        while seed.is_empty() && hi > 0 && (start as u64).saturating_sub(hi) <= 520_000 {
+            let lo = hi.saturating_sub(19_999);
+            seed = rpc.logs_ranged(&json!({"address": PM, "topics": [T_SWAP, ETH_POOL]}), lo, hi, 1000, 20_000)?;
+            hi = lo.saturating_sub(1);
+        }
+        let e = seed.last().and_then(dekode).ok_or("harga ETH awal tidak ketemu")?;
+        b.simpan_event(&e);
+        tulis_aman(&state_p, &json!({"start": start, "last": start - 1.0}).to_string());
+        let mode_txt = match b.kabar.label {
+            "LIVE" => "Mode LIVE: transaksi nyata dengan dompet EXEC_KEY_FILE.",
+            "SHADOW" => "Mode SHADOW: transaksi disimulasikan, tidak dikirim.",
+            _ => "Mode kertas: tidak ada transaksi.",
+        };
+        b.log.tulis(&format!("MULAI paper trading ({VERSI}) dari blok {start} (tip {}). {mode_txt}", b.tip));
+    }
+    let state: Value = serde_json::from_str(&std::fs::read_to_string(&state_p).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    b.last = state["last"].as_f64().ok_or("state.json rusak")?;
+    // ---------- putar ulang (tanpa jaringan) ----------
+    if let Ok(t) = std::fs::read_to_string(dir.join("decisions.jsonl")) {
+        for l in t.lines() {
+            if let Ok(v) = serde_json::from_str::<Value>(l) {
+                if let (Some(p), Some(pada)) = (v["pool"].as_str(), v["pada"].as_f64()) {
+                    if pada > b.cp_blk {
+                        b.keputusan_simpan.push_back((pada, p.to_string(), v.clone()));
+                    }
+                } else if let Some(x) = v["aman"].as_f64() {
+                    if x > b.cp_blk {
+                        b.aman_simpan.insert(x as u64);
+                    }
+                }
+            }
+        }
+    }
+    let besar: u64 = ["pools.csv", "swaps.csv", "liq.csv"].iter().filter_map(|f| std::fs::metadata(store.join(f)).ok()).map(|m| m.len()).sum();
+    let padatkan = b.cp_blk > 0.0 && besar > cfg.kompaksi_mb * 1_000_000;
+    if padatkan {
+        let baru = dir.join("store_baru");
+        let _ = std::fs::remove_dir_all(&baru);
+        std::fs::create_dir_all(&baru).map_err(|e| e.to_string())?;
+        b.salin_ke = Some(baru);
+    }
+    b.replaying = true;
+    let mut al = Aliran::buka(&store);
+    let (mut grp, mut cur, mut n_ev, mut n_dup): (Vec<Ev>, f64, u64, u64) = (Vec::new(), f64::NAN, 0, 0);
+    while let Some(e) = al.berikut() {
+        if e.blk() > b.last {
+            break;
+        }
+        // harga ETH terakhir sebelum checkpoint tetap disalin (dibutuhkan saat mulai lagi tanpa checkpoint)
+        if e.blk() <= b.cp_blk {
+            if let Ev::Swap { id, sp, .. } = &e {
+                if id == ETH_POOL {
+                    let s = big_f64(sp) / Q96;
+                    if !b.eth.is_finite() {
+                        b.eth = s * s * 1e12;
+                    }
+                }
+            }
+            continue;
+        }
+        if !b.eth.is_finite() {
+            if let Ev::Swap { id, sp, .. } = &e {
+                if id == ETH_POOL {
+                    let s = big_f64(sp) / Q96;
+                    b.eth = s * s * 1e12;
+                }
+            }
+        }
+        if e.blk() != cur && !grp.is_empty() {
+            let g = once_each(std::mem::take(&mut grp), &mut n_dup);
+            b.proses_blok(cur, &g);
+        }
+        cur = e.blk();
+        grp.push(e);
+        n_ev += 1;
+    }
+    if !grp.is_empty() {
+        let g = once_each(std::mem::take(&mut grp), &mut n_dup);
+        b.proses_blok(cur, &g);
+    }
+    if n_dup > 0 {
+        b.log.tulis(&format!("replay: {n_dup} duplicate store rows (written by an older version) were replayed once"));
+    }
+    b.replaying = false;
+    b.keputusan_simpan.clear();
+    // real positions the strategy no longer holds (it exited while the bot was down) are sold now
+    if let Some(ex) = &b.exec {
+        let open: Vec<String> = b.m.akun.lock().unwrap().open.keys().cloned().collect();
+        ex.reconcile(open);
+    }
+    if let Some(baru) = b.salin_ke.take() {
+        // pemadatan: store lama diarsipkan (bahan uji ulang/latih ulang), store baru hanya berisi data sesudah checkpoint
+        let arsip = dir.join(format!("arsip_store_{}", b.cp_blk as u64));
+        let _ = std::fs::rename(&store, &arsip);
+        let _ = std::fs::rename(&baru, &store);
+        // harga ETH terakhir ditulis supaya store baru mandiri
+        b.log.tulis(&format!("store dipadatkan ({} MB); yang lama diarsipkan ke {}", besar / 1_000_000, arsip.display()));
+    }
+    {
+        let a = b.m.akun.lock().unwrap();
+        b.log.tulis(&format!(
+            "putar ulang {n_ev} event sejak blok {} -> {} trade tutup total, {} posisi terbuka, kas ${:.2}. Lanjut dari blok {}.",
+            b.cp_blk,
+            a.n_tutup,
+            a.open.len(),
+            a.cash,
+            b.last + 1.0
+        ));
+    }
+    if cfg.retrain_tiap > 0 {
+        b.log.tulis("catatan: latih ulang dijalankan terjadwal oleh latih_ulang.py (gerbang mutu); bot memuat model baru otomatis.");
+    }
+    b.kabar.kirim(format!("bot mulai ({VERSI}), blok {}", b.last + 1.0));
+    b.status();
+    let mut t_status = Instant::now();
+    let mut t_model = Instant::now();
+    let mut t_radar = Instant::now();
+    let mut t_simpan = Instant::now();
+    let mut backoff = POLL_BACKOFF_MIN;
+    loop {
+        if dir.join("stop.txt").exists() {
+            b.log.tulis("stop.txt ditemukan -> berhenti dengan rapi.");
+            b.status();
+            return Ok(());
+        }
+        // 1) tip; 2) logs for an EXPLICIT block range, re-reading the last blocks (loggate.rs). A node that does not
+        // have `to` yet answers with an error (no partial answer is taken as complete); repeats and out-of-range logs
+        // from lagging nodes are dropped, so every chain log reaches the engine exactly once and in order.
+        let tip_ok = match rpc.call_once("eth_blockNumber", json!([]), Duration::from_secs(5)) {
+            Ok(v) => {
+                let tip = hexnum(&v);
+                if tip.is_finite() && tip >= b.last {
+                    b.tip = tip;
+                }
+                true
+            }
+            Err(e) => {
+                b.poll_error(&e, &mut backoff);
+                false
+            }
+        };
+        let last = b.last as u64;
+        if tip_ok && b.tip > b.last {
+            let from = b.gate.from_block(last);
+            let to = (b.tip as u64).min(from + b.range_cap - 1);
+            let r = rpc.batch(
+                &[
+                    ("eth_getLogs", json!([{"address": PM, "topics": [[T_INIT, T_SWAP, T_MOD]], "fromBlock": format!("{from:#x}"), "toBlock": format!("{to:#x}")}])),
+                    ("eth_getLogs", json!([{"topics": radar::topik_radar(), "fromBlock": format!("{:#x}", last + 1), "toBlock": format!("{to:#x}")}])),
+                ],
+                Duration::from_secs(20),
+            );
+            match r {
+                Ok(v) if v.len() == 2 => match &v[0] {
+                    Ok(ls) => {
+                        let ev = b.terima_log(ls.as_array().map(|a| a.as_slice()).unwrap_or(&[]), from, last, to);
+                        // radar: every DEX's events (a failure is skipped, it never holds trading up)
+                        let radar_logs: Vec<Value> = v[1].as_ref().ok().and_then(|x| x.as_array().cloned()).unwrap_or_default();
+                        b.radar_v4(&ev);
+                        b.proses_daftar(ev);
+                        for l in radar_logs.iter().filter(|l| {
+                            let k = hexnum(&l["blockNumber"]);
+                            k > last as f64 && k <= to as f64 && !l["removed"].as_bool().unwrap_or(false)
+                        }) {
+                            b.radar.log_lain(l);
+                        }
+                        b.gate.delivered(to);
+                        b.last = to as f64;
+                        tulis_aman(&state_p, &json!({"start": state["start"], "last": b.last}).to_string());
+                        b.ok_poll = Instant::now();
+                        b.last_err.clear();
+                        backoff = POLL_BACKOFF_MIN;
+                        b.coba_checkpoint();
+                    }
+                    Err(e) => {
+                        let floor = 2 * crate::loggate::OVERLAP_BLOCKS;
+                        if crate::net::is_range_error(e) && b.range_cap > floor {
+                            b.range_cap = (b.range_cap / 2).max(floor);
+                            b.log.tulis(&format!("RPC limits the getLogs block range: now {} blocks per request", b.range_cap));
+                        } else {
+                            // e.g. -32014 "toBlock not yet available on the node": retried after a short wait
+                            b.poll_error(e, &mut backoff);
+                        }
+                    }
+                },
+                Ok(v) => b.poll_error(&format!("unexpected batch answer {:?}", v.first()), &mut backoff),
+                Err(e) => b.poll_error(&e, &mut backoff),
+            }
+        }
+        // hasil cek yang datang di antara polling berlaku mulai blok BERIKUTNYA
+        let lb = b.last + 0.5;
+        b.ambil_hasil(lb);
+        b.cek_rpc_sehat();
+        if t_status.elapsed() > Duration::from_secs(5) {
+            b.status();
+            t_status = Instant::now();
+        }
+        if t_model.elapsed() > Duration::from_secs(60) {
+            b.cek_model_baru();
+            t_model = Instant::now();
+        }
+        if t_radar.elapsed() > Duration::from_secs(10) {
+            b.radar_latar();
+            {
+                let a = b.m.akun.lock().unwrap();
+                for (k, kp) in a.kep.iter() {
+                    b.radar.skor_ml.insert(k.clone(), kp.score);
+                }
+            }
+            let lb2 = b.last;
+            b.radar.tulis(&dir, lb2);
+            t_radar = Instant::now();
+        }
+        if t_simpan.elapsed() > Duration::from_secs(300) {
+            b.radar.simpan_meta(&dir.join("radar_meta.json"));
+            b.kc.lock().unwrap().simpan(&dir.join("kelas_token.json"));
+            t_simpan = Instant::now();
+        }
+        std::thread::sleep(Duration::from_millis(cfg.poll_ms));
+    }
+}

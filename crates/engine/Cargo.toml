@@ -1,0 +1,29 @@
+[package]
+name = "port_engine"
+version = "0.1.0"
+edition = "2021"
+description = "Port Rust dari pipeline/v4engine.js + pipeline/replay.js (hasil harus identik dengan JS)"
+
+[lib]
+name = "port_engine"
+path = "src/lib.rs"
+
+[[bin]]
+name = "replay"
+path = "src/main.rs"
+
+[[bin]]
+name = "model_parity"
+path = "src/bin/model_parity.rs"
+
+[[bin]]
+name = "jsmath_selftest"
+path = "src/bin/jsmath_selftest.rs"
+
+[dependencies]
+# float_roundtrip: parsing angka JSON dibulatkan benar (sama dengan JSON.parse)
+serde_json = { version = "1", features = ["float_roundtrip"] }
+num-bigint = "0.5"
+num-traits = "0.2"
+ryu = "1"
+memchr = "2"
