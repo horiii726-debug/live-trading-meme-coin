@@ -95,6 +95,14 @@ impl Akun {
         s[(s.len() - 1).min((p * s.len() as f64).floor() as usize)]
     }
     /// = kelly() arena.js
+    /// Open-position limit: MAX_POS_AWAL while equity (at cost) is below MAX_POS_AWAL_SAMPAI, then MAX_POS.
+    pub fn max_pos_now(&self) -> usize {
+        if self.cfg.max_pos_awal > 0 && self.ekuitas_beli() < self.cfg.max_pos_awal_sampai {
+            self.cfg.max_pos_awal.min(self.cfg.max_pos)
+        } else {
+            self.cfg.max_pos
+        }
+    }
     pub fn kelly(&self) -> f64 {
         // optional seed (KELLY_SEED, from block KELLY_SEED_FROM): counted ahead of the bot's own trade history
         let seeded: Vec<f64>;
@@ -229,7 +237,7 @@ impl Akun {
         if self.killed {
             return self.tolak("stop darurat");
         }
-        if self.open.len() >= self.cfg.max_pos {
+        if self.open.len() >= self.max_pos_now() {
             return self.tolak("slot penuh");
         }
         if self.cfg.larang_pemanasan && self.recent.len() < 30 {
@@ -604,6 +612,15 @@ mod tests {
         a.tip = 1000.0;
         let k = a.kelly();
         assert!((k - 0.1025).abs() < 0.003, "quarter Kelly from the seed, got {k}");
+        // small-account position limit
+        let mut c = Cfg::load(None);
+        c.max_pos = 10;
+        c.max_pos_awal = 4;
+        c.max_pos_awal_sampai = 10_000.0;
+        let mut s = Akun::new(c, 0.75);
+        assert_eq!(s.max_pos_now(), 4, "equity $100 < $10,000");
+        s.cash = 10_000.0;
+        assert_eq!(s.max_pos_now(), 10, "from $10,000 on: MAX_POS");
         let mut plain = Cfg::load(None);
         plain.kelly_seed.clear();
         let mut b = Akun::new(plain, 0.75);

@@ -19,6 +19,10 @@ pub struct Cfg {
     // ukuran & risiko (aturan arena.js yang teruji)
     pub start_usd: f64,
     pub max_pos: usize,
+    /// MAX_POS_AWAL: open-position limit while the account is small (0 = off, MAX_POS always)
+    pub max_pos_awal: usize,
+    /// MAX_POS_AWAL_SAMPAI: equity in USD (at cost) from which MAX_POS applies again
+    pub max_pos_awal_sampai: f64,
     pub exp_max: f64,
     pub lp_cap: f64,
     pub kelly_maks: f64,
@@ -113,6 +117,8 @@ impl Cfg {
             larang_pemanasan: on("LARANG_PEMANASAN", false),
             start_usd: num("START_USD", 100.0),
             max_pos: num("MAX_POS", 10.0) as usize,
+            max_pos_awal: num("MAX_POS_AWAL", 0.0) as usize,
+            max_pos_awal_sampai: num("MAX_POS_AWAL_SAMPAI", 10_000.0),
             exp_max: num("EXP_MAX", 0.5),
             lp_cap: num("LP_CAP", 0.01),
             kelly_maks: num("KELLY_MAKS", 0.10),
