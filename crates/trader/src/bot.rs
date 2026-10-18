@@ -96,7 +96,14 @@ impl Akun {
     }
     /// = kelly() arena.js
     pub fn kelly(&self) -> f64 {
-        let r = &self.rets;
+        // optional seed (KELLY_SEED, from block KELLY_SEED_FROM): counted ahead of the bot's own trade history
+        let seeded: Vec<f64>;
+        let r: &Vec<f64> = if !self.cfg.kelly_seed.is_empty() && self.tip >= self.cfg.kelly_seed_from {
+            seeded = self.cfg.kelly_seed.iter().chain(self.rets.iter()).copied().collect();
+            &seeded
+        } else {
+            &self.rets
+        };
         if r.len() < 30 {
             return 0.02;
         }
@@ -576,5 +583,31 @@ impl Mesin {
             self.kuras(&id);
             self.sims.remove(&id);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kelly_seed_applies_only_from_its_block() {
+        let mut cfg = Cfg::load(None);
+        cfg.kelly_maks = 0.15;
+        cfg.kelly_min = 0.02;
+        // returns 2.0 / 0.45 alternating: full Kelly f* = 0.409 -> quarter ~ 0.102
+        cfg.kelly_seed = (0..100).map(|i| if i % 2 == 0 { 2.0 } else { 0.45 }).collect();
+        cfg.kelly_seed_from = 1000.0;
+        let mut a = Akun::new(cfg, 0.75);
+        a.tip = 999.0;
+        assert_eq!(a.kelly(), 0.02, "before KELLY_SEED_FROM the backtested warm-up applies");
+        a.tip = 1000.0;
+        let k = a.kelly();
+        assert!((k - 0.1025).abs() < 0.003, "quarter Kelly from the seed, got {k}");
+        let mut plain = Cfg::load(None);
+        plain.kelly_seed.clear();
+        let mut b = Akun::new(plain, 0.75);
+        b.tip = 5000.0;
+        assert_eq!(b.kelly(), 0.02, "no seed: backtested schedule");
     }
 }

@@ -25,6 +25,11 @@ pub struct Cfg {
     /// floor of the quarter-Kelly fraction after 100 trades (old behaviour 0.01). Too low a floor can freeze a small
     /// account: size < MIN_POS -> no trades -> Kelly history never updates.
     pub kelly_min: f64,
+    /// KELLY_SEED: trade returns (e.g. the backtest's last 100) placed ahead of the bot's own history, so quarter Kelly
+    /// applies at once instead of the 2% / 9.4% warm-up. Empty (default) = the backtested schedule.
+    pub kelly_seed: Vec<f64>,
+    /// KELLY_SEED_FROM: block from which the seed counts; earlier entries keep the schedule (replays stay identical)
+    pub kelly_seed_from: f64,
     pub kill_dd: f64,
     pub rem: bool,
     pub min_pos: f64,
@@ -71,6 +76,24 @@ fn baca_env_file(path: &str) -> HashMap<String, String> {
     m
 }
 
+/// KELLY_SEED file: `{"rets": [trade returns]}`. A set but unreadable seed stops the bot (never trade on a silently
+/// different sizing).
+fn kelly_seed(path: Option<String>) -> Vec<f64> {
+    let Some(p) = path else { return Vec::new() };
+    let rets = std::fs::read_to_string(&p)
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .and_then(|v| v["rets"].as_array().map(|a| a.iter().map(|x| x.as_f64().unwrap_or(f64::NAN)).collect::<Vec<f64>>()));
+    match rets {
+        // a return can be below 0 (rug: nothing back, plus gas); kelly() already rejects fractions that ruin
+        Some(r) if !r.is_empty() && r.iter().all(|x| x.is_finite()) => r,
+        _ => {
+            eprintln!("ERROR: KELLY_SEED {p}: expected a JSON file {{\"rets\": [trade returns]}}");
+            std::process::exit(2)
+        }
+    }
+}
+
 impl Cfg {
     pub fn load(env_file: Option<&str>) -> Cfg {
         let file = env_file.map(baca_env_file).unwrap_or_default();
@@ -94,6 +117,8 @@ impl Cfg {
             lp_cap: num("LP_CAP", 0.01),
             kelly_maks: num("KELLY_MAKS", 0.10),
             kelly_min: num("KELLY_MIN", 0.01),
+            kelly_seed: kelly_seed(get("KELLY_SEED")),
+            kelly_seed_from: num("KELLY_SEED_FROM", 0.0),
             kill_dd: num("KILL_DD", 0.60),
             rem: on("REM", true),
             min_pos: num("MIN_POS", 0.25),
