@@ -13,12 +13,25 @@ bot trades by itself.
 
 ## Install on a VPS
 
-Bare Ubuntu/Debian server or a container. One command installs the toolchain, Rust, the binary and the service:
+One file does everything — install, configure, run, monitor:
 
 ```
 git clone https://github.com/horiii726-debug/live-trading-meme-coin.git && cd live-trading-meme-coin
-sudo deploy/vps-install.sh
+sudo ./rhc.sh
 ```
+
+That opens a menu. Or call a step directly:
+
+| Command | What it does |
+|---|---|
+| `sudo ./rhc.sh pasang` | system packages, Rust, build, install under `/opt/rhc`, register the service (systemd, or supervisor + cron in a container) |
+| `sudo ./rhc.sh atur` | asks for the RPC, the MetaMask **private key**, the deposit, the limits and the mode; writes `.env` and the key file |
+| `sudo ./rhc.sh cek` | on-chain self-test, sends nothing |
+| `sudo ./rhc.sh dompet` | the bot wallet's address and balance — where to send ETH |
+| `sudo ./rhc.sh mulai` / `stop` / `log` / `status` | run and watch it |
+| `sudo ./rhc.sh bersih` | back up and empty the records before switching to live |
+
+The scripts under `deploy/` still work on their own; `rhc.sh` is the single front door.
 
 Then supply the two secrets, either by filling in a form or by answering questions.
 
