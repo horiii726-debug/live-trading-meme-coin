@@ -57,6 +57,17 @@ Both print the wallet address and its on-chain balance, so you know where to sen
 
 Re-run either script any time to change the RPC, the limits or the mode; an existing key file is left untouched.
 
+### Clean slate before going live
+
+Paper and shadow runs leave their own records behind. To make sure the live ledger holds real trades only:
+
+```
+systemctl stop rhc-trader        # or: supervisorctl stop rhc-trader
+sudo deploy/bersihkan-live.sh    # add --reset-akun to also restart the strategy account from START_USD
+```
+
+It tars `rust_live/` to a timestamped backup first, then empties the execution ledger. It refuses to run while the bot is up, and refuses if `positions.json` still holds an open position (flatten first). Models, `labels.jsonl` and the retrain history are never touched.
+
 ## What is guaranteed, and how it is checked
 
 | Claim | Check |
