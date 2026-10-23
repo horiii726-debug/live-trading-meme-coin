@@ -36,10 +36,13 @@ check_rpc() { # prints: ok | wrongchain:<id> | notevm | unreachable ; sets HAS_T
         # answered, but eth_chainId is unknown to it: a Solana endpoint (Helius, QuickNode Solana, ...)
         *) printf 'notevm'; return;;
     esac
+    # decided by JSON-RPC error code, never by message text: a 429 probe must not read as "yes"
     r=$(rpc_call "$url" debug_traceCall)
     case "$r" in
-        *'does not exist'*|*'not available'*|*'Method not found'*) HAS_TRACE=no;;
-        *) HAS_TRACE=yes;;
+        *'-32601'*)        HAS_TRACE=no;;
+        *'"error"'*'429'*) HAS_TRACE=unknown;;
+        *'"jsonrpc"'*)     HAS_TRACE=yes;;
+        *)                 HAS_TRACE=unknown;;
     esac
     printf 'ok'
 }
@@ -76,11 +79,11 @@ if [ -n "$PAID_RPC" ]; then
     case "$res" in
         ok)
             say "  chainId 4663 OK"
-            if [ "$HAS_TRACE" = yes ]; then
-                say "  debug_traceCall tersedia — mode shadow bisa dipakai"
-            else
-                say "  debug_traceCall TIDAK tersedia — mode shadow tidak akan jalan di RPC ini"
-            fi
+            case "$HAS_TRACE" in
+                yes) say "  debug_traceCall tersedia — mode shadow bisa dipakai";;
+                no)  say "  debug_traceCall TIDAK tersedia — mode shadow tidak akan jalan di RPC ini";;
+                *)   say "  debug_traceCall tidak bisa dipastikan (RPC sibuk atau kena batas laju)";;
+            esac
             RPC_URLS="$PAID_RPC,$PUBLIC_RPC"
             ;;
         wrongchain:*)

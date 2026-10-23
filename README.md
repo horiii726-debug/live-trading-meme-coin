@@ -11,17 +11,39 @@ bot trades by itself.
 > Trading memecoins can lose the whole stake. The backtest is not a promise; real fills, competing bots and token
 > behaviour differ from the simulation. Run `shadow` first, then `live` with a small amount.
 
-## Install in three commands
+## Install on a VPS
 
-Ubuntu/Debian VPS or a container. Rust must be installed first (https://rustup.rs).
+Bare Ubuntu/Debian server or a container. One command installs the toolchain, Rust, the binary and the service:
 
 ```
 git clone https://github.com/horiii726-debug/live-trading-meme-coin.git && cd live-trading-meme-coin
-sudo deploy/install.sh     # builds, installs to /opt/rhc, registers systemd units (or supervisor in a container)
-sudo deploy/setup.sh       # asks for RPC, wallet key, deposit and limits; writes .env + key file for you
+sudo deploy/vps-install.sh
 ```
 
-`setup.sh` is the only place you type a secret. It asks for:
+Then supply the two secrets, either by filling in a form or by answering questions.
+
+**Form** — `config/isi-disini.env` (created from `config/isi-disini.env.example` on first run, git-ignored):
+
+```
+RPC_API_KEY=            <- full paid-RPC URL including its api key, or empty for the public RPC
+WALLET_PRIVATE_KEY=     <- 64 hex from MetaMask, of a NEW account used only by the bot
+SETORAN_USD=100         <- what you actually deposit; becomes START_USD
+MODE=off                <- off | shadow | live
+```
+
+```
+sudo deploy/pasang.sh
+```
+
+It validates both fields before writing anything: the RPC must report chainId 4663 (a Solana endpoint such as Helius answers but does not know `eth_chainId`, and is refused), the key must be 64 hex. It writes `<bot>/.env`, writes the key to its own file at mode 600, then **blanks `RPC_API_KEY` and `WALLET_PRIVATE_KEY` in the form** so the plaintext key is not left in two places. Finally it prints the wallet address and its on-chain balance.
+
+**Wizard** — the same thing as questions, with the key typed invisibly:
+
+```
+sudo deploy/setup.sh
+```
+
+It asks for:
 
 | Question | Where the answer comes from |
 |---|---|
@@ -31,9 +53,9 @@ sudo deploy/setup.sh       # asks for RPC, wallet key, deposit and limits; write
 | Limits | Max USD per buy, daily realized-loss stop, max open positions. |
 | Mode | `off` (paper) → `shadow` (simulated on live state) → `live` (real money, asks for a second confirmation). |
 
-It then prints the wallet address and its on-chain balance, so you know where to send ETH (Robinhood Chain, chainId 4663; keep at least 0.003 ETH for gas).
+Both print the wallet address and its on-chain balance, so you know where to send ETH (Robinhood Chain, chainId 4663; keep at least 0.003 ETH for gas).
 
-Re-run `setup.sh` any time to change the RPC, the limits or the mode; an existing key file is left untouched.
+Re-run either script any time to change the RPC, the limits or the mode; an existing key file is left untouched.
 
 ## What is guaranteed, and how it is checked
 
