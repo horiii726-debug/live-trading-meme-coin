@@ -11,6 +11,30 @@ bot trades by itself.
 > Trading memecoins can lose the whole stake. The backtest is not a promise; real fills, competing bots and token
 > behaviour differ from the simulation. Run `shadow` first, then `live` with a small amount.
 
+## Install in three commands
+
+Ubuntu/Debian VPS or a container. Rust must be installed first (https://rustup.rs).
+
+```
+git clone https://github.com/horiii726-debug/live-trading-meme-coin.git && cd live-trading-meme-coin
+sudo deploy/install.sh     # builds, installs to /opt/rhc, registers systemd units (or supervisor in a container)
+sudo deploy/setup.sh       # asks for RPC, wallet key, deposit and limits; writes .env + key file for you
+```
+
+`setup.sh` is the only place you type a secret. It asks for:
+
+| Question | Where the answer comes from |
+|---|---|
+| Paid RPC URL | QuickNode / Alchemy / Dwellir / ArrowRPC / Goldsky. It is tested live: the endpoint must report chainId 4663, and the script tells you whether it supports `debug_traceCall` (without that, `shadow` cannot run). A Solana RPC such as Helius is detected and refused. Leave empty to use the public RPC. |
+| Private key | MetaMask → Add account → Add a new account → ⋮ → Account details → Show private key. Use a **new** account, never your main one; its seed phrase is your backup. Typing is hidden, the key is never printed and goes only into the key file (mode 600). |
+| Deposit in USD | What you actually send to the bot wallet. It becomes `START_USD`, the equity the strategy sizes from. |
+| Limits | Max USD per buy, daily realized-loss stop, max open positions. |
+| Mode | `off` (paper) → `shadow` (simulated on live state) → `live` (real money, asks for a second confirmation). |
+
+It then prints the wallet address and its on-chain balance, so you know where to send ETH (Robinhood Chain, chainId 4663; keep at least 0.003 ETH for gas).
+
+Re-run `setup.sh` any time to change the RPC, the limits or the mode; an existing key file is left untouched.
+
 ## What is guaranteed, and how it is checked
 
 | Claim | Check |
