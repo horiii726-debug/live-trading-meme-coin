@@ -5,15 +5,14 @@
 > ⛔ **Repo ini PUBLIK.** Jangan pernah menulis private key atau URL RPC berbayar di GitHub (ikon pensil ✏️).
 > Isi hanya di VPS. Key yang masuk GitHub dikuras bot pencuri dalam hitungan menit.
 
-Jalankan di terminal VPS:
+Masuk VPS (`ssh root@IP-VPS`), lalu tempel **satu baris** ini:
 
 ```
-git clone https://github.com/horiii726-debug/live-trading-meme-coin.git && cd live-trading-meme-coin
-sudo ./rhc.sh pasang     # sekali saja: build + pasang service
-sudo ./rhc.sh isi        # formulir terbuka otomatis
+curl -sSL https://raw.githubusercontent.com/horiii726-debug/live-trading-meme-coin/main/mulai.sh | sudo bash
 ```
 
-Di formulir, tempel tepat sesudah tanda `=`:
+Semuanya otomatis: unduh kode, instal, build (5–15 menit), self-test, bot dijalankan, alamat wallet
+ditampilkan. Di tengah jalan formulir terbuka **sekali**. Tempel tepat sesudah tanda `=`:
 
 ```
 RPC_API_KEY=https://url-rpc-berbayar-lengkap-dengan-api-key/
@@ -28,14 +27,17 @@ MODE=live
 | `WALLET_PRIVATE_KEY` | MetaMask → ⋮ → Account details → **Show private key** (64 karakter). **Bukan** seed phrase 12 kata. Pakai akun khusus bot. |
 
 Simpan: **Ctrl+O → Enter → Ctrl+X**. Script menguji RPC, memindah key ke `/opt/rhc/secrets/wallet.key`
-(izin 600), lalu mengosongkan lagi kedua baris itu di formulir. Berikutnya:
+(izin 600), lalu mengosongkan lagi kedua baris itu di formulir.
 
-```
-sudo ./rhc.sh dompet     # alamat wallet bot -> kirim ETH (Robinhood Chain), sisakan 0,003 ETH untuk gas
-sudo ./rhc.sh cek        # harus berakhir SELFTEST OK
-sudo ./rhc.sh mulai      # bot jalan
-sudo ./rhc.sh log        # pantau
-```
+Selesai. Kirim ETH ke alamat wallet yang ditampilkan (Robinhood Chain 4663, sisakan 0,003 ETH untuk gas);
+bot mulai trading begitu saldonya masuk, tetap jalan walau SSH ditutup, dan menyala lagi sendiri setelah VPS restart.
+
+| Nanti | Perintah (di folder `live-trading-meme-coin`) |
+|---|---|
+| pantau | `sudo ./rhc.sh log` |
+| status | `sudo ./rhc.sh status` |
+| ganti RPC / wallet / mode | `sudo ./rhc.sh isi` |
+| perbarui ke versi terbaru | jalankan lagi baris `curl ... mulai.sh` di atas (isian lama dipakai) |
 
 Rem darurat: `sudo touch /opt/rhc/bot/rust_live/exec/STOP_BUYING` (stop beli) atau `.../FLATTEN_ALL` (jual semua).
 
