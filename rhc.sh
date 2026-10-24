@@ -3,7 +3,8 @@
 #
 #   sudo ./rhc.sh                 menu
 #   sudo ./rhc.sh pasang          pasang semuanya (paket, Rust, build, service)
-#   sudo ./rhc.sh atur            isi RPC + wallet MetaMask + batas + mode
+#   sudo ./rhc.sh atur            isi RPC + wallet MetaMask + batas + mode (tanya-jawab)
+#   sudo ./rhc.sh isi             sama, lewat formulir config/isi-disini.env (tinggal tempel)
 #   sudo ./rhc.sh cek             self-test on-chain (tidak mengirim apa pun)
 #   sudo ./rhc.sh dompet          alamat wallet bot dan saldonya
 #   sudo ./rhc.sh mulai | stop | status | log
@@ -233,6 +234,27 @@ cmd_atur(){
     say "Berikutnya:  sudo ./rhc.sh cek"
 }
 
+# ================================================================= ISI (formulir)
+cmd_isi(){
+    need_root isi
+    local form=$ROOT/config/isi-disini.env ed
+    [ -f "$form" ] || install -m 600 "$ROOT/config/isi-disini.env.example" "$form"
+    ed=${EDITOR:-$(command -v nano || command -v vi)}
+    [ -n "$ed" ] || die "tidak ada editor teks. Pasang nano: apt-get install -y nano"
+    say "Membuka formulir. Tempel URL RPC dan private key, lalu simpan:"
+    say "  nano: Ctrl+O, Enter (simpan) lalu Ctrl+X (keluar)"
+    read -r -p "Tekan Enter untuk membuka ..." _
+    "$ed" "$form"
+    FORM=$form BOT=$BOT SECRETS=$SECRETS KEYFILE=$KEYFILE BIN=$BIN "$ROOT/deploy/pasang.sh"
+    if svc_running; then
+        say "Bot sedang jalan -> restart supaya pengaturan baru dipakai"
+        case "$(svc_kind)" in
+            systemd)    systemctl restart rhc-trader;;
+            supervisor) supervisorctl restart rhc-trader;;
+        esac
+    fi
+}
+
 # ================================================================= LAIN-LAIN
 cmd_dompet(){
     have_bin || die "binary belum ada. Jalankan: sudo ./rhc.sh pasang"
@@ -327,7 +349,8 @@ menu(){
         say ""; hr; say " rhc-trader — Robinhood Chain 4663 · Uniswap v4"; hr
         cmd_status
         say "  1) pasang   — paket, Rust, build, service"
-        say "  2) atur     — RPC + wallet MetaMask + batas + mode"
+        say "  2) atur     — RPC + wallet MetaMask + batas + mode (tanya-jawab)"
+        say "  9) isi      — sama, lewat formulir (tinggal tempel)"
         say "  3) cek      — self-test on-chain (tidak mengirim apa pun)"
         say "  4) dompet   — alamat wallet dan saldo"
         say "  5) mulai    6) stop    7) log"
@@ -336,7 +359,7 @@ menu(){
         say ""
         case "$(ask 'Pilih')" in
             1) cmd_pasang;; 2) cmd_atur;; 3) cmd_cek || true;; 4) cmd_dompet || true;;
-            5) cmd_mulai;;  6) cmd_stop;; 7) cmd_log;; 8) cmd_bersih;;
+            5) cmd_mulai;;  6) cmd_stop;; 7) cmd_log;; 8) cmd_bersih;; 9) cmd_isi;;
             0|q|keluar) exit 0;;
             *) say "pilihan tidak dikenal";;
         esac
@@ -346,6 +369,7 @@ menu(){
 case "${1:-menu}" in
     pasang)  cmd_pasang;;
     atur)    cmd_atur;;
+    isi)     cmd_isi;;
     cek)     cmd_cek;;
     dompet)  cmd_dompet;;
     mulai)   cmd_mulai;;
@@ -354,5 +378,5 @@ case "${1:-menu}" in
     status)  cmd_status;;
     bersih)  cmd_bersih;;
     menu)    menu;;
-    *) say "pakai: sudo ./rhc.sh [pasang|atur|cek|dompet|mulai|stop|log|status|bersih]"; exit 1;;
+    *) say "pakai: sudo ./rhc.sh [pasang|atur|isi|cek|dompet|mulai|stop|log|status|bersih]"; exit 1;;
 esac

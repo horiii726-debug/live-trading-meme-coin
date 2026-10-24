@@ -1,5 +1,46 @@
 # rhc-trader
 
+## 👉 MULAI DI SINI — isi RPC + wallet, lalu live
+
+> ⛔ **Repo ini PUBLIK.** Jangan pernah menulis private key atau URL RPC berbayar di GitHub (ikon pensil ✏️).
+> Isi hanya di VPS. Key yang masuk GitHub dikuras bot pencuri dalam hitungan menit.
+
+Jalankan di terminal VPS:
+
+```
+git clone https://github.com/horiii726-debug/live-trading-meme-coin.git && cd live-trading-meme-coin
+sudo ./rhc.sh pasang     # sekali saja: build + pasang service
+sudo ./rhc.sh isi        # formulir terbuka otomatis
+```
+
+Di formulir, tempel tepat sesudah tanda `=`:
+
+```
+RPC_API_KEY=https://url-rpc-berbayar-lengkap-dengan-api-key/
+WALLET_PRIVATE_KEY=private-key-64-karakter-dari-MetaMask
+SETORAN_USD=100
+MODE=live
+```
+
+| Isian | Ambil dari |
+|---|---|
+| `RPC_API_KEY` | dasbor QuickNode / Alchemy / Dwellir / ArrowRPC / Goldsky → endpoint **Robinhood Chain (4663)** → salin URL HTTPS utuh |
+| `WALLET_PRIVATE_KEY` | MetaMask → ⋮ → Account details → **Show private key** (64 karakter). **Bukan** seed phrase 12 kata. Pakai akun khusus bot. |
+
+Simpan: **Ctrl+O → Enter → Ctrl+X**. Script menguji RPC, memindah key ke `/opt/rhc/secrets/wallet.key`
+(izin 600), lalu mengosongkan lagi kedua baris itu di formulir. Berikutnya:
+
+```
+sudo ./rhc.sh dompet     # alamat wallet bot -> kirim ETH (Robinhood Chain), sisakan 0,003 ETH untuk gas
+sudo ./rhc.sh cek        # harus berakhir SELFTEST OK
+sudo ./rhc.sh mulai      # bot jalan
+sudo ./rhc.sh log        # pantau
+```
+
+Rem darurat: `sudo touch /opt/rhc/bot/rust_live/exec/STOP_BUYING` (stop beli) atau `.../FLATTEN_ALL` (jual semua).
+
+---
+
 Fully automatic live trading for the RHC memecoin strategy on **Robinhood Chain (chainId 4663, Uniswap v4)**.
 
 The strategy decides everything (pool screening, minute-1 ML filter, quarter-Kelly sizing with compounding, exit

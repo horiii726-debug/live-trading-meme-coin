@@ -89,11 +89,13 @@ fi
 # ---------------------------------------------------------------- kolom 2: kunci
 install -d -m 700 "$SECRETS"
 install -d -m 755 "$BOT"
+# the service runs as user rhc: a root-owned mode-600 key or .env would be unreadable to it
+chown rhc:rhc "$SECRETS" 2>/dev/null || true
 if [ -n "$WALLET_PRIVATE_KEY" ]; then
     PK=${WALLET_PRIVATE_KEY#0x}
     [[ $PK =~ ^[0-9a-fA-F]{64}$ ]] || die "KOLOM 2 bukan 64 karakter heksadesimal (panjangnya ${#PK})."
     ( umask 077; printf '%s\n' "$PK" > "$KEYFILE" )
-    chmod 600 "$KEYFILE"
+    chmod 600 "$KEYFILE"; chown rhc:rhc "$KEYFILE" 2>/dev/null || true
     unset PK
     say "KOLOM 2  kunci disimpan di $KEYFILE (mode 600)"
 elif [ -s "$KEYFILE" ]; then
@@ -128,7 +130,7 @@ sed -e "s#^RPC_URLS=.*#RPC_URLS=$RPC_URLS#" \
     "$ROOT/config/trader.env.example" > "$TMP"
 [ "$MODE" = live ] && sed -i "s@^#*EXEC_LIVE_CONFIRM=.*@EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK@" "$TMP"
 [ -x /opt/rhc/venv/bin/python ] && sed -i "s#^PYTHON=.*#PYTHON=/opt/rhc/venv/bin/python#" "$TMP"
-install -m 600 "$TMP" "$BOT/.env"
+install -m 600 "$TMP" "$BOT/.env"; chown rhc:rhc "$BOT/.env" 2>/dev/null || true
 [ -e "$BOT/kelly_seed_backtest_last100.json" ] || \
     install -m 644 "$ROOT/models/kelly_seed_backtest_last100.json" "$BOT/" 2>/dev/null || true
 
