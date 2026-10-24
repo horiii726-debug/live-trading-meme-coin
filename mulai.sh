@@ -4,7 +4,7 @@
 #   curl -sSL https://raw.githubusercontent.com/horiii726-debug/live-trading-meme-coin/main/mulai.sh | sudo bash
 #
 # 1. ambil/perbarui kode   2. pasang (paket, Rust, build, service)
-# 3. formulir RPC + private key terbuka SEKALI (dilewati kalau sudah pernah diisi)
+# 3. ditanya SEKALI: URL RPC + private key (tempel, Enter) — dilewati kalau sudah pernah diisi
 # 4. self-test on-chain    5. bot dijalankan    6. alamat wallet ditampilkan
 #
 # Aman dijalankan ulang: berfungsi juga sebagai pembaru (git pull + build ulang + restart).
@@ -47,10 +47,32 @@ main(){
     if [ -s /opt/rhc/bot/.env ] && [ -s /opt/rhc/secrets/wallet.key ]; then
         echo "    sudah diatur sebelumnya — dilewati (ubah kapan saja: sudo ./rhc.sh isi)"
     else
-        local n=0
-        until ./rhc.sh isi </dev/tty; do
-            n=$((n + 1)); [ $n -lt 3 ] || die "formulir gagal 3x. Perbaiki lalu jalankan: cd $dir && sudo ./rhc.sh isi"
-            echo ""; echo "    Ada isian yang salah (lihat pesan di atas). Formulir dibuka lagi ..."
+        # two plain questions instead of an editor: paste + Enter. The answers go into the same form that
+        # deploy/pasang.sh validates; it blanks the secrets on success, and we delete the form on failure.
+        local form=$dir/config/isi-disini.env n=0 rpc pk usd
+        while :; do
+            echo ""
+            echo "  1) Tempel URL RPC berbayar, lalu Enter."
+            echo "     (kosongkan lalu Enter = pakai RPC publik gratis)"
+            read -r -p "     RPC: " rpc </dev/tty
+            echo ""
+            echo "  2) Tempel PRIVATE KEY MetaMask (64 karakter, BUKAN 12 kata), lalu Enter."
+            echo "     Ketikan memang TIDAK terlihat."
+            read -r -s -p "     Private key: " pk </dev/tty; echo
+            echo ""
+            read -r -p "  3) Berapa USD yang Anda kirim ke wallet bot? [100]: " usd </dev/tty
+            rpc=${rpc//[[:space:]]/}; pk=${pk//[[:space:]]/}; usd=${usd//[[:space:]]/}
+            [[ $usd =~ ^[0-9]+([.][0-9]+)?$ ]] || usd=100
+            ( umask 077
+              { printf 'RPC_API_KEY=%s\n' "$rpc"; printf 'WALLET_PRIVATE_KEY=%s\n' "$pk"
+                printf 'SETORAN_USD=%s\nMODE=live\n' "$usd"
+                grep -E '^(MAKS_USD_PER_BELI|STOP_RUGI_HARIAN_USD|MAKS_POSISI_TERBUKA)=' config/isi-disini.env.example
+              } > "$form" )
+            unset pk
+            FORM=$form ./deploy/pasang.sh && break
+            rm -f "$form"
+            n=$((n + 1)); [ $n -lt 3 ] || die "isian salah 3x. Coba lagi nanti: cd $dir && sudo ./rhc.sh isi"
+            echo ""; echo "    Ada isian yang salah (lihat pesan GAGAL di atas). Ditanya lagi ..."
         done
     fi
 

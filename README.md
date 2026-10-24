@@ -12,22 +12,23 @@ curl -sSL https://raw.githubusercontent.com/horiii726-debug/live-trading-meme-co
 ```
 
 Semuanya otomatis: unduh kode, instal, build (5–15 menit), self-test, bot dijalankan, alamat wallet
-ditampilkan. Di tengah jalan formulir terbuka **sekali**. Tempel tepat sesudah tanda `=`:
+ditampilkan. Di tengah jalan Anda ditanya **sekali** — tiap pertanyaan cukup **tempel (klik kanan) lalu Enter**:
 
 ```
-RPC_API_KEY=https://url-rpc-berbayar-lengkap-dengan-api-key/
-WALLET_PRIVATE_KEY=private-key-64-karakter-dari-MetaMask
-SETORAN_USD=100
-MODE=live
+  1) Tempel URL RPC berbayar, lalu Enter.
+     RPC: https://url-rpc-berbayar-lengkap-dengan-api-key/
+  2) Tempel PRIVATE KEY MetaMask (64 karakter, BUKAN 12 kata), lalu Enter.
+     Private key:            <- memang tidak terlihat
+  3) Berapa USD yang Anda kirim ke wallet bot? [100]: 100
 ```
 
-| Isian | Ambil dari |
+| Pertanyaan | Ambil dari |
 |---|---|
-| `RPC_API_KEY` | dasbor QuickNode / Alchemy / Dwellir / ArrowRPC / Goldsky → endpoint **Robinhood Chain (4663)** → salin URL HTTPS utuh |
-| `WALLET_PRIVATE_KEY` | MetaMask → ⋮ → Account details → **Show private key** (64 karakter). **Bukan** seed phrase 12 kata. Pakai akun khusus bot. |
+| RPC | dasbor QuickNode / Alchemy / Dwellir / ArrowRPC / Goldsky → endpoint **Robinhood Chain (4663)** → salin URL HTTPS utuh (kosong = RPC publik) |
+| Private key | MetaMask → ⋮ → Account details → **Show private key** (64 karakter). **Bukan** seed phrase 12 kata. Pakai akun khusus bot. |
 
-Simpan: **Ctrl+O → Enter → Ctrl+X**. Script menguji RPC, memindah key ke `/opt/rhc/secrets/wallet.key`
-(izin 600), lalu mengosongkan lagi kedua baris itu di formulir.
+Mode langsung **live**. Script menguji RPC dan menyimpan key di `/opt/rhc/secrets/wallet.key` (izin 600);
+kalau ada yang salah, pertanyaannya diulang.
 
 Selesai. Kirim ETH ke alamat wallet yang ditampilkan (Robinhood Chain 4663, sisakan 0,003 ETH untuk gas);
 bot mulai trading begitu saldonya masuk, tetap jalan walau SSH ditutup, dan menyala lagi sendiri setelah VPS restart.

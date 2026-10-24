@@ -23,6 +23,8 @@ PUBLIC_RPC=https://rpc.mainnet.chain.robinhood.com
 CHAIN_HEX=0x1237   # 4663
 
 say(){ printf '%s\n' "$*"; }
+# escape a value for the right-hand side of a sed s### command ("&" means "the match" there, "#" ends it)
+sedrepl(){ printf '%s' "$1" | sed -e 's/[\\&#]/\\&/g'; }
 die(){ printf '\nGAGAL: %s\n' "$*" >&2; exit 1; }
 hr(){ printf '%s\n' "--------------------------------------------------------------"; }
 need_root(){ [ "$(id -u)" -eq 0 ] || die "jalankan dengan sudo: sudo ./rhc.sh $*"; }
@@ -211,7 +213,7 @@ cmd_atur(){
     fi
 
     local tmp; tmp=$(mktemp); trap 'rm -f "$tmp"' RETURN
-    sed -e "s#^RPC_URLS=.*#RPC_URLS=$rpc_urls#" \
+    sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$rpc_urls")#" \
         -e "s#^START_USD=.*#START_USD=$setoran#" \
         -e "s#^EXEC_MODE=.*#EXEC_MODE=$mode#" \
         -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$KEYFILE#" \

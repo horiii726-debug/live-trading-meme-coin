@@ -31,6 +31,8 @@ fi
 # read only the keys we expect; never source the file (it must not be able to run commands).
 # strips an inline "  # komentar" and surrounding whitespace, so "5   # 0 = mati" reads as "5".
 field(){ sed -n "s/^[[:space:]]*$1=//p" "$FORM" | head -1 | sed -e 's/[[:space:]]\+#.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+# escape a value for the right-hand side of a sed s### command ("&" means "the match" there, "#" ends it)
+sedrepl(){ printf '%s' "$1" | sed -e 's/[\\&#]/\\&/g'; }
 
 # Does this endpoint support debug_traceCall? Decided by JSON-RPC error code, not by message text:
 #   -32601 method not found  -> no
@@ -119,7 +121,7 @@ esac
 
 # ---------------------------------------------------------------- tulis .env
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
-sed -e "s#^RPC_URLS=.*#RPC_URLS=$RPC_URLS#" \
+sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$RPC_URLS")#" \
     -e "s#^START_USD=.*#START_USD=$SETORAN_USD#" \
     -e "s#^EXEC_MODE=.*#EXEC_MODE=$MODE#" \
     -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$KEYFILE#" \

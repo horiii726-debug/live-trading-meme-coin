@@ -18,6 +18,8 @@ BIN=${BIN:-$(command -v rhc-trader || echo /opt/rhc/bin/rhc-trader)}
 
 CHAIN_ID_HEX=0x1237   # 4663
 say()  { printf '%s\n' "$*"; }
+# escape a value for the right-hand side of a sed s### command ("&" means "the match" there, "#" ends it)
+sedrepl(){ printf '%s' "$1" | sed -e 's/[\\&#]/\\&/g'; }
 ask()  { local p=$1 d=${2:-} a; read -r -p "$p${d:+ [$d]}: " a; printf '%s' "${a:-$d}"; }
 yes_no() { local a; read -r -p "$1 (y/n) [n]: " a; [ "${a,,}" = y ]; }
 
@@ -184,7 +186,7 @@ say ""
 
 # ---------------------------------------------------------------- tulis .env
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
-sed -e "s#^RPC_URLS=.*#RPC_URLS=$RPC_URLS#" \
+sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$RPC_URLS")#" \
     -e "s#^START_USD=.*#START_USD=$START_USD#" \
     -e "s#^EXEC_MODE=.*#EXEC_MODE=$MODE#" \
     -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$KEYFILE#" \
