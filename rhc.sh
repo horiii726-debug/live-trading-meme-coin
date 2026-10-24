@@ -47,8 +47,23 @@ svc_running(){
 }
 
 # ---------------------------------------------------------------- RPC
-rpc(){ curl -sS -m 20 -X POST "$1" -H 'content-type: application/json' \
+# Some networks answer DNS for the RPC host with a block page (Indonesia's Internet Positif does). The bot then needs
+# DOH_URL set (it resolves through Cloudflare at 1.1.1.1 itself); DOH_ARG makes these curl probes do the same.
+DOH=https://1.1.1.1/dns-query
+DOH_ARG=""
+rpc(){ curl -sS -m 20 ${DOH_ARG:+--doh-url "$DOH_ARG"} -X POST "$1" -H 'content-type: application/json' \
         -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$2\",\"params\":[]}" 2>/dev/null || true; }
+cek_dns(){
+    [ "$(periksa_rpc "$PUBLIC_RPC")" = ok ] && return 0
+    DOH_ARG=$DOH
+    if [ "$(periksa_rpc "$PUBLIC_RPC")" = ok ]; then
+        say "    DNS VPS ini membelokkan alamat RPC (diblokir DNS) -> bot memakai DNS-over-HTTPS (1.1.1.1)"
+    else
+        DOH_ARG=""
+    fi
+}
+# apt on a freshly booted VPS is often locked by unattended-upgrades: wait for it instead of failing
+APT="apt-get -o DPkg::Lock::Timeout=600"
 
 # Dukungan debug_traceCall ditentukan dari KODE error JSON-RPC, bukan teks pesannya:
 # balasan 429 tidak boleh terbaca sebagai "ada".
@@ -75,8 +90,8 @@ cmd_pasang(){
     need_root pasang
     hr; say " 1/4  paket sistem"; hr
     if command -v apt-get >/dev/null; then
-        apt-get update -qq
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        $APT update -qq
+        DEBIAN_FRONTEND=noninteractive $APT install -y --no-install-recommends \
             build-essential pkg-config libssl-dev python3-venv ca-certificates curl git cron >/dev/null
     fi
     say "    siap"
@@ -105,9 +120,15 @@ cmd_pasang(){
     install -m 755 "$ROOT/target/release/rhc-trader" "$PREFIX/bin/rhc-trader"
     for f in "$ROOT"/models/*; do [ -e "$BOT/$(basename "$f")" ] || install -o rhc -g rhc -m 644 "$f" "$BOT/"; done
     cp -r "$ROOT"/training/* "$PREFIX/training/" && chown -R rhc:rhc "$PREFIX/training"
-    [ -x "$PREFIX/venv/bin/python" ] || python3 -m venv "$PREFIX/venv"
-    "$PREFIX/venv/bin/pip" install --quiet --upgrade pip
-    "$PREFIX/venv/bin/pip" install --quiet numpy pandas scikit-learn catboost
+    # Python is only for the daily retrain (the bot itself never runs it): a failed pip must not stop the install
+    if { [ -x "$PREFIX/venv/bin/python" ] || python3 -m venv "$PREFIX/venv"; } &&
+       "$PREFIX/venv/bin/pip" install --quiet --upgrade pip &&
+       "$PREFIX/venv/bin/pip" install --quiet numpy pandas scikit-learn catboost; then
+        :
+    else
+        say "    PERINGATAN: paket Python gagal dipasang -> latih ulang harian tidak jalan (bot tetap jalan)."
+        say "               Ulangi nanti: sudo ./rhc.sh pasang"
+    fi
     say "    terpasang di $PREFIX"
 
     hr; say " 4/4  service"; hr
@@ -128,6 +149,7 @@ cmd_pasang(){
         say "    supervisor + cron";;
       *) say "    tidak ada systemd/supervisor — jalankan sendiri dengan: $BIN live --bot $BOT --env $BOT/.env";;
     esac
+    [ "${RHC_DARI_MULAI:-}" = 1 ] && return 0   # mulai.sh continues by itself
     say ""
     say "Berikutnya:  sudo ./rhc.sh atur"
 }
@@ -142,6 +164,7 @@ cmd_atur(){
     say "Berbayar yang mendukung chain 4663: QuickNode, Alchemy, Dwellir, ArrowRPC, Goldsky."
     say "Kosongkan untuk memakai RPC publik saja."
     say ""
+    cek_dns
     local paid rpc_urls=$PUBLIC_RPC
     paid=$(ask "URL RPC berbayar (lengkap dengan api key)")
     if [ -n "$paid" ]; then
@@ -214,6 +237,7 @@ cmd_atur(){
 
     local tmp; tmp=$(mktemp); trap 'rm -f "$tmp"' RETURN
     sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$rpc_urls")#" \
+        -e "s#^DOH_URL=.*#DOH_URL=$(sedrepl "$DOH_ARG")#" \
         -e "s#^START_USD=.*#START_USD=$setoran#" \
         -e "s#^EXEC_MODE=.*#EXEC_MODE=$mode#" \
         -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$KEYFILE#" \
@@ -278,7 +302,8 @@ cmd_cek(){
 cmd_mulai(){
     need_root mulai
     case "$(svc_kind)" in
-        systemd)    systemctl enable --now rhc-trader rhc-retrain.timer; systemctl status --no-pager rhc-trader | head -5;;
+        # status exits 3 while the unit is (re)starting; under pipefail that must not abort the caller
+        systemd)    systemctl enable --now rhc-trader rhc-retrain.timer; systemctl status --no-pager rhc-trader 2>/dev/null | head -5 || true;;
         supervisor) supervisorctl start rhc-trader || true; supervisorctl status rhc-trader;;
         *) die "tidak ada systemd/supervisor.";;
     esac
@@ -292,6 +317,12 @@ cmd_stop(){
     esac
 }
 cmd_log(){
+    # live.log holds the strategy lines AND the executor's real buys/sells ("EXEC: ..."), which only go there;
+    # the journal has the strategy lines and crash messages only
+    if [ -f "$BOT/rust_live/live.log" ]; then
+        say "(Ctrl+C untuk keluar)"
+        tail -n 40 -F "$BOT/rust_live/live.log"; return
+    fi
     case "$(svc_kind)" in
         systemd)    journalctl -fu rhc-trader;;
         supervisor) tail -f /var/log/portal/rhc-trader.log;;

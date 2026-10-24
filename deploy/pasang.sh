@@ -34,14 +34,22 @@ field(){ sed -n "s/^[[:space:]]*$1=//p" "$FORM" | head -1 | sed -e 's/[[:space:]
 # escape a value for the right-hand side of a sed s### command ("&" means "the match" there, "#" ends it)
 sedrepl(){ printf '%s' "$1" | sed -e 's/[\\&#]/\\&/g'; }
 
+# Some networks answer DNS for the RPC host with a block page (Indonesia's Internet Positif does, measured: the
+# certificate is internetpositif.id). The bot then needs DOH_URL set: it resolves hosts through Cloudflare at
+# 1.1.1.1 itself (net.rs doh_resolve). DOH_ARG makes these curl probes resolve the same way.
+DOH=https://1.1.1.1/dns-query
+DOH_ARG=""
+rpc_post(){ curl -sS -m 20 ${DOH_ARG:+--doh-url "$DOH_ARG"} -X POST "$1" -H 'content-type: application/json' \
+                -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$2\",\"params\":[]}" 2>/dev/null || true; }
+chain_ok(){ case "$(rpc_post "$1" eth_chainId)" in *"\"result\":\"$CHAIN_ID_HEX\""*) return 0;; esac; return 1; }
+
 # Does this endpoint support debug_traceCall? Decided by JSON-RPC error code, not by message text:
 #   -32601 method not found  -> no
 #   any other error / none   -> yes (the method exists, it just dislikes our empty params)
 #   no answer, 429, html     -> unknown (a rate-limited probe must not be read as "yes")
 trace_support(){
-    local url=$1 t
-    t=$(curl -sS -m 20 -X POST "$url" -H 'content-type: application/json' \
-        -d '{"jsonrpc":"2.0","id":1,"method":"debug_traceCall","params":[]}' 2>/dev/null || true)
+    local t
+    t=$(rpc_post "$1" debug_traceCall)
     case "$t" in
         *'-32601'*)        printf 'tidak';;
         *'"error"'*'429'*) printf 'tidak-diketahui';;
@@ -56,18 +64,38 @@ MODE=$(field MODE); MODE=$(printf '%s' "${MODE:-off}" | tr 'A-Z' 'a-z')
 MAKS_BELI=$(field MAKS_USD_PER_BELI); MAKS_BELI=${MAKS_BELI:-5}
 STOP_RUGI=$(field STOP_RUGI_HARIAN_USD); STOP_RUGI=${STOP_RUGI:-25}
 MAKS_POS=$(field MAKS_POSISI_TERBUKA); MAKS_POS=${MAKS_POS:-4}
+# the executor refuses to start on a non-number (exec/config.rs), so a typo here would crash-loop the service
+angka(){ [[ $2 =~ ^[0-9]+([.][0-9]+)?$ ]] || die "$1 harus angka (tanpa \$ atau koma), bukan: $2"; }
+angka SETORAN_USD "$SETORAN_USD"; angka MAKS_USD_PER_BELI "$MAKS_BELI"; angka STOP_RUGI_HARIAN_USD "$STOP_RUGI"
+[[ $MAKS_POS =~ ^[1-9][0-9]*$ ]] || die "MAKS_POSISI_TERBUKA harus bilangan bulat 1 atau lebih, bukan: $MAKS_POS"
 
 say "=============================================================="
 say " Memasang konfigurasi dari $FORM"
 say "=============================================================="
 say ""
 
+# ---------------------------------------------------------------- DNS
+if ! chain_ok "$PUBLIC_RPC"; then
+    DOH_ARG=$DOH
+    if chain_ok "$PUBLIC_RPC"; then
+        say "DNS      VPS ini membelokkan alamat RPC (diblokir DNS, mis. Internet Positif)"
+        say "         -> bot memakai DNS-over-HTTPS (Cloudflare 1.1.1.1)"
+    else
+        DOH_ARG=""
+        say "DNS      RPC publik belum menjawab (jaringan sibuk?) — dilanjutkan"
+    fi
+fi
+
 # ---------------------------------------------------------------- kolom 1: RPC
 RPC_URLS=$PUBLIC_RPC
 if [ -n "$RPC_API_KEY" ]; then
+    case "$RPC_API_KEY" in
+        https://*) ;;
+        wss://*|ws://*) die "itu URL WebSocket (wss://). Salin URL HTTP-nya (diawali https://) dari dasbor RPC.";;
+        *) die "URL RPC harus diawali https:// — salin URL utuhnya dari dasbor RPC, bukan api key-nya saja.";;
+    esac
     say "KOLOM 1  menguji RPC ..."
-    r=$(curl -sS -m 20 -X POST "$RPC_API_KEY" -H 'content-type: application/json' \
-        -d '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' 2>/dev/null || true)
+    r=$(rpc_post "$RPC_API_KEY" eth_chainId)
     case "$r" in
         *"\"result\":\"$CHAIN_ID_HEX\""*)
             say "         chainId 4663 OK"
@@ -82,7 +110,11 @@ if [ -n "$RPC_API_KEY" ]; then
             die "RPC itu melaporkan chainId $(printf '%s' "$r" | sed -n 's/.*"result":"\([^"]*\)".*/\1/p'), bukan 4663. Perbaiki KOLOM 1."
             ;;
         "") die "RPC tidak menjawab. Periksa URL di KOLOM 1.";;
-        *)  die "RPC itu menjawab tapi tidak mengenal eth_chainId — itu RPC Solana (Helius dsb), bukan EVM. Perbaiki KOLOM 1.";;
+        *'-32601'*)
+            die "RPC itu tidak mengenal eth_chainId — itu RPC Solana (Helius dsb), bukan EVM. Perbaiki KOLOM 1.";;
+        *'"error"'*)
+            die "RPC menolak: $(printf '%s' "$r" | sed -n 's/.*"message":"\([^"]*\)".*/\1/p' | cut -c1-80). Periksa api key / paket RPC-nya.";;
+        *)  die "jawaban RPC bukan JSON-RPC — URL-nya salah? Salin URL HTTP utuh dari dasbor RPC.";;
     esac
 else
     say "KOLOM 1  kosong -> memakai RPC publik (ada batas laju; shadow tidak tersedia)"
@@ -122,6 +154,7 @@ esac
 # ---------------------------------------------------------------- tulis .env
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
 sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$RPC_URLS")#" \
+    -e "s#^DOH_URL=.*#DOH_URL=$(sedrepl "$DOH_ARG")#" \
     -e "s#^START_USD=.*#START_USD=$SETORAN_USD#" \
     -e "s#^EXEC_MODE=.*#EXEC_MODE=$MODE#" \
     -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$KEYFILE#" \
@@ -151,6 +184,9 @@ say "=============================================================="
 grep -E '^(RPC_URLS|START_USD|EXEC_MODE|EXEC_KEY_FILE|EXEC_MAX_ORDER_USD|EXEC_DAILY_LOSS_LIMIT_USD|EXEC_MAX_OPEN_POSITIONS)=' "$BOT/.env" \
   | sed 's#\(RPC_URLS=https://[^/]*/\)[^,]*#\1***#'
 say ""
+
+# mulai.sh runs the next steps itself and prints the wallet and its own summary at the end
+[ "${RHC_DARI_MULAI:-}" = 1 ] && exit 0
 
 if [ -x "$BIN" ] && [ -s "$KEYFILE" ]; then
     say "Wallet bot:"

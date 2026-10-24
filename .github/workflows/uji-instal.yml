@@ -1,0 +1,86 @@
+name: uji-instal
+# Real end-to-end test of the one-line installer on a fresh Ubuntu VM, exactly as the owner runs it:
+#   curl -sSL .../mulai.sh | sudo bash      (the answers are typed into a pseudo-terminal by .github/uji/ketik.py)
+# then .github/uji/periksa.sh checks files, permissions, .env, and that the service runs in live mode and stays up.
+# The wallet is a fresh random key with no ETH, so nothing can be bought. A second job runs the unit tests.
+on:
+  workflow_dispatch:
+  push:
+    paths: [mulai.sh, rhc.sh, 'deploy/**', 'config/**', 'crates/**', 'models/**', Cargo.toml, Cargo.lock, '.github/**']
+permissions:
+  contents: read
+concurrency:
+  group: uji-instal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y -qq pkg-config libssl-dev
+      - run: cargo test --release --locked
+
+  install:
+    name: install (${{ matrix.nama }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nama: login root, DNS normal
+            sebagai: root
+            dns_blok: false
+          - nama: user sudo, DNS diblokir seperti Internet Positif
+            sebagai: sudo
+            dns_blok: true
+    env:
+      PATH_VPS: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: make the VM look like a fresh VPS (no Rust preinstalled for this user)
+        run: |
+          if [ "${{ matrix.sebagai }}" = sudo ]; then mv ~/.cargo ~/.cargo.ci 2>/dev/null || true; mv ~/.rustup ~/.rustup.ci 2>/dev/null || true; fi
+
+      - name: block the RPC host in DNS (the VPS resolver answers a block page)
+        if: matrix.dns_blok
+        run: |
+          echo "127.0.0.1 rpc.mainnet.chain.robinhood.com" | sudo tee -a /etc/hosts
+          if curl -sS -m 10 https://rpc.mainnet.chain.robinhood.com; then echo "block not effective"; exit 1; fi
+
+      - name: on a branch, let mulai.sh update a clone of this branch instead of cloning main
+        if: github.ref_name != 'main'
+        run: |
+          src="https://github.com/$GITHUB_REPOSITORY.git"
+          if [ "${{ matrix.sebagai }}" = root ]; then sudo git clone -q -b "$GITHUB_REF_NAME" "$src" /root/live-trading-meme-coin
+          else git clone -q -b "$GITHUB_REF_NAME" "$src" "$HOME/live-trading-meme-coin"; fi
+
+      - name: install — the README's one line
+        run: |
+          url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/mulai.sh"
+          if [ "${{ matrix.sebagai }}" = root ]; then
+            cmd="curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=$PATH_VPS bash"
+          else
+            cmd="curl -sSL $url | sudo bash"
+          fi
+          echo "$cmd" > /tmp/cmd
+          python3 .github/uji/ketik.py "$cmd"
+
+      - name: check the result
+        run: |
+          home=/home/runner; [ "${{ matrix.sebagai }}" = root ] && home=/root
+          doh=""; [ "${{ matrix.dns_blok }}" = true ] && doh=https://1.1.1.1/dns-query
+          bash .github/uji/periksa.sh "$doh" "$home"
+
+      - name: run the same line again (update) — must ask nothing and keep the bot up
+        run: python3 .github/uji/ketik.py "$(cat /tmp/cmd)" --no-questions
+
+      - name: check again after the update
+        run: |
+          home=/home/runner; [ "${{ matrix.sebagai }}" = root ] && home=/root
+          doh=""; [ "${{ matrix.dns_blok }}" = true ] && doh=https://1.1.1.1/dns-query
+          bash .github/uji/periksa.sh "$doh" "$home"
+          timeout 5 sudo "$home/live-trading-meme-coin/rhc.sh" log || true
