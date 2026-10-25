@@ -13,7 +13,7 @@ chk "wallet.key milik rhc, mode 600"      [ "$(sudo stat -c '%U %a' $K)" = "rhc 
 chk "wallet.key berisi 64 karakter hex"   sudo sh -c "tr -d '\n' < $K | grep -Eqx '[0-9a-fA-F]{64}'"
 chk ".env milik rhc, mode 600"            [ "$(sudo stat -c '%U %a' $E)" = "rhc 600" ]
 chk "folder secrets milik rhc"            [ "$(sudo stat -c '%U' /opt/rhc/secrets)" = rhc ]
-for kv in EXEC_MODE=live EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK EXEC_KEY_FILE=$K START_USD=100 \
+for kv in EXEC_MODE=live EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK EXEC_KEY_FILE=$K START_USD=1000 \
           EXEC_MAX_ORDER_USD=5 EXEC_DAILY_LOSS_LIMIT_USD=25 EXEC_MAX_OPEN_POSITIONS=4 \
           RPC_URLS=https://rpc.mainnet.chain.robinhood.com "DOH_URL=$want_doh" \
           KELLY_SEED=/opt/rhc/bot/kelly_seed_backtest_last100.json PYTHON=/opt/rhc/venv/bin/python; do
@@ -33,6 +33,7 @@ n0=$(systemctl show -p NRestarts --value rhc-trader); sleep 120; n1=$(systemctl 
 chk "service masih jalan setelah 2 menit" systemctl is-active --quiet rhc-trader
 chk "tidak crash/restart (NRestarts $n0 -> $n1)" [ "$n0" = "$n1" ]
 chk "executor live menyala (live.log)" sudo grep -q 'EXEC: executor started: mode=live' $L
+chk "aturan \"dev pernah rug\" aktif dengan riwayat bawaan" sudo grep -Eq 'aturan dev AKTIF: [0-9]{3,} dev dari dev_history.json, [0-9]{2,} dev tercatat pernah rug' $L
 chk "status.json ditulis" sudo test -s /opt/rhc/bot/rust_live/status.json
 chk "rhc.sh status jalan" sudo "$repo/rhc.sh" status
 

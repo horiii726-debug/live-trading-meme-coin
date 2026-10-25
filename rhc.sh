@@ -64,6 +64,15 @@ cek_dns(){
 }
 # apt on a freshly booted VPS is often locked by unattended-upgrades: wait for it instead of failing
 APT="apt-get -o DPkg::Lock::Timeout=600"
+apt_update(){   # `apt-get update` takes /var/lib/apt/lists/lock, which DPkg::Lock::Timeout does not cover: retry
+    local i
+    for i in $(seq 1 90); do
+        $APT update -qq && return 0
+        [ "$i" = 1 ] && say "    apt sedang dipakai update otomatis Ubuntu -> menunggu (bisa beberapa menit) ..."
+        sleep 10
+    done
+    die "apt-get update gagal terus selama 15 menit (lihat pesan E: di atas). Jalankan lagi nanti."
+}
 
 # Dukungan debug_traceCall ditentukan dari KODE error JSON-RPC, bukan teks pesannya:
 # balasan 429 tidak boleh terbaca sebagai "ada".
@@ -90,7 +99,7 @@ cmd_pasang(){
     need_root pasang
     hr; say " 1/4  paket sistem"; hr
     if command -v apt-get >/dev/null; then
-        $APT update -qq
+        apt_update
         DEBIAN_FRONTEND=noninteractive $APT install -y --no-install-recommends \
             build-essential pkg-config libssl-dev python3-venv ca-certificates curl git cron >/dev/null
     fi
@@ -109,7 +118,8 @@ cmd_pasang(){
         fi
         cargo="$h/.cargo/bin/cargo"
     fi
-    "$cargo" --version | sed 's/^/    /'
+    # cargo is a rustup proxy: it must run as the user it was installed for (as root it finds no toolchain)
+    if [ "$u" = root ]; then "$cargo" --version; else sudo -u "$u" -H "$cargo" --version; fi | sed 's/^/    /'
 
     hr; say " 3/4  build (beberapa menit)"; hr
     id rhc >/dev/null 2>&1 || useradd --system --home "$PREFIX" --shell /usr/sbin/nologin rhc
@@ -117,7 +127,8 @@ cmd_pasang(){
     install -d -o rhc -g rhc -m 700 "$SECRETS"
     if [ "$u" = root ]; then "$cargo" build --release --manifest-path "$ROOT/Cargo.toml"
     else sudo -u "$u" -H "$cargo" build --release --manifest-path "$ROOT/Cargo.toml"; fi
-    install -m 755 "$ROOT/target/release/rhc-trader" "$PREFIX/bin/rhc-trader"
+    # mulai.sh installs the new binary itself, only after it passed the on-chain self-test
+    [ "${RHC_DARI_MULAI:-}" = 1 ] || install -m 755 "$ROOT/target/release/rhc-trader" "$PREFIX/bin/rhc-trader"
     for f in "$ROOT"/models/*; do [ -e "$BOT/$(basename "$f")" ] || install -o rhc -g rhc -m 644 "$f" "$BOT/"; done
     cp -r "$ROOT"/training/* "$PREFIX/training/" && chown -R rhc:rhc "$PREFIX/training"
     # Python is only for the daily retrain (the bot itself never runs it): a failed pip must not stop the install
@@ -212,7 +223,18 @@ cmd_atur(){
 
     hr; say " 3/5  Modal"; hr
     say "Isi sama dengan USD yang benar-benar Anda kirim ke wallet bot."
-    local setoran; setoran=$(ask "Setoran USD" 100)
+    local setoran
+    while :; do
+        setoran=$(ask "Setoran USD (angka saja, mis. 100 atau 1000)" 100)
+        setoran=${setoran//[[:space:]]/}; setoran=${setoran#\$}
+        # 1.000 / 1,000 is "one thousand" here: read as 1.0 the strategy could never size a position
+        if [[ $setoran =~ ^[0-9]{1,3}([.,][0-9]{3})+$ ]]; then setoran=${setoran//[.,]/}; fi
+        if [[ $setoran =~ ^[0-9]+([.][0-9]{1,2})?$ ]] && [ "${setoran%%.*}" -ge 10 ]; then
+            yes_no "    Setoran = \$$setoran. Benar?" && break
+        else
+            say "    angka dolar saja, minimal 10"
+        fi
+    done
 
     hr; say " 4/5  Batas pengaman"; hr
     local maks stop_rugi maks_pos

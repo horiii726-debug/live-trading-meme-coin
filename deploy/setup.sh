@@ -23,12 +23,17 @@ sedrepl(){ printf '%s' "$1" | sed -e 's/[\\&#]/\\&/g'; }
 ask()  { local p=$1 d=${2:-} a; read -r -p "$p${d:+ [$d]}: " a; printf '%s' "${a:-$d}"; }
 yes_no() { local a; read -r -p "$1 (y/n) [n]: " a; [ "${a,,}" = y ]; }
 
+# Some networks answer DNS for the RPC host with a block page (Indonesia's Internet Positif does). The bot then needs
+# DOH_URL set (it resolves through Cloudflare at 1.1.1.1 itself); DOH_ARG makes these curl probes do the same.
+DOH=https://1.1.1.1/dns-query
+DOH_ARG=""
 rpc_call() { # rpc_call <url> <method> [params-json]
-    curl -sS -m 20 -X POST "$1" -H 'content-type: application/json' \
+    curl -sS -m 20 ${DOH_ARG:+--doh-url "$DOH_ARG"} -X POST "$1" -H 'content-type: application/json' \
          -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$2\",\"params\":${3:-[]}}" 2>/dev/null || true
 }
 
-check_rpc() { # prints: ok | wrongchain:<id> | notevm | unreachable ; sets HAS_TRACE
+check_rpc() { # prints: ok:<yes|no|unknown debug_traceCall> | wrongchain:<id> | notevm | unreachable
+    # (it runs in $(...), a subshell: the trace answer must travel in the output, a variable set here is lost)
     local url=$1 r
     r=$(rpc_call "$url" eth_chainId)
     case "$r" in
@@ -41,12 +46,11 @@ check_rpc() { # prints: ok | wrongchain:<id> | notevm | unreachable ; sets HAS_T
     # decided by JSON-RPC error code, never by message text: a 429 probe must not read as "yes"
     r=$(rpc_call "$url" debug_traceCall)
     case "$r" in
-        *'-32601'*)        HAS_TRACE=no;;
-        *'"error"'*'429'*) HAS_TRACE=unknown;;
-        *'"jsonrpc"'*)     HAS_TRACE=yes;;
-        *)                 HAS_TRACE=unknown;;
+        *'-32601'*)        printf 'ok:no';;
+        *'"error"'*'429'*) printf 'ok:unknown';;
+        *'"jsonrpc"'*)     printf 'ok:yes';;
+        *)                 printf 'ok:unknown';;
     esac
-    printf 'ok'
 }
 
 say "=============================================================="
@@ -70,18 +74,25 @@ say "Penyedia berbayar yang mendukung chain 4663: QuickNode, Alchemy, Dwellir, A
 say "Kosongkan untuk memakai RPC publik saja."
 say ""
 PUBLIC_RPC=https://rpc.mainnet.chain.robinhood.com
-HAS_TRACE=no
+case "$(check_rpc "$PUBLIC_RPC")" in
+    ok:*) ;;
+    *)  DOH_ARG=$DOH
+        case "$(check_rpc "$PUBLIC_RPC")" in
+            ok:*) say "DNS VPS ini membelokkan alamat RPC (diblokir DNS) -> bot memakai DNS-over-HTTPS (1.1.1.1)"; say "";;
+            *)    DOH_ARG="";;
+        esac;;
+esac
 PAID_RPC=$(ask "URL RPC berbayar Anda (boleh kosong)")
 
 RPC_URLS=$PUBLIC_RPC
 if [ -n "$PAID_RPC" ]; then
     say ""
-    say "menguji $PAID_RPC ..."
+    say "menguji RPC ..."
     res=$(check_rpc "$PAID_RPC")
     case "$res" in
-        ok)
+        ok:*)
             say "  chainId 4663 OK"
-            case "$HAS_TRACE" in
+            case "${res#ok:}" in
                 yes) say "  debug_traceCall tersedia — mode shadow bisa dipakai";;
                 no)  say "  debug_traceCall TIDAK tersedia — mode shadow tidak akan jalan di RPC ini";;
                 *)   say "  debug_traceCall tidak bisa dipastikan (RPC sibuk atau kena batas laju)";;
@@ -187,6 +198,7 @@ say ""
 # ---------------------------------------------------------------- tulis .env
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
 sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$RPC_URLS")#" \
+    -e "s#^DOH_URL=.*#DOH_URL=$(sedrepl "$DOH_ARG")#" \
     -e "s#^START_USD=.*#START_USD=$START_USD#" \
     -e "s#^EXEC_MODE=.*#EXEC_MODE=$MODE#" \
     -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$KEYFILE#" \

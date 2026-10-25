@@ -1,0 +1,51 @@
+name: uji-trading
+# Does the installed bot actually trade? Installs exactly like the README, then lets the bot run on the live chain
+# for a few hours and reports what it did: pools screened, buy orders the strategy handed to the executor (and how
+# old they were), why buys were skipped, RPC health. Run in EXEC_MODE=shadow: every real order is built and signed;
+# nothing is ever broadcast (the wallet is a fresh random key with no ETH anyway). Shadow's on-chain simulation
+# needs debug_traceCall, which the free public RPC lacks, so there the last step reports that instead.
+on:
+  workflow_dispatch:
+    inputs:
+      menit:
+        description: berapa menit bot diamati
+        default: "150"
+permissions:
+  contents: read
+
+jobs:
+  amati:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install — the README's one line
+        run: |
+          url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/mulai.sh"
+          if [ "$GITHUB_REF_NAME" != main ]; then
+            sudo git clone -q -b "$GITHUB_REF_NAME" "https://github.com/$GITHUB_REPOSITORY.git" /root/live-trading-meme-coin
+          fi
+          python3 .github/uji/ketik.py "curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash"
+
+      - name: switch to shadow (build + sign every order, never broadcast)
+        run: |
+          sudo sed -i 's/^EXEC_MODE=.*/EXEC_MODE=shadow/' /opt/rhc/bot/.env
+          sudo systemctl restart rhc-trader
+          sleep 20; systemctl is-active rhc-trader
+
+      - name: observe the bot on the live chain
+        run: |
+          total=${{ github.event.inputs.menit || '150' }}
+          for i in $(seq 1 $((total / 10))); do
+            sleep 600
+            echo "=== $((i * 10)) menit — service: $(systemctl is-active rhc-trader), restarts: $(systemctl show -p NRestarts --value rhc-trader)"
+            sudo python3 -c "import json;d=json.load(open('/opt/rhc/bot/rust_live/status.json'));a=d['akun'];print('blok',d['last_block'],'lag',d['lag_blocks'],'aman',d.get('mode_aman'),'| dibeli',a['trade_dibeli'],'selesai',a['trade_selesai'],'| saringan',d['saringan'])" || true
+          done
+
+      - name: report
+        if: always()
+        run: |
+          sudo python3 .github/uji/laporan.py /opt/rhc/bot
+          echo "--------------------------------------------------------------- live.log (60 baris terakhir)"
+          sudo tail -n 60 /opt/rhc/bot/rust_live/live.log

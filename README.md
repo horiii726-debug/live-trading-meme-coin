@@ -5,6 +5,9 @@
 > ⛔ **Repo ini PUBLIK.** Jangan pernah menulis private key atau URL RPC berbayar di GitHub (ikon pensil ✏️).
 > Isi hanya di VPS. Key yang masuk GitHub dikuras bot pencuri dalam hitungan menit.
 
+VPS: **Ubuntu 22.04/24.04**, RAM 4 GB disarankan (2 GB jalan: swap dibuat otomatis), disk kosong ≥ 10 GB.
+Lokasi bebas — kalau DNS VPS memblokir RPC (mis. Internet Positif), script mendeteksinya dan memakai DNS-over-HTTPS.
+
 Masuk VPS (`ssh root@IP-VPS`), lalu tempel **satu baris** ini:
 
 ```
@@ -35,9 +38,9 @@ bot mulai trading begitu saldonya masuk, tetap jalan walau SSH ditutup, dan meny
 
 | Nanti | Perintah (di folder `live-trading-meme-coin`) |
 |---|---|
-| pantau | `sudo ./rhc.sh log` |
+| pantau (termasuk beli/jual sungguhan, baris `EXEC:`) | `sudo ./rhc.sh log` |
 | status | `sudo ./rhc.sh status` |
-| ganti RPC / wallet / mode | `sudo ./rhc.sh isi` |
+| ganti RPC / wallet / mode | `sudo ./rhc.sh isi` — isi hanya yang mau diganti; baris kosong = yang lama tetap dipakai |
 | perbarui ke versi terbaru | jalankan lagi baris `curl ... mulai.sh` di atas (isian lama dipakai) |
 
 Rem darurat: `sudo touch /opt/rhc/bot/rust_live/exec/STOP_BUYING` (stop beli) atau `.../FLATTEN_ALL` (jual semua).

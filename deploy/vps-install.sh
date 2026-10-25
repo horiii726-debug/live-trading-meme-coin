@@ -16,8 +16,9 @@ say(){ printf '\n>>> %s\n' "$*"; }
 
 say "1/4  paket sistem"
 if command -v apt-get >/dev/null; then
-    apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    # apt-get update ignores DPkg::Lock::Timeout (it takes the lists lock): retry while first-boot updates run
+    for i in $(seq 1 90); do apt-get -o DPkg::Lock::Timeout=600 update -qq && break; [ "$i" -lt 90 ] || exit 1; sleep 10; done
+    DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y --no-install-recommends \
         build-essential pkg-config libssl-dev python3-venv ca-certificates curl git cron >/dev/null
 fi
 
@@ -35,7 +36,9 @@ if [ ! -x "$CARGO" ]; then
     fi
     CARGO="$BUILD_HOME/.cargo/bin/cargo"
 fi
-"$CARGO" --version || { echo "Rust gagal dipasang"; exit 1; }
+# cargo is a rustup proxy: run it as the user it was installed for (as root it finds no toolchain)
+if [ "$BUILD_USER" = root ]; then "$CARGO" --version; else sudo -u "$BUILD_USER" -H "$CARGO" --version; fi \
+    || { echo "Rust gagal dipasang"; exit 1; }
 
 say "3/4  build dan pasang"
 "$ROOT/deploy/install.sh"

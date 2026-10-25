@@ -16,11 +16,15 @@ import time
 cmd = sys.argv[1]
 no_questions = "--no-questions" in sys.argv
 key = secrets.token_hex(32)
-answers = [(b"RPC: ", b""), (b"Private key: ", key.encode()), (b"[100]: ", b"100")]
+# the deposit is typed the Indonesian way ("1.000" = one thousand) and must end up as START_USD=1000
+answers = [(b"RPC: ", b""), (b"Private key: ", key.encode()), (b"[100]: ", b"1.000"), (b"Benar? (y/n) [y]: ", b"y")]
 
 pid, fd = pty.fork()
 if pid == 0:
     os.execvp("bash", ["bash", "-c", cmd])
+# a person presses Enter a few times while the build runs; those must not answer the questions later
+time.sleep(2)
+os.write(fd, b"\n\n\n")
 
 buf, asked, deadline = b"", 0, time.time() + 55 * 60
 while True:

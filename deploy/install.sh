@@ -7,8 +7,9 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 # system packages: C toolchain + OpenSSL headers (TLS) for the Rust build, Python venv for the retrain job
 if command -v apt-get >/dev/null; then
-    apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev python3-venv ca-certificates >/dev/null
+    # apt-get update ignores DPkg::Lock::Timeout (it takes the lists lock): retry while first-boot updates run
+    for i in $(seq 1 90); do apt-get -o DPkg::Lock::Timeout=600 update -qq && break; [ "$i" -lt 90 ] || exit 1; sleep 10; done
+    DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y --no-install-recommends build-essential pkg-config libssl-dev python3-venv ca-certificates >/dev/null
 fi
 
 id rhc >/dev/null 2>&1 || useradd --system --home /opt/rhc --shell /usr/sbin/nologin rhc

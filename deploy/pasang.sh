@@ -67,6 +67,10 @@ MAKS_POS=$(field MAKS_POSISI_TERBUKA); MAKS_POS=${MAKS_POS:-4}
 # the executor refuses to start on a non-number (exec/config.rs), so a typo here would crash-loop the service
 angka(){ [[ $2 =~ ^[0-9]+([.][0-9]+)?$ ]] || die "$1 harus angka (tanpa \$ atau koma), bukan: $2"; }
 angka SETORAN_USD "$SETORAN_USD"; angka MAKS_USD_PER_BELI "$MAKS_BELI"; angka STOP_RUGI_HARIAN_USD "$STOP_RUGI"
+# "1.000" is one thousand in Indonesian but 1.0 to the bot, and below about $2 the strategy can never size a
+# position (MIN_POS), so the bot would silently never buy
+[[ $SETORAN_USD =~ ^[0-9]{1,3}(\.[0-9]{3})+$ ]] && die "SETORAN_USD=$SETORAN_USD: tulis tanpa titik ribuan, mis. 1000 (bukan 1.000)."
+[ "${SETORAN_USD%%.*}" -ge 10 ] || die "SETORAN_USD minimal 10 (di bawah itu strategi tidak bisa membuka posisi)."
 [[ $MAKS_POS =~ ^[1-9][0-9]*$ ]] || die "MAKS_POSISI_TERBUKA harus bilangan bulat 1 atau lebih, bukan: $MAKS_POS"
 
 say "=============================================================="
@@ -94,6 +98,10 @@ if [ -n "$RPC_API_KEY" ]; then
         wss://*|ws://*) die "itu URL WebSocket (wss://). Salin URL HTTP-nya (diawali https://) dari dasbor RPC.";;
         *) die "URL RPC harus diawali https:// — salin URL utuhnya dari dasbor RPC, bukan api key-nya saja.";;
     esac
+    # the bot always connects to port 443 with the host exactly as written (net.rs), and its .env reader cuts at '#'
+    hostport=${RPC_API_KEY#https://}; hostport=${hostport%%/*}; hostport=${hostport%%\?*}
+    case "$hostport" in *[:@]*) die "URL RPC dengan port atau user:password ($hostport) tidak bisa dipakai bot. Pakai URL https biasa dari dasbor.";; esac
+    case "$RPC_API_KEY" in *'#'*) die "URL RPC tidak boleh berisi tanda #. Salin ulang URL-nya dari dasbor.";; esac
     say "KOLOM 1  menguji RPC ..."
     r=$(rpc_post "$RPC_API_KEY" eth_chainId)
     case "$r" in
@@ -117,7 +125,15 @@ if [ -n "$RPC_API_KEY" ]; then
         *)  die "jawaban RPC bukan JSON-RPC — URL-nya salah? Salin URL HTTP utuh dari dasbor RPC.";;
     esac
 else
-    say "KOLOM 1  kosong -> memakai RPC publik (ada batas laju; shadow tidak tersedia)"
+    # an empty field keeps what is configured (the form is blanked after every run, like the key below)
+    lama=""
+    [ -f "$BOT/.env" ] && lama=$(sed -n 's/^RPC_URLS=//p' "$BOT/.env" | head -1)
+    if [ -n "$lama" ] && [ "$lama" != "$PUBLIC_RPC" ]; then
+        RPC_URLS=$lama
+        say "KOLOM 1  kosong -> RPC yang sudah terpasang tetap dipakai"
+    else
+        say "KOLOM 1  kosong -> memakai RPC publik (ada batas laju; shadow tidak tersedia)"
+    fi
 fi
 
 # ---------------------------------------------------------------- kolom 2: kunci

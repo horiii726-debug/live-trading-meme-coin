@@ -213,8 +213,9 @@ impl Akun {
                 return None;
             }
         };
-        if k.dikecualikan.is_some() {
-            return self.tolak("bukan meme coin / belum terklasifikasi");
+        if let Some(x) = &k.dikecualikan {
+            // live.rs excludes a coin whose dev lookup failed too: the rug rule must never be skipped silently
+            return self.tolak(if x.starts_with("dev ") { "dev tidak diketahui" } else { "bukan meme coin / belum terklasifikasi" });
         }
         if self.cfg.filter {
             if !k.score.is_finite() {
@@ -626,5 +627,30 @@ mod tests {
         let mut b = Akun::new(plain, 0.75);
         b.tip = 5000.0;
         assert_eq!(b.kelly(), 0.02, "no seed: backtested schedule");
+    }
+
+    #[test]
+    fn dev_rule_blocks_known_ruggers_and_coins_whose_dev_lookup_failed() {
+        let mut cfg = Cfg::load(None);
+        cfg.dev_rule = true;
+        cfg.larang_pemanasan = false;
+        let mut a = Akun::new(cfg, 0.5);
+        a.live = true;
+        a.tip = 1630.0; // pool born at block 1000: its minute-1 decision is due now
+        let sim = |id: &str| {
+            let m = PoolMeta { id: id.into(), c0: "0x0000000000000000000000000000000000000000".into(), c1: "0x00000000000000000000000000000000000000ab".into(), fee: 3000.0, hooks: "0x0000000000000000000000000000000000000000".into(), init: 1000.0 };
+            PoolSim::new(m, SimOpts::default()).unwrap()
+        };
+        let kep = |dev: Option<&str>, ex: Option<&str>| Keputusan { score: 0.9, ml_ok: true, dev: dev.map(|s| s.into()), jual_m1: 3, lp_m1: 50_000.0, feats: vec![], dikecualikan: ex.map(|s| s.into()) };
+        a.dev_hist.insert("0xrug".into(), vec![1.4, 0.12]);
+        a.dev_hist.insert("0xbaik".into(), vec![1.4, 2.0]);
+        a.kep.insert("p_rug".into(), kep(Some("0xrug"), None));
+        assert_eq!(a.gerbang(&sim("p_rug")), Some(false), "a dev with a past return < 0.3 is never bought");
+        assert_eq!(a.tolak.get("dev pernah rug"), Some(&1));
+        a.kep.insert("p_gagal".into(), kep(None, Some("dev tidak diketahui (net: http 429)")));
+        assert_eq!(a.gerbang(&sim("p_gagal")), Some(false), "a failed dev lookup is never bought");
+        assert_eq!(a.tolak.get("dev tidak diketahui"), Some(&1));
+        a.kep.insert("p_baik".into(), kep(Some("0xbaik"), None));
+        assert_eq!(a.gerbang(&sim("p_baik")), Some(true), "a dev with a clean history passes the rule");
     }
 }

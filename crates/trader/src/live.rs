@@ -305,7 +305,78 @@ struct HasilCek {
     err: Option<String>,
 }
 
-fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, meta: PoolMeta, token: String, sw: Vec<Swap>, eth: f64) -> Result<Keputusan, String> {
+// ---------- dev pembuat token (aturan "dev pernah rug") ----------
+/// Hasil pencarian dev per pool. Pencarian mulai saat pool lahir (Init, `pra_cek_dev`) sehingga punya ~70 dtk untuk
+/// mengulang; keputusan menit-1 (`cek_koin`) tinggal membaca hasilnya.
+#[derive(Clone)]
+enum DevCek {
+    Berjalan,
+    Selesai(Result<Option<String>, String>),
+}
+type DevPra = Arc<Mutex<HashMap<String, DevCek>>>;
+/// pra-cek: dari Init sampai keputusan menit-1 harus siap (menit-1 + ~10 dtk, lihat "cek telat" di bot.rs)
+const DEV_BATAS_PRA: Duration = Duration::from_secs(68);
+/// cek menit-1: menunggu pra-cek / mencari sendiri, sejajar dengan pengambilan transfer
+const DEV_BATAS_CEK: Duration = Duration::from_secs(8);
+
+/// Ulangi `f` dengan jeda bertambah (0,25 dtk .. 3 dtk) sampai berhasil atau `batas` lewat.
+fn ulangi<T>(batas: Instant, mut f: impl FnMut() -> Result<T, String>) -> Result<T, String> {
+    let mut jeda = Duration::from_millis(250);
+    loop {
+        match f() {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                if Instant::now() + jeda >= batas {
+                    return Err(e);
+                }
+                std::thread::sleep(jeda);
+                jeda = (jeda * 2).min(Duration::from_secs(3));
+            }
+        }
+    }
+}
+
+/// Dev = pengirim transaksi mint PERTAMA token di [init - 36000, init + 600] (definisi yang sama dengan riwayat dev).
+/// Ok(None): memang tidak ada mint di rentang itu (aturan dev tidak berlaku, sama seperti backtest).
+/// Err: RPC gagal sampai `batas` -> koin itu TIDAK dibeli (`cek_koin`), supaya aturan tidak mati diam-diam.
+/// Maju dari blok terlama dalam batch kecil 6 x 1000 blok: satu batch 37 permintaan dijawab 429 oleh RPC publik
+/// (terukur: dev selalu "?"), lalu dulu langsung menyerah.
+fn cari_dev(rpc: &Rpc, token: &str, init: f64, batas: Instant) -> Result<Option<String>, String> {
+    let filter = json!({"address": token, "topics": [T_TRANSFER, ZERO32]});
+    let (mut a, sampai) = ((init - 36000.0).max(0.0) as u64, (init + 600.0) as u64);
+    while a <= sampai {
+        let b = a.saturating_add(5999).min(sampai);
+        let mint = ulangi(batas, || rpc.logs_ranged(&filter, a, b, 1000, 4000))?;
+        if let Some(h) = mint.first().and_then(|l| l["transactionHash"].as_str()) {
+            let tx = ulangi(batas, || rpc.quick("eth_getTransactionByHash", json!([h]), 2000))?;
+            return tx["from"].as_str().map(|s| Some(s.to_lowercase())).ok_or_else(|| "transaksi mint tanpa pengirim".to_string());
+        }
+        a = b + 1;
+    }
+    Ok(None)
+}
+
+/// Riwayat dev bawaan (models/dev_history.json: dev -> hasil trade-nya, terkumpul dari backtest) ke akun.dev_hist,
+/// supaya aturan "dev pernah rug" sudah mengenal dev perug sejak menit pertama, bukan baru setelah bot sendiri kena
+/// rug. Digabung tanpa duplikat: riwayat yang tersimpan di checkpoint sudah memuatnya sejak start pertama.
+/// Hasil: (jumlah dev di berkas, jumlah dev yang kini tercatat pernah rug).
+fn muat_riwayat_dev(akun: &mut Akun, p: &Path) -> Result<(usize, usize), String> {
+    let t = std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
+    let j: Value = serde_json::from_str(&t).map_err(|e| format!("{}: {e}", p.display()))?;
+    let o = j.as_object().ok_or_else(|| format!("{}: harus berbentuk {{dev: [hasil, ...]}}", p.display()))?;
+    for (d, v) in o {
+        let h = akun.dev_hist.entry(d.to_lowercase()).or_default();
+        for r in v.as_array().into_iter().flatten().filter_map(|x| x.as_f64()) {
+            if !h.contains(&r) {
+                h.push(r);
+            }
+        }
+    }
+    let rug = akun.dev_hist.values().filter(|h| h.iter().any(|r| *r < 0.3)).count();
+    Ok((o.len(), rug))
+}
+
+fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, pra: DevPra, meta: PoolMeta, token: String, sw: Vec<Swap>, eth: f64) -> Result<Keputusan, String> {
     let init = meta.init;
     // KLASIFIKASI DULU: saham ter-tokenisasi & token yang gagal diklasifikasi tidak boleh dibeli
     let (rpc3, tok3, kc3) = (rpc.clone(), token.clone(), kc.clone());
@@ -322,14 +393,26 @@ fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, meta: PoolM
         }
     });
     let hx = |b: f64| format!("0x{:x}", b as u64);
-    // dev pembuat token (pengirim transaksi mint) — paralel dengan pengambilan transfer menit-1
-    let (rpc2, tok2) = (rpc.clone(), token.clone());
-    let th_dev = std::thread::spawn(move || -> Option<String> {
-        // first mint in [init - 36000, init + 600], in 1000-block parts (private RPCs cap the getLogs range)
-        let mint = rpc2.logs_ranged(&json!({"address": tok2, "topics": [T_TRANSFER, ZERO32]}), (init - 36000.0).max(0.0) as u64, (init + 600.0) as u64, 1000, 5000).ok()?;
-        let h = mint.first()?["transactionHash"].as_str()?.to_string();
-        let tx = rpc2.quick("eth_getTransactionByHash", json!([h]), 2000).ok()?;
-        tx["from"].as_str().map(|s| s.to_lowercase())
+    // dev pembuat token (pengirim transaksi mint): hasil pra-cek yang mulai saat pool lahir. Kalau tidak ada (pool
+    // lahir sebelum bot menyala) atau gagal, cari sekali lagi di sini. Paralel dengan pengambilan transfer menit-1.
+    let (rpc2, tok2, id2) = (rpc.clone(), token.clone(), meta.id.clone());
+    let th_dev = std::thread::spawn(move || -> Result<Option<String>, String> {
+        let batas = Instant::now() + DEV_BATAS_CEK;
+        loop {
+            let st = pra.lock().unwrap().get(&id2).cloned();
+            match st {
+                Some(DevCek::Berjalan) if Instant::now() < batas => std::thread::sleep(Duration::from_millis(100)),
+                Some(DevCek::Berjalan) => return Err("pencarian dev belum selesai".into()),
+                Some(DevCek::Selesai(Ok(d))) => {
+                    pra.lock().unwrap().remove(&id2);
+                    return Ok(d);
+                }
+                _ => {
+                    pra.lock().unwrap().remove(&id2);
+                    return cari_dev(&rpc2, &tok2, init, batas);
+                }
+            }
+        }
     });
     let logs = rpc.quick("eth_getLogs", json!([{"address": token, "topics": [T_TRANSFER], "fromBlock": hx(init), "toBlock": hx(init + 600.0)}]), 3000)?;
     let mut tr = Vec::new();
@@ -349,8 +432,12 @@ fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, meta: PoolM
     let score = cat.predict(&x);
     let q1 = meta.c1 == NATIVE;
     let jual = fsw.iter().filter(|s| (if q1 { s.a0 } else { s.a1 }) < 0.0).count() as i64;
-    let dev = th_dev.join().ok().flatten();
     let dikecualikan = th_kelas.join().unwrap_or(Some("klasifikasi gagal".into()));
+    // the rug rule must never be skipped silently: a dev that could not be looked up = this coin is not bought
+    let (dev, dikecualikan) = match th_dev.join().unwrap_or_else(|_| Err("thread dev panik".into())) {
+        Ok(d) => (d, dikecualikan),
+        Err(e) => (None, dikecualikan.or(Some(format!("dev tidak diketahui ({})", e.chars().take(60).collect::<String>())))),
+    };
     Ok(Keputusan { score, ml_ok: false, dev, jual_m1: jual, lp_m1: fe.get("lp_m1").unwrap_or(f64::NAN), feats: x, dikecualikan })
 }
 
@@ -427,6 +514,8 @@ struct Live {
     t_err_log: Instant,
     // blocks processed in MODE AMAN while live (from decisions.jsonl), replayed identically
     aman_simpan: HashSet<u64>,
+    // dev lookups started when a pool is born, read by the minute-1 check
+    dev_pra: DevPra,
 }
 
 /// Wait after a failed poll: doubles from 0.25 s up to 3 s, back to 0.25 s after a good poll (a rate limit costs a
@@ -483,16 +572,34 @@ impl Live {
             let d = json!({"pool": pool, "pada": blk, "score": k.score, "ml_ok": ok, "dev": k.dev, "jual_m1": k.jual_m1, "lp_m1": k.lp_m1, "feats": k.feats, "dikecualikan": k.dikecualikan, "t": sekarang_iso()});
             tambah(&self.dir.join("decisions.jsonl"), &d.to_string());
             self.log.tulis(&format!(
-                "SARING {} | skor {:.3} {} | dev {} | penjual menit-1 {} | LP ${:.0} | skor ke-{}",
+                "SARING {} | skor {:.3} {} | dev {} | penjual menit-1 {} | LP ${:.0} | skor ke-{}{}",
                 &pool[..10.min(pool.len())],
                 k.score,
                 if k.dikecualikan.is_some() { "DIKECUALIKAN" } else if ok { "LOLOS" } else { "tolak(ml)" },
                 k.dev.as_deref().map(|d| &d[..8.min(d.len())]).unwrap_or("?"),
                 k.jual_m1,
                 k.lp_m1,
-                n
+                n,
+                k.dikecualikan.as_deref().map(|x| format!(" | {x}")).unwrap_or_default()
             ));
         }
+    }
+    /// Start looking up the token's dev the moment its pool is born: the minute-1 decision is ~60 s later and must
+    /// not wait for (or give up on) a slow, rate-limited lookup.
+    fn pra_cek_dev(&self, id: &str, c0: &str, c1: &str, init: f64) {
+        let token = if c0 == NATIVE { c1.to_string() } else { c0.to_string() };
+        let (rpc, pra, id) = (self.rpc.clone(), self.dev_pra.clone(), id.to_string());
+        {
+            let mut g = pra.lock().unwrap();
+            if g.len() > 20_000 {
+                g.clear(); // results never read (pools skipped before minute 1); a live one is simply looked up again
+            }
+            g.insert(id.clone(), DevCek::Berjalan);
+        }
+        std::thread::spawn(move || {
+            let r = cari_dev(&rpc, &token, init, Instant::now() + DEV_BATAS_PRA);
+            pra.lock().unwrap().insert(id, DevCek::Selesai(r));
+        });
     }
     fn mulai_cek(&mut self, blk: f64) {
         let perlu: Vec<String> = self
@@ -514,9 +621,9 @@ impl Live {
             }
             let (rpc, meta, sw, eth) = (self.rpc.clone(), s.m.clone(), s.sw.clone(), s.eth_usd);
             let token = if meta.c0 == NATIVE { meta.c1.clone() } else { meta.c0.clone() };
-            let (tx, cat, pool, kc) = (self.tx.clone(), self.cat.clone(), id.clone(), self.kc.clone());
+            let (tx, cat, pool, kc, pra) = (self.tx.clone(), self.cat.clone(), id.clone(), self.kc.clone(), self.dev_pra.clone());
             std::thread::spawn(move || {
-                let r = cek_koin(&rpc, &cat, kc, meta, token, sw, eth);
+                let r = cek_koin(&rpc, &cat, kc, pra, meta, token, sw, eth);
                 let _ = match r {
                     Ok(k) => tx.send(HasilCek { pool, k: Some(k), err: None }),
                     Err(e) => tx.send(HasilCek { pool, k: None, err: Some(e) }),
@@ -543,6 +650,9 @@ impl Live {
                     self.simpan_event(e);
                     let m = PoolMeta { id: id.clone(), c0: c0.clone(), c1: c1.clone(), fee: *fee, hooks: hooks.clone(), init: blk };
                     let tracked = self.m.pool_baru(m, self.eth);
+                    if tracked && !self.replaying {
+                        self.pra_cek_dev(id, c0, c1, blk);
+                    }
                     if tracked && self.exec.is_some() {
                         if let (Ok(a0), Ok(a1), Ok(h)) = (c0.parse(), c1.parse(), hooks.parse()) {
                             let key = crate::exec::uniswap::Key { currency0: a0, currency1: a1, fee: *fee as u32, tick_spacing: *ts as i32, hooks: h };
@@ -1106,6 +1216,9 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     if cp_blk.is_finite() {
         akun.dari_json(&cp["akun"]);
     }
+    // known rugging devs from the shipped history, merged before the replay so live and replay see the same history.
+    // Fail closed: with DEV_RULE=1 a missing or broken file would leave the rug rule blind.
+    let riwayat_dev = if cfg.dev_rule { Some(muat_riwayat_dev(&mut akun, &PathBuf::from(bot_dir).join("dev_history.json"))?) } else { None };
     let mut m = Mesin::new(akun, model, model_up);
     m.bayangan = cfg.label;
     m.emit_orders = exec.is_some();
@@ -1152,7 +1265,12 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
         range_cap: cfg.chunk.max(2 * crate::loggate::OVERLAP_BLOCKS),
         t_err_log: Instant::now() - Duration::from_secs(60),
         aman_simpan: HashSet::new(),
+        dev_pra: Arc::new(Mutex::new(HashMap::new())),
     };
+    match riwayat_dev {
+        Some((n, rug)) => b.log.tulis(&format!("aturan dev AKTIF: {n} dev dari dev_history.json, {rug} dev tercatat pernah rug (tidak akan dibeli)")),
+        None => b.log.tulis("PERINGATAN: DEV_RULE=0 — aturan \"dev pernah rug\" MATI"),
+    }
     b.tip = hexnum(&rpc.call("eth_blockNumber", json!([]))?);
     let state_p = dir.join("state.json");
     if !state_p.exists() {
@@ -1380,5 +1498,29 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
             t_simpan = Instant::now();
         }
         std::thread::sleep(Duration::from_millis(cfg.poll_ms));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shipped_dev_history_is_merged_once_and_matched_lowercase() {
+        let p = std::env::temp_dir().join(format!("rhc_dev_history_{}.json", std::process::id()));
+        std::fs::write(&p, r#"{"0xAbC": [1.2, 0.1], "0xdef": [2.0]}"#).unwrap();
+        let mut a = Akun::new(Cfg::load(None), 0.5);
+        a.dev_hist.insert("0xdef".into(), vec![0.9]); // learned live: kept
+        assert_eq!(muat_riwayat_dev(&mut a, &p).unwrap(), (2, 1));
+        assert_eq!(muat_riwayat_dev(&mut a, &p).unwrap(), (2, 1), "loading again (every restart) adds nothing");
+        assert_eq!(a.dev_hist["0xabc"], vec![1.2, 0.1], "addresses are matched lowercase, like the live lookup");
+        assert_eq!(a.dev_hist["0xdef"], vec![0.9, 2.0]);
+        let _ = std::fs::remove_file(&p);
+        // the file the installer copies to /opt/rhc/bot
+        let shipped = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../models/dev_history.json");
+        let mut b = Akun::new(Cfg::load(None), 0.5);
+        let (n, rug) = muat_riwayat_dev(&mut b, &shipped).unwrap();
+        assert!(n >= 600 && rug >= 50, "models/dev_history.json: {n} devs, {rug} ruggers");
+        assert!(muat_riwayat_dev(&mut b, Path::new("/tidak/ada.json")).is_err(), "a missing file must stop the bot");
     }
 }
