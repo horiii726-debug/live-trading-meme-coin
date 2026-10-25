@@ -142,48 +142,79 @@ impl Sender {
     }
 
     /// Broadcast to every endpoint in parallel. Advances the local nonce when the transaction was accepted.
+    /// When every endpoint failed at the network level (HTTP 429, timeout), the very same signed bytes are sent
+    /// again, twice at most: same hash and nonce, so a copy that did arrive just answers "already known".
     pub fn broadcast(&mut self, tx: &SignedTx) -> SendOutcome {
         let raw = format!("0x{}", hex::encode(&tx.raw));
-        let results: Vec<Result<Value, String>> = std::thread::scope(|s| {
-            let hs: Vec<_> = self
-                .endpoints
-                .iter()
-                .map(|ep| {
-                    let raw = raw.clone();
-                    s.spawn(move || ep.call_once("eth_sendRawTransaction", json!([raw]), Duration::from_secs(4)))
-                })
-                .collect();
-            hs.into_iter().map(|h| h.join().unwrap_or_else(|_| Err("broadcast thread panicked".into()))).collect()
-        });
-        let mut nonce_low = false;
-        let mut network = false;
-        let mut first_err = String::new();
-        for r in &results {
-            let (ok, low, net, msg) = classify(r, &tx.hash);
-            if ok {
-                if tx.nonce == self.nonce {
-                    self.nonce += 1;
+        let mut outcome = SendOutcome::Rejected { error: "no endpoint".into(), maybe_sent: false };
+        for round in 0..3 {
+            if round > 0 {
+                std::thread::sleep(Duration::from_millis(300));
+            }
+            let results: Vec<Result<Value, String>> = std::thread::scope(|s| {
+                let hs: Vec<_> = self
+                    .endpoints
+                    .iter()
+                    .map(|ep| {
+                        let raw = raw.clone();
+                        s.spawn(move || ep.call_once("eth_sendRawTransaction", json!([raw]), Duration::from_secs(4)))
+                    })
+                    .collect();
+                hs.into_iter().map(|h| h.join().unwrap_or_else(|_| Err("broadcast thread panicked".into()))).collect()
+            });
+            let mut nonce_low = false;
+            let mut network = false;
+            let mut all_network = !results.is_empty();
+            let mut first_err = String::new();
+            for r in &results {
+                let (ok, low, net, msg) = classify(r, &tx.hash);
+                if ok {
+                    if tx.nonce == self.nonce {
+                        self.nonce += 1;
+                    }
+                    return SendOutcome::Accepted;
                 }
-                return SendOutcome::Accepted;
+                nonce_low |= low;
+                network |= net;
+                all_network &= net;
+                if first_err.is_empty() {
+                    first_err = msg;
+                }
             }
-            nonce_low |= low;
-            network |= net;
-            if first_err.is_empty() {
-                first_err = msg;
+            if nonce_low && !network {
+                return SendOutcome::NonceTooLow;
+            }
+            outcome = SendOutcome::Rejected { error: first_err, maybe_sent: network };
+            if !all_network {
+                break; // a node actually answered with a refusal: sending the same bytes again cannot help
             }
         }
-        if nonce_low && !network {
-            return SendOutcome::NonceTooLow;
-        }
-        SendOutcome::Rejected { error: first_err, maybe_sent: network }
+        outcome
     }
 
-    /// After an ambiguous broadcast: is the transaction known to the chain?
-    pub fn is_known(&self, hash: &B256) -> bool {
-        self.reads
-            .call_once("eth_getTransactionByHash", json!([format!("{hash:#x}")]), Duration::from_secs(4))
-            .map(|v| !v.is_null())
-            .unwrap_or(false)
+    /// After an ambiguous broadcast: is the transaction known to the chain? Asks every endpoint (twice):
+    /// Some(true) = some node has it, Some(false) = every node answered and none has it, None = could not tell.
+    /// A failed lookup must never read as "not on chain": that would drop a mined buy (tokens never tracked or
+    /// sold) or sign a second transaction for the same trade.
+    pub fn tx_known(&self, hash: &B256) -> Option<bool> {
+        let p = json!([format!("{hash:#x}")]);
+        for round in 0..2 {
+            if round > 0 {
+                std::thread::sleep(Duration::from_millis(300));
+            }
+            let mut answered = 0;
+            for ep in &self.endpoints {
+                match ep.call_once("eth_getTransactionByHash", p.clone(), Duration::from_secs(4)) {
+                    Ok(v) if !v.is_null() => return Some(true),
+                    Ok(_) => answered += 1,
+                    Err(_) => {}
+                }
+            }
+            if answered == self.endpoints.len() {
+                return Some(false);
+            }
+        }
+        None
     }
 
     /// Receipts for many hashes in one HTTP request. `None` = not mined yet (or the lookup failed).

@@ -33,6 +33,22 @@ fn transfers_to(logs: &Value, token: &str, to: &Address) -> U256 {
         .fold(U256::ZERO, |a, b| a.saturating_add(b))
 }
 
+/// The self-test often runs while the old bot keeps the same (public) RPC at its rate limit (an update): an HTTP
+/// 429 or a network error is retried with a growing pause; any real answer (a revert, a wrong result) is final.
+fn coba<T>(mut f: impl FnMut() -> Result<T, String>) -> Result<T, String> {
+    let mut jeda = Duration::from_millis(500);
+    for _ in 0..8 {
+        match f() {
+            Err(e) if e.starts_with("net:") || e.contains("429") || e.to_lowercase().contains("too many") => {
+                std::thread::sleep(jeda);
+                jeda = (jeda * 2).min(Duration::from_secs(8));
+            }
+            r => return r,
+        }
+    }
+    f()
+}
+
 pub fn run(rpc_urls: &[String], doh: bool, pool: Option<&str>, init_block: Option<u64>) -> Result<(), String> {
     let rpc = Rpc::new(&rpc_urls.join(","), doh)?;
     chain::verify_deployment(&rpc)?;
@@ -42,14 +58,15 @@ pub fn run(rpc_urls: &[String], doh: bool, pool: Option<&str>, init_block: Optio
         Some(p) => (p.to_lowercase(), init_block),
         None => (chain::ETH_USDG_POOL_ID.to_string(), Some(chain::ETH_USDG_INIT_BLOCK)),
     };
-    let key = pools::fetch_key(&rpc, &pool, hint)?;
+    let key = coba(|| pools::fetch_key(&rpc, &pool, hint))?;
     println!("2. pool {pool}: key verified (token {:#x}, fee {}, tickSpacing {}, hooks {:#x})", key.token(), key.fee, key.tick_spacing, key.hooks);
 
     let blk = rpc.call("eth_blockNumber", json!([]))?.as_str().ok_or("eth_blockNumber: bad response")?.to_string();
-    let st = pools::read_state(&rpc, &pool, &blk)?;
+    let st = coba(|| pools::read_state(&rpc, &pool, &blk))?;
     let amount_in: u128 = 500_000_000_000_000; // 0.0005 ETH, simulated only
     let local = amm::buy_out(&st, amount_in as f64).ok_or("local quote failed (pool state)")?;
-    let q = pools::eth_call(&rpc, V4_QUOTER, &uniswap::quote_calldata(&key, true, amount_in)?, &blk)?;
+    let quote_data = uniswap::quote_calldata(&key, true, amount_in)?;
+    let q = coba(|| pools::eth_call(&rpc, V4_QUOTER, &quote_data, &blk))?;
     let quoted = uniswap::decode_quote(&q)?;
     let qf = amm::u256_to_f64(quoted);
     let diff = (local / qf - 1.0).abs();
@@ -76,7 +93,7 @@ pub fn run(rpc_urls: &[String], doh: bool, pool: Option<&str>, init_block: Optio
         call(UNIVERSAL_ROUTER, U256::ZERO, &sell),
     ];
     let req = json!({"blockStateCalls": [{"stateOverrides": {format!("{me:#x}"): {"balance": "0xde0b6b3a7640000"}}, "calls": calls}], "traceTransfers": true, "validation": false});
-    let res = rpc.call_once("eth_simulateV1", json!([req, blk]), Duration::from_secs(30))?;
+    let res = coba(|| rpc.call_once("eth_simulateV1", json!([req, blk]), Duration::from_secs(30)))?;
     let out = res[0]["calls"].as_array().ok_or("eth_simulateV1: bad response")?;
     let names = ["buy 0.0005 ETH", "token.approve(Permit2)", "Permit2.approve(router)", "sell half of the tokens"];
     if out.len() != names.len() {
@@ -104,4 +121,25 @@ pub fn run(rpc_urls: &[String], doh: bool, pool: Option<&str>, init_block: Optio
     }
     println!("SELFTEST OK: the exact calldata this binary sends works against live chain state.");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::coba;
+
+    #[test]
+    fn coba_retries_rate_limits_but_not_real_answers() {
+        let mut n = 0;
+        let r: Result<u32, String> = coba(|| {
+            n += 1;
+            if n < 3 { Err("net: http 429 {\"error\":{\"code\":429}}".into()) } else { Ok(7) }
+        });
+        assert_eq!((r, n), (Ok(7), 3), "429 / network errors are retried until an answer comes");
+        let mut m = 0;
+        let r: Result<u32, String> = coba(|| {
+            m += 1;
+            Err("rpc: execution reverted".into())
+        });
+        assert_eq!((r.is_err(), m), (true, 1), "a revert is a real answer: no retry");
+    }
 }

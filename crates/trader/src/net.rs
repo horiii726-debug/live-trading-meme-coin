@@ -210,8 +210,21 @@ impl Rpc {
                 }
                 Err(e)
             }
+            // the endpoint itself failed (timeout, connection, HTTP 429/5xx/403, not JSON): a dead or over-quota paid
+            // RPC must not stall the poll and the executor's reads, so try the others and stay on the first that answers
+            Err(e) if self.eps.len() > 1 && !e.starts_with("rpc:") => self.coba_lain(cur, method, &params, to).ok_or(e),
             r => r,
         }
+    }
+    /// Try every endpoint after `cur`; on an answer make it the current one.
+    fn coba_lain(&self, cur: usize, method: &str, params: &Value, to: Duration) -> Option<Value> {
+        for i in (1..self.eps.len()).map(|k| (cur + k) % self.eps.len()) {
+            if let Ok(v) = self.call_at(&self.eps[i], method, params.clone(), to) {
+                self.idx.store(i, std::sync::atomic::Ordering::Relaxed);
+                return Some(v);
+            }
+        }
+        None
     }
     fn call_at(&self, ep: &Ep, method: &str, params: Value, to: Duration) -> Result<Value, String> {
         let ip = self.ip_of(ep)?;
@@ -231,7 +244,22 @@ impl Rpc {
     }
     /// Beberapa panggilan dalam SATU permintaan HTTP (batch JSON-RPC). Hasil diurutkan sesuai urutan masukan.
     pub fn batch(&self, calls: &[(&str, Value)], to: Duration) -> Result<Vec<Result<Value, String>>, String> {
-        let ep = &self.eps[self.idx.load(std::sync::atomic::Ordering::Relaxed) % self.eps.len()];
+        let cur = self.idx.load(std::sync::atomic::Ordering::Relaxed) % self.eps.len();
+        match self.batch_at(&self.eps[cur], calls, to) {
+            // the request itself failed (timeout, HTTP 429/5xx, not JSON): try the other endpoints, stay on the one that answers
+            Err(e) => {
+                for i in (1..self.eps.len()).map(|k| (cur + k) % self.eps.len()) {
+                    if let Ok(v) = self.batch_at(&self.eps[i], calls, to) {
+                        self.idx.store(i, std::sync::atomic::Ordering::Relaxed);
+                        return Ok(v);
+                    }
+                }
+                Err(e)
+            }
+            r => r,
+        }
+    }
+    fn batch_at(&self, ep: &Ep, calls: &[(&str, Value)], to: Duration) -> Result<Vec<Result<Value, String>>, String> {
         let ip = self.ip_of(ep)?;
         let reuse = ep.pool.lock().unwrap().pop().filter(|c| c.ip == ip);
         let mut c = reuse.unwrap_or_else(|| Conn::new(&ep.host, ip));

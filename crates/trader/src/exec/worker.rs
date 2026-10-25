@@ -116,6 +116,24 @@ pub struct Executor {
     t_kill: Instant,
     t_px: Instant,
     flatten_seen: bool,
+    /// last expensive "is it still alive?" check per unconfirmed transaction (receipts are polled every 100 ms)
+    checked: HashMap<B256, Instant>,
+}
+
+/// A startup read on a rate-limited RPC: one HTTP 429 must not stop the bot (systemd would restart it in a loop
+/// and the installer reports a crash). Retried with a growing pause, about a minute in all.
+fn saat_mulai<T>(what: &str, mut f: impl FnMut() -> Result<T, String>) -> Result<T, String> {
+    let mut jeda = Duration::from_millis(500);
+    for _ in 0..7 {
+        match f() {
+            Ok(v) => return Ok(v),
+            Err(_) => {
+                std::thread::sleep(jeda);
+                jeda = (jeda * 2).min(Duration::from_secs(16));
+            }
+        }
+    }
+    f().map_err(|e| format!("{what}: {e}"))
 }
 
 pub fn start(cfg: ExecConfig, alert: Alert) -> Result<Option<ExecHandle>, String> {
@@ -128,9 +146,9 @@ pub fn start(cfg: ExecConfig, alert: Alert) -> Result<Option<ExecHandle>, String
     };
     let mut sender = Sender::new(signer, &cfg.rpc_urls, cfg.doh)?;
     chain::verify_deployment(&sender.reads)?;
-    sender.refresh_base_fee()?;
-    sender.sync_nonce()?;
-    let chain_balance = if cfg.mode == Mode::Live { sender.eth_balance()? } else { U256::ZERO };
+    saat_mulai("base fee", || sender.refresh_base_fee())?;
+    saat_mulai("nonce", || sender.sync_nonce())?;
+    let chain_balance = if cfg.mode == Mode::Live { saat_mulai("balance", || sender.eth_balance())? } else { U256::ZERO };
     let ledger = Ledger::open(&cfg.state_dir)?;
     let (tx, rx) = mpsc::channel();
     let handle = ExecHandle { tx };
@@ -157,6 +175,7 @@ pub fn start(cfg: ExecConfig, alert: Alert) -> Result<Option<ExecHandle>, String
         t_kill: Instant::now() - Duration::from_secs(10),
         t_px: Instant::now() - Duration::from_secs(60),
         flatten_seen: false,
+        checked: HashMap::new(),
     };
     ex.refresh_eth_usd();
     ex.write_status();
@@ -262,7 +281,9 @@ impl Executor {
         if self.sender.base_fee_gwei() > self.cfg.max_base_fee_gwei {
             return Some(format!("base fee {:.4} gwei above limit", self.sender.base_fee_gwei()));
         }
-        let open = self.ledger.positions.values().filter(|p| p.is_live()).count();
+        // a Stuck position (cannot be sold: honeypot, LP pulled) does not hold a slot, or 4 of them would stop all
+        // buying for good; it is still tracked and sold if it ever becomes sellable
+        let open = self.ledger.positions.values().filter(|p| matches!(p.status, PosStatus::Buying | PosStatus::Open)).count();
         if open >= self.cfg.max_open_positions {
             return Some("max open positions".into());
         }
@@ -285,7 +306,8 @@ impl Executor {
 
     /// Wallet ETH plus open positions at cost, in USD (same "equity at cost" the strategy account sizes from).
     fn real_equity_usd(&self, eth_usd: f64) -> f64 {
-        let held: f64 = self.ledger.positions.values().filter(|p| !p.shadow && matches!(p.status, PosStatus::Open | PosStatus::Stuck)).map(|p| u256_f64(p.eth_in)).sum();
+        // tokens that cannot be sold (Stuck) are not equity to size from
+        let held: f64 = self.ledger.positions.values().filter(|p| !p.shadow && p.status == PosStatus::Open).map(|p| u256_f64(p.eth_in)).sum();
         (u256_f64(self.chain_balance) + held) / 1e18 * eth_usd
     }
 
@@ -455,13 +477,24 @@ impl Executor {
                 SendResult::NonceResynced
             }
             SendOutcome::Rejected { error, maybe_sent } => {
-                if maybe_sent && self.sender.is_known(&tx.hash) {
-                    self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
-                    return SendResult::Accepted;
-                }
                 if maybe_sent {
+                    match self.sender.tx_known(&tx.hash) {
+                        Some(true) => {
+                            self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
+                            return SendResult::Accepted;
+                        }
+                        None => {
+                            // cannot tell whether the network has it: keep it in flight (receipt polling and the
+                            // timeout check settle it) and never reuse its nonce for a second transaction meanwhile
+                            self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
+                            self.last_error = format!("broadcast unconfirmed, tracking it: {}", error.chars().take(120).collect::<String>());
+                            self.ledger.journal("tx_unconfirmed", json!({"pool": pool, "hash": format!("{:#x}", tx.hash), "nonce": tx.nonce}));
+                            return SendResult::Accepted;
+                        }
+                        Some(false) => {}
+                    }
                     if let Ok(n) = self.sender.sync_nonce() {
-                        if n > tx.nonce && self.sender.is_known(&tx.hash) {
+                        if n > tx.nonce && self.sender.tx_known(&tx.hash) != Some(false) {
                             return SendResult::Accepted;
                         }
                     }
@@ -496,8 +529,8 @@ impl Executor {
                 SendResult::Accepted => return Some(tx),
                 SendResult::NonceResynced if attempt == 0 => {
                     // a slow endpoint can answer "nonce too low" for our own transaction that another endpoint already
-                    // got included: never sign a second one in that case
-                    if self.sender.is_known(&tx.hash) {
+                    // got included: never sign a second one in that case (nor when the lookup cannot tell)
+                    if self.sender.tx_known(&tx.hash) != Some(false) {
                         self.mark_tx(pool, &tx.hash, TxState::Pending);
                         self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
                         return Some(tx);
@@ -702,6 +735,42 @@ impl Executor {
             let _ = self.ledger.save();
             return;
         }
+        // A sell that already reverted, or a Stuck position, is first simulated from the wallet (free). One that cannot
+        // succeed is not broadcast: re-sending it every 30 s forever only burned gas. The first try is never delayed.
+        let stuck = self.ledger.positions.get(pool).map_or(false, |p| p.status == PosStatus::Stuck);
+        if attempts >= 1 || stuck {
+            match self.sender.eth_call(UNIVERSAL_ROUTER, &data, U256::ZERO) {
+                Ok(_) => {}
+                Err(e) if e.to_lowercase().contains("revert") => {
+                    let max = self.cfg.max_sell_attempts;
+                    let mut became_stuck = false;
+                    if let Some(p) = self.ledger.positions.get_mut(pool) {
+                        if let Some(i) = p.intent.as_mut() {
+                            i.attempts += 1; // the next try widens the tolerance, like a reverted sell
+                            // a Stuck token is re-checked every 5 minutes (a pause or blacklist can be lifted)
+                            i.next_try_ms = now_ms() + if stuck || i.attempts >= max { 300_000 } else { 1_000 };
+                            if i.attempts >= max && p.status != PosStatus::Stuck {
+                                p.status = PosStatus::Stuck;
+                                became_stuck = true;
+                            }
+                        }
+                    }
+                    self.ledger.journal("sell_presim_reverted", json!({"pool": pool, "tokens": amount.to_string(), "tier_bps": tier, "error": e.chars().take(160).collect::<String>()}));
+                    if became_stuck {
+                        self.alert_once(&format!("{pool}:stuck"), format!("{pool} cannot be sold (simulated sells revert): re-checked every 5 minutes, sold as soon as it can be; no gas spent meanwhile"));
+                    }
+                    let _ = self.ledger.save();
+                    return;
+                }
+                Err(_) => {
+                    // the RPC failed (429, timeout): unknown, look again shortly, nothing counted
+                    if let Some(i) = self.ledger.positions.get_mut(pool).and_then(|p| p.intent.as_mut()) {
+                        i.next_try_ms = now_ms() + 2_000;
+                    }
+                    return;
+                }
+            }
+        }
         let sent = self.sign_record_send(pool, UNIVERSAL_ROUTER, U256::ZERO, &data, self.cfg.gas_limit_sell, TxPurpose::Sell, amount, U256::from(min_out), tier, all, 0);
         self.ledger.journal(
             "sell_sent",
@@ -742,8 +811,19 @@ impl Executor {
         if age < limit {
             return;
         }
-        let mined = self.sender.mined_nonce().unwrap_or(0);
-        let gone = if mined > nonce { age > 3 * limit } else { !self.sender.is_known(&hash) };
+        // the lookups below cost several RPC calls: at most once every 5 s per transaction
+        if self.checked.get(&hash).map_or(false, |t| t.elapsed() < Duration::from_secs(5)) {
+            return;
+        }
+        if self.checked.len() > 1000 {
+            self.checked.clear();
+        }
+        self.checked.insert(hash, Instant::now());
+        // A lookup that fails must not count as "gone": that marked mined buys as failed (their tokens were then never
+        // tracked or sold) and mined sells as dropped (sold again). Only a definite answer drops a transaction.
+        let Ok(mined) = self.sender.mined_nonce() else { return };
+        let known = self.sender.tx_known(&hash);
+        let gone = known == Some(false) && (mined <= nonce || age > 3 * limit);
         if !gone {
             if let Some(raw) = self.raw.get(&hash).cloned() {
                 if age > 2 * limit {
@@ -849,7 +929,7 @@ impl Executor {
                         if i.attempts >= self.cfg.max_sell_attempts {
                             p.status = PosStatus::Stuck;
                             i.next_try_ms = now_ms() + 30_000;
-                            alert = Some(format!("sell of {pool} reverted {} times; still retrying every 30 s", i.attempts));
+                            alert = Some(format!("sell of {pool} reverted {} times; now simulated first and sent only when it can succeed", i.attempts));
                         }
                     }
                 }
