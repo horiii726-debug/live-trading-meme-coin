@@ -160,9 +160,15 @@ main(){
     [ -d /run/systemd/system ] && command -v systemctl >/dev/null && systemd=1
     if [ $systemd = 1 ]; then systemctl is-active --quiet rhc-trader && running=1
     else supervisorctl status rhc-trader 2>/dev/null | grep -q RUNNING && running=1; fi
-    if ! BIN=$dir/target/release/rhc-trader ./rhc.sh cek; then
-        [ $running = 1 ] && die "self-test versi baru gagal — versi baru TIDAK dipasang, bot lama tetap jalan. Kirim pesan error di atas, atau cek RPC: cd $dir && sudo ./rhc.sh isi"
-        die "self-test gagal — bot TIDAK dijalankan. Kirim pesan error di atas, atau cek RPC: cd $dir && sudo ./rhc.sh isi"
+    # a rate-limited RPC (429, measured: constant on the public RPC while the old bot runs) fails a single try
+    local cek_ok=0
+    for i in 1 2 3 4; do
+        if BIN=$dir/target/release/rhc-trader ./rhc.sh cek; then cek_ok=1; break; fi
+        if [ "$i" -lt 4 ]; then echo "    self-test belum lulus (RPC sibuk?) — dicoba lagi dalam 20 dtk ($i/3) ..."; sleep 20; fi
+    done
+    if [ $cek_ok = 0 ]; then
+        [ $running = 1 ] && die "self-test versi baru gagal 4x — versi baru TIDAK dipasang, bot lama tetap jalan. Kirim pesan error di atas, atau periksa RPC: cd $dir && sudo ./rhc.sh isi"
+        die "self-test gagal 4x — bot TIDAK dijalankan. Kirim pesan error di atas, atau periksa RPC: cd $dir && sudo ./rhc.sh isi"
     fi
     install -m 755 "$dir/target/release/rhc-trader" /opt/rhc/bin/rhc-trader
 

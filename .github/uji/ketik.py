@@ -17,7 +17,8 @@ cmd = sys.argv[1]
 no_questions = "--no-questions" in sys.argv
 key = secrets.token_hex(32)
 # the deposit is typed the Indonesian way ("1.000" = one thousand) and must end up as START_USD=1000
-answers = [(b"RPC: ", b""), (b"Private key: ", key.encode()), (b"[100]: ", b"1.000"), (b"Benar? (y/n) [y]: ", b"y")]
+# the prompts exactly as mulai.sh prints them (indented), so a message that merely mentions "RPC:" does not match
+answers = [(b"     RPC: ", b""), (b"     Private key: ", key.encode()), (b"100 atau 1000 [100]: ", b"1.000"), (b"Benar? (y/n) [y]: ", b"y")]
 
 pid, fd = pty.fork()
 if pid == 0:
