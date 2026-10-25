@@ -10,6 +10,9 @@ on:
       menit:
         description: berapa menit bot diamati
         default: "150"
+  # a push to this branch starts an observation of that commit (workflow_dispatch needs the file on main first)
+  push:
+    branches: [uji-trading]
 permissions:
   contents: read
 
