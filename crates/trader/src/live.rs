@@ -414,7 +414,10 @@ fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, pra: DevPra
             }
         }
     });
-    let logs = rpc.quick("eth_getLogs", json!([{"address": token, "topics": [T_TRANSFER], "fromBlock": hx(init), "toBlock": hx(init + 600.0)}]), 3000)?;
+    // retried with a pause, within the same budget as the dev lookup: three instant tries all hit the same 429 on
+    // the public RPC and the coin was skipped ("CEK GAGAL")
+    let batas_tr = Instant::now() + DEV_BATAS_CEK;
+    let logs = ulangi(batas_tr, || rpc.quick("eth_getLogs", json!([{"address": token, "topics": [T_TRANSFER], "fromBlock": hx(init), "toBlock": hx(init + 600.0)}]), 3000))?;
     let mut tr = Vec::new();
     for l in logs.as_array().ok_or("transfer bukan array")? {
         let tp: Vec<&str> = l["topics"].as_array().map(|a| a.iter().filter_map(|t| t.as_str()).collect()).unwrap_or_default();

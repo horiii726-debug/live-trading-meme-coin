@@ -212,16 +212,20 @@ impl Rpc {
             }
             // the endpoint itself failed (timeout, connection, HTTP 429/5xx/403, not JSON): a dead or over-quota paid
             // RPC must not stall the poll and the executor's reads, so try the others and stay on the first that answers
-            Err(e) if self.eps.len() > 1 && !e.starts_with("rpc:") => self.coba_lain(cur, method, &params, to).ok_or(e),
+            Err(e) if self.eps.len() > 1 && !e.starts_with("rpc:") => self.coba_lain(cur, method, &params, to).unwrap_or(Err(e)),
             r => r,
         }
     }
-    /// Try every endpoint after `cur`; on an answer make it the current one.
-    fn coba_lain(&self, cur: usize, method: &str, params: &Value, to: Duration) -> Option<Value> {
+    /// Try every endpoint after `cur`; the first one that answers (a result, or a real "rpc:" error such as a
+    /// revert) becomes the current one and its answer is returned.
+    fn coba_lain(&self, cur: usize, method: &str, params: &Value, to: Duration) -> Option<Result<Value, String>> {
         for i in (1..self.eps.len()).map(|k| (cur + k) % self.eps.len()) {
-            if let Ok(v) = self.call_at(&self.eps[i], method, params.clone(), to) {
-                self.idx.store(i, std::sync::atomic::Ordering::Relaxed);
-                return Some(v);
+            match self.call_at(&self.eps[i], method, params.clone(), to) {
+                Err(e) if !e.starts_with("rpc:") => continue,
+                r => {
+                    self.idx.store(i, std::sync::atomic::Ordering::Relaxed);
+                    return Some(r);
+                }
             }
         }
         None

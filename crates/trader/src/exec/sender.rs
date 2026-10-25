@@ -60,21 +60,25 @@ pub enum SendOutcome {
     Rejected { error: String, maybe_sent: bool },
 }
 
-fn classify(r: &Result<Value, String>, hash: &B256) -> (bool, bool, bool, String) {
-    // (accepted, nonce_too_low, network_error, message)
+fn classify(r: &Result<Value, String>, hash: &B256) -> (bool, bool, bool, bool, String) {
+    // (accepted, nonce_too_low, failed at the network level (worth re-sending), may have been delivered, message)
     match r {
         Ok(v) => {
             let ok = v.as_str().map(|h| h.eq_ignore_ascii_case(&format!("{hash:#x}"))).unwrap_or(false);
-            (ok, false, false, if ok { String::new() } else { format!("unexpected response {v}") })
+            (ok, false, false, false, if ok { String::new() } else { format!("unexpected response {v}") })
         }
         Err(e) => {
             let l = e.to_lowercase();
             if l.contains("already known") || l.contains("known transaction") || l.contains("already imported") {
-                (true, false, false, String::new())
+                (true, false, false, false, String::new())
             } else if l.contains("nonce too low") {
-                (false, true, false, e.clone())
+                (false, true, false, false, e.clone())
             } else {
-                (false, false, !l.starts_with("rpc:"), e.clone())
+                let network = !l.starts_with("rpc:");
+                // refused before anything reached a node: connect / TLS / DoH failure, or an HTTP 4xx such as 429.
+                // Only a failure after the request was written (read timeout, 5xx) may hide a delivered transaction.
+                let refused = l.starts_with("net: tcp") || l.starts_with("net: tls") || l.starts_with("net: http 4") || l.starts_with("doh");
+                (false, false, network, network && !refused, e.clone())
             }
         }
     }
@@ -147,6 +151,7 @@ impl Sender {
     pub fn broadcast(&mut self, tx: &SignedTx) -> SendOutcome {
         let raw = format!("0x{}", hex::encode(&tx.raw));
         let mut outcome = SendOutcome::Rejected { error: "no endpoint".into(), maybe_sent: false };
+        let mut delivered_before = false; // an earlier round may have reached a node
         for round in 0..3 {
             if round > 0 {
                 std::thread::sleep(Duration::from_millis(300));
@@ -163,11 +168,11 @@ impl Sender {
                 hs.into_iter().map(|h| h.join().unwrap_or_else(|_| Err("broadcast thread panicked".into()))).collect()
             });
             let mut nonce_low = false;
-            let mut network = false;
+            let mut maybe = false;
             let mut all_network = !results.is_empty();
             let mut first_err = String::new();
             for r in &results {
-                let (ok, low, net, msg) = classify(r, &tx.hash);
+                let (ok, low, net, may, msg) = classify(r, &tx.hash);
                 if ok {
                     if tx.nonce == self.nonce {
                         self.nonce += 1;
@@ -175,16 +180,23 @@ impl Sender {
                     return SendOutcome::Accepted;
                 }
                 nonce_low |= low;
-                network |= net;
+                maybe |= may;
                 all_network &= net;
                 if first_err.is_empty() {
                     first_err = msg;
                 }
             }
-            if nonce_low && !network {
+            if nonce_low && !maybe {
+                if delivered_before {
+                    // these very bytes may have gone out in an earlier round: "nonce too low" now almost certainly
+                    // means our copy was included. Keep it in flight (receipts settle it); never sign a second one.
+                    self.nonce = self.nonce.max(tx.nonce + 1);
+                    return SendOutcome::Accepted;
+                }
                 return SendOutcome::NonceTooLow;
             }
-            outcome = SendOutcome::Rejected { error: first_err, maybe_sent: network };
+            delivered_before |= maybe;
+            outcome = SendOutcome::Rejected { error: first_err, maybe_sent: delivered_before };
             if !all_network {
                 break; // a node actually answered with a refusal: sending the same bytes again cannot help
             }
@@ -192,25 +204,25 @@ impl Sender {
         outcome
     }
 
-    /// After an ambiguous broadcast: is the transaction known to the chain? Asks every endpoint (twice):
-    /// Some(true) = some node has it, Some(false) = every node answered and none has it, None = could not tell.
-    /// A failed lookup must never read as "not on chain": that would drop a mined buy (tokens never tracked or
-    /// sold) or sign a second transaction for the same trade.
+    /// Is the transaction known to the chain? Asks every endpoint (a second time if none answered):
+    /// Some(true) = some node has it, Some(false) = a node answered and none has it, None = no node answered.
+    /// A failed lookup must never read as "not on chain": that would drop a mined buy (tokens never tracked or sold).
+    /// One answering node is enough for "no", so a dead endpoint cannot keep a transaction undecided forever.
     pub fn tx_known(&self, hash: &B256) -> Option<bool> {
         let p = json!([format!("{hash:#x}")]);
         for round in 0..2 {
             if round > 0 {
                 std::thread::sleep(Duration::from_millis(300));
             }
-            let mut answered = 0;
+            let mut answered = false;
             for ep in &self.endpoints {
                 match ep.call_once("eth_getTransactionByHash", p.clone(), Duration::from_secs(4)) {
                     Ok(v) if !v.is_null() => return Some(true),
-                    Ok(_) => answered += 1,
+                    Ok(_) => answered = true,
                     Err(_) => {}
                 }
             }
-            if answered == self.endpoints.len() {
+            if answered {
                 return Some(false);
             }
         }
@@ -230,11 +242,21 @@ impl Sender {
     }
 
     pub fn eth_call(&self, to: Address, data: &Bytes, value: U256) -> Result<Bytes, String> {
-        let v = self.reads.call_once(
-            "eth_call",
-            json!([{"from": format!("{:#x}", self.address), "to": format!("{to:#x}"), "data": format!("0x{}", hex::encode(data)), "value": format!("{value:#x}")}, "latest"]),
-            Duration::from_secs(5),
-        )?;
+        self.eth_call_with(to, data, value, None)
+    }
+
+    /// eth_call with the gas limit the real transaction would carry, so a call that would run out of gas on chain
+    /// fails the simulation too.
+    pub fn eth_call_gas(&self, to: Address, data: &Bytes, value: U256, gas: u64) -> Result<Bytes, String> {
+        self.eth_call_with(to, data, value, Some(gas))
+    }
+
+    fn eth_call_with(&self, to: Address, data: &Bytes, value: U256, gas: Option<u64>) -> Result<Bytes, String> {
+        let mut call = json!({"from": format!("{:#x}", self.address), "to": format!("{to:#x}"), "data": format!("0x{}", hex::encode(data)), "value": format!("{value:#x}")});
+        if let Some(g) = gas {
+            call["gas"] = json!(format!("{g:#x}"));
+        }
+        let v = self.reads.call_once("eth_call", json!([call, "latest"]), Duration::from_secs(5))?;
         let s = v.as_str().ok_or("eth_call: bad response")?;
         hex::decode(s).map(Bytes::from).map_err(|e| format!("eth_call: {e}"))
     }
@@ -275,9 +297,13 @@ mod tests {
         assert_eq!(classify(&Ok(json!(format!("{h:#x}"))), &h).0, true);
         assert_eq!(classify(&Err("rpc: already known".into()), &h).0, true);
         assert_eq!(classify(&Err("rpc: nonce too low: next nonce 5, tx nonce 4".into()), &h).1, true);
-        let (ok, low, net, _) = classify(&Err("net: connection timed out".into()), &h);
-        assert!(!ok && !low && net);
-        let (ok, low, net, _) = classify(&Err("rpc: insufficient funds for gas * price + value".into()), &h);
-        assert!(!ok && !low && !net);
+        let (ok, low, net, maybe, _) = classify(&Err("net: baca connection timed out".into()), &h);
+        assert!(!ok && !low && net && maybe, "a timeout after the request was written may hide a delivered tx");
+        let (ok, low, net, maybe, _) = classify(&Err("net: http 429 {\"error\":{\"code\":429}}".into()), &h);
+        assert!(!ok && !low && net && !maybe, "a 429 is re-sent but was never delivered");
+        let (_, _, net, maybe, _) = classify(&Err("net: tcp connection refused".into()), &h);
+        assert!(net && !maybe, "nothing written before the connection failed");
+        let (ok, low, net, maybe, _) = classify(&Err("rpc: insufficient funds for gas * price + value".into()), &h);
+        assert!(!ok && !low && !net && !maybe);
     }
 }

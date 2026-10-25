@@ -306,8 +306,7 @@ impl Executor {
 
     /// Wallet ETH plus open positions at cost, in USD (same "equity at cost" the strategy account sizes from).
     fn real_equity_usd(&self, eth_usd: f64) -> f64 {
-        // tokens that cannot be sold (Stuck) are not equity to size from
-        let held: f64 = self.ledger.positions.values().filter(|p| !p.shadow && p.status == PosStatus::Open).map(|p| u256_f64(p.eth_in)).sum();
+        let held: f64 = self.ledger.positions.values().filter(|p| !p.shadow && matches!(p.status, PosStatus::Open | PosStatus::Stuck)).map(|p| u256_f64(p.eth_in)).sum();
         (u256_f64(self.chain_balance) + held) / 1e18 * eth_usd
     }
 
@@ -478,23 +477,15 @@ impl Executor {
             }
             SendOutcome::Rejected { error, maybe_sent } => {
                 if maybe_sent {
-                    match self.sender.tx_known(&tx.hash) {
-                        Some(true) => {
-                            self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
-                            return SendResult::Accepted;
-                        }
-                        None => {
-                            // cannot tell whether the network has it: keep it in flight (receipt polling and the
-                            // timeout check settle it) and never reuse its nonce for a second transaction meanwhile
-                            self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
-                            self.last_error = format!("broadcast unconfirmed, tracking it: {}", error.chars().take(120).collect::<String>());
-                            self.ledger.journal("tx_unconfirmed", json!({"pool": pool, "hash": format!("{:#x}", tx.hash), "nonce": tx.nonce}));
-                            return SendResult::Accepted;
-                        }
-                        Some(false) => {}
+                    // it may have reached a node. In flight only on evidence: a node has it, or the chain used up its
+                    // nonce (only this bot signs for this wallet). Receipt polling and check_timeout settle it then.
+                    if self.sender.tx_known(&tx.hash) == Some(true) {
+                        self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
+                        return SendResult::Accepted;
                     }
                     if let Ok(n) = self.sender.sync_nonce() {
-                        if n > tx.nonce && self.sender.tx_known(&tx.hash) != Some(false) {
+                        if n > tx.nonce {
+                            self.ledger.journal("tx_unconfirmed", json!({"pool": pool, "hash": format!("{:#x}", tx.hash), "nonce": tx.nonce}));
                             return SendResult::Accepted;
                         }
                     }
@@ -529,8 +520,8 @@ impl Executor {
                 SendResult::Accepted => return Some(tx),
                 SendResult::NonceResynced if attempt == 0 => {
                     // a slow endpoint can answer "nonce too low" for our own transaction that another endpoint already
-                    // got included: never sign a second one in that case (nor when the lookup cannot tell)
-                    if self.sender.tx_known(&tx.hash) != Some(false) {
+                    // got included: never sign a second one in that case
+                    if self.sender.tx_known(&tx.hash) == Some(true) {
                         self.mark_tx(pool, &tx.hash, TxState::Pending);
                         self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
                         return Some(tx);
@@ -739,16 +730,23 @@ impl Executor {
         // succeed is not broadcast: re-sending it every 30 s forever only burned gas. The first try is never delayed.
         let stuck = self.ledger.positions.get(pool).map_or(false, |p| p.status == PosStatus::Stuck);
         if attempts >= 1 || stuck {
-            match self.sender.eth_call(UNIVERSAL_ROUTER, &data, U256::ZERO) {
+            // with the real gas limit, so a sell that would run out of gas on chain fails here too
+            match self.sender.eth_call_gas(UNIVERSAL_ROUTER, &data, U256::ZERO, self.cfg.gas_limit_sell) {
                 Ok(_) => {}
-                Err(e) if e.to_lowercase().contains("revert") => {
+                Err(e) if { let l = e.to_lowercase(); l.contains("revert") || l.contains("out of gas") || l.contains("gas required exceeds") } => {
                     let max = self.cfg.max_sell_attempts;
                     let mut became_stuck = false;
                     if let Some(p) = self.ledger.positions.get_mut(pool) {
                         if let Some(i) = p.intent.as_mut() {
                             i.attempts += 1; // the next try widens the tolerance, like a reverted sell
-                            // a Stuck token is re-checked every 5 minutes (a pause or blacklist can be lifted)
-                            i.next_try_ms = now_ms() + if stuck || i.attempts >= max { 300_000 } else { 1_000 };
+                            // Stuck: re-checked every 30 s as before (5 s for an emergency exit), simulations cost no gas;
+                            // before that a growing pause (2..32 s) so free simulations do not use up the attempts at once
+                            i.next_try_ms = now_ms()
+                                + if stuck || i.attempts >= max {
+                                    if i.emergency { 5_000 } else { 30_000 }
+                                } else {
+                                    1_000u64 << i.attempts.min(5)
+                                };
                             if i.attempts >= max && p.status != PosStatus::Stuck {
                                 p.status = PosStatus::Stuck;
                                 became_stuck = true;
@@ -757,7 +755,7 @@ impl Executor {
                     }
                     self.ledger.journal("sell_presim_reverted", json!({"pool": pool, "tokens": amount.to_string(), "tier_bps": tier, "error": e.chars().take(160).collect::<String>()}));
                     if became_stuck {
-                        self.alert_once(&format!("{pool}:stuck"), format!("{pool} cannot be sold (simulated sells revert): re-checked every 5 minutes, sold as soon as it can be; no gas spent meanwhile"));
+                        self.alert_once(&format!("{pool}:stuck"), format!("{pool} cannot be sold (simulated sells revert): re-checked every 30 s, sold as soon as it can be; no gas spent meanwhile"));
                     }
                     let _ = self.ledger.save();
                     return;
@@ -823,12 +821,22 @@ impl Executor {
         // tracked or sold) and mined sells as dropped (sold again). Only a definite answer drops a transaction.
         let Ok(mined) = self.sender.mined_nonce() else { return };
         let known = self.sender.tx_known(&hash);
-        let gone = known == Some(false) && (mined <= nonce || age > 3 * limit);
+        // Arbitrum's sequencer includes or refuses a transaction within seconds; nothing waits long in a mempool. Our
+        // nonce used up on chain while no node has our tx = another tx took it; unknown (no node answers) for 3 x
+        // the timeout with the nonce still free = it never got anywhere.
+        let gone = match known {
+            Some(true) => false,
+            Some(false) => mined <= nonce || age > 3 * limit,
+            None => mined <= nonce && age > 3 * limit,
+        };
         if !gone {
-            if let Some(raw) = self.raw.get(&hash).cloned() {
-                if age > 2 * limit {
-                    let tx = SignedTx { hash, raw, nonce };
-                    let _ = self.sender.broadcast(&tx);
+            // re-send only bytes a node already has, and never a trade past its deadline (it could only revert):
+            // a first delivery 40 s late would be an entry or exit at a price the strategy never saw
+            let purpose = self.ledger.positions.get(pool).and_then(|p| p.txs.iter().find(|t| t.hash == hash)).map(|t| t.purpose);
+            let trade = matches!(purpose, Some(TxPurpose::Buy) | Some(TxPurpose::Sell));
+            if known == Some(true) && age > 2 * limit && (!trade || age < self.cfg.deadline_secs * 1000) {
+                if let Some(raw) = self.raw.get(&hash).cloned() {
+                    let _ = self.sender.broadcast(&SignedTx { hash, raw, nonce });
                 }
             }
             return;
