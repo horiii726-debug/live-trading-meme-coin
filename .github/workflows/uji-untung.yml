@@ -59,7 +59,13 @@ jobs:
           test -s data/swaps_sorted.csv
 
       - name: engine replay (which pools need minute-1 data)
-        run: cd models && REPLAY_THREADS=4 ../target/release/replay ../data $FROM $TO ../data/trades.jsonl auto | tail -3
+        run: |
+          set -o pipefail
+          # replay reads eth_usd.json from its working directory; with "auto" the ETH price comes from the data,
+          # the file is only the fallback
+          echo '{"ethUsd": 2300}' > models/eth_usd.json
+          cd models && REPLAY_THREADS=4 ../target/release/replay ../data $FROM $TO ../data/trades.jsonl auto | tail -3
+          test -s ../data/trades.jsonl
 
       - name: download minute-1 data + dev creators (public RPC)
         run: |
