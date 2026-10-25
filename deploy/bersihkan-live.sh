@@ -28,9 +28,13 @@ fi
 
 # an open real position must not be orphaned by wiping the ledger that tracks it
 POS=$LIVE/exec/positions.json
-if [ -s "$POS" ] && grep -q '"status"' "$POS" 2>/dev/null; then
-    if grep -qE '"(Open|Buying|Selling|Stuck)"' "$POS"; then
-        say "GAGAL: masih ada posisi terbuka di $POS."
+# statuses are stored in snake_case ("buying", "open", "stuck"): parse the file; unreadable = refuse to wipe
+if [ -s "$POS" ]; then
+    if ! command -v python3 >/dev/null || python3 -c 'import json,sys
+try: d = json.load(open(sys.argv[1]))
+except Exception: sys.exit(0)
+sys.exit(0 if any(p.get("status") in ("buying", "open", "stuck") for p in d.get("positions", {}).values()) else 1)' "$POS"; then
+        say "GAGAL: masih ada posisi terbuka di $POS (atau berkasnya tidak terbaca)."
         say "Jual dulu (touch $LIVE/exec/FLATTEN_ALL, jalankan bot sampai kosong), baru bersihkan."
         exit 1
     fi

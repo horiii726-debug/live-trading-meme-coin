@@ -70,7 +70,8 @@ angka SETORAN_USD "$SETORAN_USD"; angka MAKS_USD_PER_BELI "$MAKS_BELI"; angka ST
 # "1.000" is one thousand in Indonesian but 1.0 to the bot, and below about $2 the strategy can never size a
 # position (MIN_POS), so the bot would silently never buy
 [[ $SETORAN_USD =~ ^[0-9]{1,3}(\.[0-9]{3})+$ ]] && die "SETORAN_USD=$SETORAN_USD: tulis tanpa titik ribuan, mis. 1000 (bukan 1.000)."
-[ "${SETORAN_USD%%.*}" -ge 10 ] || die "SETORAN_USD minimal 10 (di bawah itu strategi tidak bisa membuka posisi)."
+# the 0.002 ETH gas reserve (EXEC_GAS_RESERVE_ETH) would leave too little of a smaller deposit to trade with
+[ "${SETORAN_USD%%.*}" -ge 20 ] || die "SETORAN_USD minimal 20 (cadangan gas 0,002 ETH memakan sebagian besar setoran yang lebih kecil)."
 [[ $MAKS_POS =~ ^[1-9][0-9]*$ ]] || die "MAKS_POSISI_TERBUKA harus bilangan bulat 1 atau lebih, bukan: $MAKS_POS"
 
 say "=============================================================="

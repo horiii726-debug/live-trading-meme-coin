@@ -229,10 +229,10 @@ cmd_atur(){
         setoran=${setoran//[[:space:]]/}; setoran=${setoran#\$}
         # 1.000 / 1,000 is "one thousand" here: read as 1.0 the strategy could never size a position
         if [[ $setoran =~ ^[0-9]{1,3}([.,][0-9]{3})+$ ]]; then setoran=${setoran//[.,]/}; fi
-        if [[ $setoran =~ ^[0-9]+([.][0-9]{1,2})?$ ]] && [ "${setoran%%.*}" -ge 10 ]; then
+        if [[ $setoran =~ ^[0-9]+([.][0-9]{1,2})?$ ]] && [ "${setoran%%.*}" -ge 20 ]; then
             yes_no "    Setoran = \$$setoran. Benar?" && break
         else
-            say "    angka dolar saja, minimal 10"
+            say "    angka dolar saja, minimal 20"
         fi
     done
 
@@ -374,14 +374,25 @@ PY
     say ""
 }
 
+# Is any real position still held? positions.json stores statuses in snake_case ("buying", "open", "stuck");
+# the file is parsed, not grepped, and an unreadable file counts as "yes" (wiping it would strand the tokens).
+ada_posisi_nyata(){
+    [ -s "$1" ] || return 1
+    command -v python3 >/dev/null || return 0
+    python3 -c 'import json,sys
+try: d = json.load(open(sys.argv[1]))
+except Exception: sys.exit(0)
+sys.exit(0 if any(p.get("status") in ("buying", "open", "stuck") for p in d.get("positions", {}).values()) else 1)' "$1"
+}
+
 cmd_bersih(){
     need_root bersih
     local LIVE=$BOT/rust_live
     [ -d "$LIVE" ] || { say "belum ada data — sudah bersih."; return 0; }
     svc_running && die "bot masih jalan. Hentikan dulu: sudo ./rhc.sh stop"
     local POS=$LIVE/exec/positions.json
-    if [ -s "$POS" ] && grep -qE '"(Open|Buying|Selling|Stuck)"' "$POS" 2>/dev/null; then
-        die "masih ada posisi terbuka di $POS. Jual dulu (touch $LIVE/exec/FLATTEN_ALL), baru bersihkan."
+    if ada_posisi_nyata "$POS"; then
+        die "masih ada posisi terbuka di $POS (atau berkasnya tidak terbaca). Jual dulu (touch $LIVE/exec/FLATTEN_ALL, jalankan bot sampai kosong), baru bersihkan."
     fi
     local bak=$BOT/rust_live_backup_$(date -u +%Y%m%d_%H%M%S).tar.gz
     say "1. cadangan -> $bak"; tar -czf "$bak" -C "$BOT" rust_live; say "   $(du -h "$bak" | cut -f1)"

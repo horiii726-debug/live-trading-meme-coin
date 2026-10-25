@@ -134,11 +134,11 @@ main(){
                 # 1.000 / 1,000 is one thousand here; read as 1.0 the strategy could never size a position
                 if [[ $usd =~ ^[0-9]{1,3}([.,][0-9]{3})+$ ]]; then usd=${usd//[.,]/}; fi
                 usd=${usd/,/.}
-                if [[ $usd =~ ^[0-9]+([.][0-9]{1,2})?$ ]] && [ "${usd%%.*}" -ge 10 ]; then
+                if [[ $usd =~ ^[0-9]+([.][0-9]{1,2})?$ ]] && [ "${usd%%.*}" -ge 20 ]; then
                     read -r -p "     Setoran = \$$usd. Benar? (y/n) [y]: " ok </dev/tty
                     case "${ok:-y}" in [yY]*) break;; esac
                 else
-                    echo "     Isi jumlah dolar dengan angka saja, minimal 10 (contoh: 100 atau 1000)."
+                    echo "     Isi jumlah dolar dengan angka saja, minimal 20 (contoh: 100 atau 1000)."
                 fi
             done
             FORM_TMP=$dir/config/isi-disini.env
