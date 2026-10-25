@@ -1,0 +1,82 @@
+name: uji-untung
+# Would the bot have made money on the last days of the chain, data the backtest never saw? Downloads the
+# most recent days of Robinhood Chain (public RPC), runs the official pipeline (fast -> replay -> fast1 -> sim:
+# the same engine, filter, dev rule, quarter Kelly and exits as the live bot) and prints the result:
+#   A. the published System A backtest settings (scripts/parity.sh)
+#   B. the bot the installer sets up (config/trader.env.example + KELLY_SEED + the shipped dev history)
+# Runs on GitHub's machines, not on the owner's PC. Nothing is traded.
+on:
+  workflow_dispatch:
+    inputs:
+      hari:
+        description: berapa hari terakhir
+        default: "2"
+  push:
+    branches: [uji-untung]
+permissions:
+  contents: read
+
+jobs:
+  uji:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    env:
+      RPC_URLS: https://rpc.mainnet.chain.robinhood.com
+      JALUR: "2"
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y -qq pkg-config libssl-dev
+      - name: build
+        run: cargo build --release --locked
+
+      - name: block range (the last N days, ending 9.5 h ago so every position can close inside the data)
+        run: |
+          python3 - "${{ github.event.inputs.hari || '2' }}" <<'PY'
+          import json, os, sys, time, urllib.request
+          def rpc(m, p):
+              for i in range(8):  # the public RPC answers 429 under load
+                  try:
+                      q = urllib.request.Request(os.environ["RPC_URLS"], json.dumps({"jsonrpc": "2.0", "id": 1, "method": m, "params": p}).encode(), {"content-type": "application/json"})
+                      return json.load(urllib.request.urlopen(q, timeout=30))["result"]
+                  except Exception as e:
+                      print(f"{m}: {e}, retry"); time.sleep(3 * (i + 1))
+              raise SystemExit(f"{m}: RPC unreachable")
+          tip = int(rpc("eth_blockNumber", []), 16)
+          ts = lambda b: int(rpc("eth_getBlockByNumber", [hex(b), False])["timestamp"], 16)
+          bps = 1_000_000 / (ts(tip) - ts(tip - 1_000_000))
+          to = tip - int(9.5 * 3600 * bps)
+          frm = to - int(float(sys.argv[1]) * 86400 * bps)
+          r = {"from": frm, "to": to, "t_from": ts(frm), "t_to": ts(to)}
+          json.dump(r, open("rentang.json", "w"))
+          open(os.environ["GITHUB_ENV"], "a").write(f"FROM={frm}\nTO={to}\n")
+          print(f"tip {tip}, {bps:.2f} blocks/s -> {r}")
+          PY
+
+      - name: download pools + swaps (public RPC)
+        run: |
+          for i in 1 2 3; do target/release/rhc-trader fast $FROM $TO data && break; echo "retry $i"; sleep 60; done
+          test -s data/swaps_sorted.csv
+
+      - name: engine replay (which pools need minute-1 data)
+        run: cd models && REPLAY_THREADS=4 ../target/release/replay ../data $FROM $TO ../data/trades.jsonl auto | tail -3
+
+      - name: download minute-1 data + dev creators (public RPC)
+        run: |
+          for i in 1 2 3; do target/release/rhc-trader fast1 data && break; echo "retry $i"; sleep 60; done
+          test -s data/dev_creator.json
+
+      - name: A — published backtest settings
+        run: |
+          env -i PATH="$PATH" HOME="$HOME" START_USD=100 \
+            QTHR=0.80 MAX_POS=10 DANGER_TH=0.5 TRAIL_PUNCAK=0.4 TUTUP_SAAT_RUG=1 DUMP_FRAC=0.05 KELLY_MAKS=0.15 MAX_FEE=5000 \
+            target/release/rhc-trader sim data $FROM $TO out_a.jsonl --bot models 2>&1 | tee sim_a.txt
+
+      - name: B — the installed bot (live settings, dev rule with the shipped history)
+        run: |
+          python3 -c "import json; d=json.load(open('models/dev_history.json')); open('devpre.csv','w').write('dev,ret\n'+''.join(f'{k},{x}\n' for k,v in d.items() for x in v))"
+          sed -e "s#^START_USD=.*#START_USD=100#" -e "s#^KELLY_SEED=.*#KELLY_SEED=$PWD/models/kelly_seed_backtest_last100.json#" config/trader.env.example > sim.env
+          target/release/rhc-trader sim data $FROM $TO out_b.jsonl --bot models --env sim.env --devpre devpre.csv 2>&1 | tee sim_b.txt
+
+      - name: report
+        if: always()
+        run: python3 .github/uji/laporan_untung.py rentang.json "A. pengaturan backtest resmi=sim_a.txt:out_a.jsonl" "B. bot yang dipasang installer=sim_b.txt:out_b.jsonl"
