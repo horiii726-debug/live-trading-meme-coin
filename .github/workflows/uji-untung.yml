@@ -36,7 +36,8 @@ jobs:
           def rpc(m, p):
               for i in range(8):  # the public RPC answers 429 under load
                   try:
-                      q = urllib.request.Request(os.environ["RPC_URLS"], json.dumps({"jsonrpc": "2.0", "id": 1, "method": m, "params": p}).encode(), {"content-type": "application/json"})
+                      # Cloudflare in front of the public RPC answers 403 to urllib's default User-Agent
+                      q = urllib.request.Request(os.environ["RPC_URLS"], json.dumps({"jsonrpc": "2.0", "id": 1, "method": m, "params": p}).encode(), {"content-type": "application/json", "user-agent": "curl/8.5.0"})
                       return json.load(urllib.request.urlopen(q, timeout=30))["result"]
                   except Exception as e:
                       print(f"{m}: {e}, retry"); time.sleep(3 * (i + 1))
@@ -78,5 +79,5 @@ jobs:
           target/release/rhc-trader sim data $FROM $TO out_b.jsonl --bot models --env sim.env --devpre devpre.csv 2>&1 | tee sim_b.txt
 
       - name: report
-        if: always()
+        if: always() && hashFiles('rentang.json') != ''
         run: python3 .github/uji/laporan_untung.py rentang.json "A. pengaturan backtest resmi=sim_a.txt:out_a.jsonl" "B. bot yang dipasang installer=sim_b.txt:out_b.jsonl"
