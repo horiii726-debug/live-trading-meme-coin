@@ -5,7 +5,6 @@
 
 rentang.json: {"from": block, "to": block, "t_from": unix, "t_to": unix}. Every trade line is
 {"pool","pos","kembali","ret","alasan","masuk","keluar"} in USD of the strategy (paper) account.
-Also shows what the same trades make with the installer's real-money cap of $5 per buy.
 """
 import json
 import sys
@@ -40,9 +39,6 @@ for arg in sys.argv[2:]:
     menang = [t for t in tr if t["kembali"] > t["pos"]]
     untung = sum(t["kembali"] - t["pos"] for t in tr)
     print(f"   trade: {len(tr)} | menang: {len(menang)} ({100 * len(menang) / len(tr):.0f}%) | untung bersih akun strategi: ${untung:+.2f}")
-    # the installer caps each REAL buy at $5 (EXEC_MAX_ORDER_USD=5): same trades, size min(pos, 5)
-    cap = sum(min(t["pos"], 5.0) * (t["kembali"] / t["pos"] - 1) for t in tr if t["pos"] > 0)
-    print(f"   dengan batas installer $5 per beli (uang sungguhan): untung ${cap:+.2f} dari {len(tr)} trade")
     rets = sorted(t["kembali"] / t["pos"] - 1 for t in tr if t["pos"] > 0)
     print(f"   hasil per trade: terburuk {100 * rets[0]:+.0f}% | median {100 * rets[len(rets) // 2]:+.0f}% | terbaik {100 * rets[-1]:+.0f}%")
     print(f"   {'masuk (UTC)':<14}{'lama':>7}  {'hasil':>7}  {'ukuran':>9}  alasan keluar")

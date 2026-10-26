@@ -238,9 +238,9 @@ cmd_atur(){
 
     hr; say " 4/5  Batas pengaman"; hr
     local maks stop_rugi maks_pos
-    maks=$(ask "Maksimal USD per pembelian (0 = tanpa batas)" 5)
-    stop_rugi=$(ask "Stop beli kalau rugi sehari tembus USD (0 = mati)" 25)
-    maks_pos=$(ask "Maksimal posisi terbuka" 4)
+    maks=$(ask "Maksimal USD per pembelian (0 = tanpa batas)" 0)
+    stop_rugi=$(ask "Stop beli kalau rugi sehari tembus USD (0 = mati)" 0)
+    maks_pos=$(ask "Maksimal posisi terbuka" 6)
 
     hr; say " 5/5  Mode"; hr
     say "  off     paper, tanpa transaksi. Mulai dari sini."

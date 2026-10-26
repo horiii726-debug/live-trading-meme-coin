@@ -163,9 +163,9 @@ say ""
 say "--- 4/5  Batas pengaman ---"
 say ""
 say "Batas ini hanya bisa MEMBATALKAN beli atau MEMAKSA jual. Tidak pernah mengubah keputusan strategi."
-MAX_ORDER=$(ask "Maksimal USD per pembelian (0 = tanpa batas)" 5)
-DAILY_LOSS=$(ask "Stop beli kalau rugi terealisasi sehari tembus USD (0 = mati)" 25)
-MAX_OPEN=$(ask "Maksimal posisi terbuka" 4)
+MAX_ORDER=$(ask "Maksimal USD per pembelian (0 = tanpa batas)" 0)
+DAILY_LOSS=$(ask "Stop beli kalau rugi terealisasi sehari tembus USD (0 = mati)" 0)
+MAX_OPEN=$(ask "Maksimal posisi terbuka" 6)
 say ""
 
 # ---------------------------------------------------------------- 5. mode

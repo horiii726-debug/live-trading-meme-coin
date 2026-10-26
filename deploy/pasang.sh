@@ -61,9 +61,9 @@ RPC_API_KEY=$(field RPC_API_KEY)
 WALLET_PRIVATE_KEY=$(field WALLET_PRIVATE_KEY)
 SETORAN_USD=$(field SETORAN_USD); SETORAN_USD=${SETORAN_USD:-100}
 MODE=$(field MODE); MODE=$(printf '%s' "${MODE:-off}" | tr 'A-Z' 'a-z')
-MAKS_BELI=$(field MAKS_USD_PER_BELI); MAKS_BELI=${MAKS_BELI:-5}
-STOP_RUGI=$(field STOP_RUGI_HARIAN_USD); STOP_RUGI=${STOP_RUGI:-25}
-MAKS_POS=$(field MAKS_POSISI_TERBUKA); MAKS_POS=${MAKS_POS:-4}
+MAKS_BELI=$(field MAKS_USD_PER_BELI); MAKS_BELI=${MAKS_BELI:-0}
+STOP_RUGI=$(field STOP_RUGI_HARIAN_USD); STOP_RUGI=${STOP_RUGI:-0}
+MAKS_POS=$(field MAKS_POSISI_TERBUKA); MAKS_POS=${MAKS_POS:-6}
 # the executor refuses to start on a non-number (exec/config.rs), so a typo here would crash-loop the service
 angka(){ [[ $2 =~ ^[0-9]+([.][0-9]+)?$ ]] || die "$1 harus angka (tanpa \$ atau koma), bukan: $2"; }
 angka SETORAN_USD "$SETORAN_USD"; angka MAKS_USD_PER_BELI "$MAKS_BELI"; angka STOP_RUGI_HARIAN_USD "$STOP_RUGI"
