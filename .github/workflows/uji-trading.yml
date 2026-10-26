@@ -37,8 +37,8 @@ jobs:
       - name: switch to shadow (build + sign every order, never broadcast)
         run: |
           sudo sed -i 's/^EXEC_MODE=.*/EXEC_MODE=shadow/' /opt/rhc/bot/.env
-          # test only: retrain the ML half after 40 outcomes (not 300) so the CatBoost path runs within the observation
-          echo "BELAJAR_LABEL_BARU=40" | sudo tee -a /opt/rhc/bot/.env
+          # test only: retrain the ML half after 10 outcomes (not 300) so the CatBoost path runs within the observation
+          echo "BELAJAR_LABEL_BARU=10" | sudo tee -a /opt/rhc/bot/.env
           sudo systemctl restart rhc-trader
           sleep 20; systemctl is-active rhc-trader
 
