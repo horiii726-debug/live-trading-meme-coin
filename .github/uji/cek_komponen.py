@@ -144,7 +144,10 @@ nilai("cek gagal / data basi", None, f"cek gagal {sg.get('cek_gagal')}, data bas
 
 # ---------------------------------------------------------------- 5
 bagian(5, "Data keputusan (fitur menit-1 & skor) — bersih?")
-dec = jsonl(os.path.join(live, "decisions.jsonl"))
+dec_semua = jsonl(os.path.join(live, "decisions.jsonl"))
+# the file also holds MODE AMAN block markers ({"aman": block}); only coin decisions carry a pool
+dec = [d for d in dec_semua if d.get("pool")]
+nilai("isi decisions.jsonl", None, f"{len(dec)} keputusan koin + {sum(1 for d in dec_semua if 'aman' in d)} penanda blok MODE AMAN")
 if dec:
     nf = collections.Counter(len(d.get("feats") or []) for d in dec)
     nan = sum(1 for d in dec for v in (d.get("feats") or []) if angka(v) is None)
