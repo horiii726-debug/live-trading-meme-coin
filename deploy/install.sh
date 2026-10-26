@@ -35,7 +35,7 @@ rm -rf /opt/rhc/venv /opt/rhc/training
 [ -e /opt/rhc/bot/.env ] || install -o rhc -g rhc -m 600 "$ROOT/config/trader.env.example" /opt/rhc/bot/.env
 
 # the official CatBoost program (C++) that retrains the ML half of the adaptive filter
-"$ROOT/deploy/catboost.sh" /opt/rhc/bin/catboost || echo "WARNING: CatBoost not installed: the ML half is not retrained (the bot still runs)"
+"$ROOT/deploy/catboost.sh" /opt/rhc/bin/catboost || { echo "FAILED: CatBoost not installed; the adaptive filter needs it (the kill switch would stop the bot)"; exit 1; }
 
 # service manager: systemd on a VPS, supervisor inside a container (Docker, Vast.ai, LXC)
 if [ -d /run/systemd/system ] && command -v systemctl >/dev/null; then

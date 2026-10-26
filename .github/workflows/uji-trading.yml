@@ -61,3 +61,33 @@ jobs:
           sudo python3 .github/uji/cek_komponen.py /opt/rhc/bot ${{ github.event.inputs.trade || '10' }}
           echo "--------------------------------------------------------------- live.log (60 baris terakhir)"
           sudo tail -n 60 /opt/rhc/bot/rust_live/live.log
+
+      - name: kill switch — an injected error stops every order, survives a restart, resumes only on request
+        run: |
+          E=/opt/rhc/bot/.env; L=/opt/rhc/bot/rust_live; K=$L/KILL_SWITCH; S=$L/status.json
+          sudo test ! -e $K || { echo "GAGAL: kill switch menyala pada bot sehat"; sudo cat $K; exit 1; }
+          echo "UJI_PANIK_DETIK=20" | sudo tee -a $E >/dev/null
+          sudo systemctl restart rhc-trader
+          for i in $(seq 1 36); do sleep 5; sudo test -e $K && break; done
+          sudo test -e $K || { echo "GAGAL: error sengaja tidak menyalakan kill switch"; exit 1; }
+          echo "--- isi KILL_SWITCH"; sudo cat $K
+          sleep 15
+          [ "$(systemctl is-active rhc-trader)" = active ] || { echo "GAGAL: bot mati / restart terus saat kill switch"; exit 1; }
+          sudo python3 -c "import json;d=json.load(open('$S'));print('status.json kill_switch:',d['kill_switch']);assert d['kill_switch']['aktif']"
+          s1=$(sudo grep -c '] SARING ' $L/live.log || true); o1=$(sudo sh -c "cat $L/exec*/journal.jsonl 2>/dev/null" | grep -c '"event":"order"' || true)
+          sleep 90
+          s2=$(sudo grep -c '] SARING ' $L/live.log || true); o2=$(sudo sh -c "cat $L/exec*/journal.jsonl 2>/dev/null" | grep -c '"event":"order"' || true)
+          echo "keputusan koin $s1 -> $s2, order ke eksekutor $o1 -> $o2 (90 dtk saat kill switch aktif)"
+          [ "$s1" = "$s2" ] && [ "$o1" = "$o2" ] || { echo "GAGAL: masih ada keputusan / order saat kill switch aktif"; exit 1; }
+          echo "--- restart: harus TETAP terkunci"
+          sudo systemctl restart rhc-trader
+          for i in $(seq 1 24); do sleep 5; sudo grep -q "KILL SWITCH MASIH AKTIF" $L/live.log && break; done
+          sudo test -e $K && sudo grep -q "KILL SWITCH MASIH AKTIF" $L/live.log || { echo "GAGAL: restart membuka kill switch"; exit 1; }
+          echo "--- pemilik melanjutkan (error sengaja dihapus dulu)"
+          sudo sed -i '/^UJI_PANIK_DETIK=/d' $E
+          sudo bash -c 'cd /root/live-trading-meme-coin && ./rhc.sh lanjut --ya'
+          sleep 45
+          sudo test ! -e $K || { echo "GAGAL: lanjut tidak membuka kill switch"; exit 1; }
+          [ "$(systemctl is-active rhc-trader)" = active ] || { echo "GAGAL: bot tidak jalan lagi setelah lanjut"; exit 1; }
+          sudo python3 -c "import json;d=json.load(open('$S'));print('status.json kill_switch:',d['kill_switch']);assert not d['kill_switch']['aktif']"
+          echo "KILL SWITCH: LULUS (menyala karena error, semua order berhenti, tetap terkunci setelah restart, dibuka hanya dengan lanjut)"

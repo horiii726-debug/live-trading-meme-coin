@@ -219,7 +219,8 @@ impl Executor {
         if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(self))) {
             let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
             self.last_error = format!("panic: {msg}");
-            (self.alert)(format!("executor panic (recovered): {msg}"));
+            (self.alert)(format!("executor panic: {msg}"));
+            crate::kill::picu(&format!("panic di eksekutor: {msg}"));
         }
     }
 
@@ -333,6 +334,9 @@ impl Executor {
 
     fn on_buy(&mut self, o: &Order, size_usd: f64, model_equity_usd: f64, lp_cap_usd: f64) {
         let pool = o.pool.to_lowercase();
+        if crate::kill::aktif() {
+            return self.skip(&pool, "KILL SWITCH aktif");
+        }
         if self.ledger.positions.contains_key(&pool) {
             return self.skip(&pool, "already have a position in this pool");
         }
@@ -1025,6 +1029,9 @@ impl Executor {
     }
 
     fn check_kill_files(&mut self) {
+        if crate::kill::aktif() {
+            return; // no selling either while the kill switch is on (rhc.sh jual-semua clears it first)
+        }
         let flatten = self.cfg.state_dir.join(FLATTEN_FILE).exists();
         if flatten && !self.flatten_seen {
             (self.alert)("FLATTEN_ALL file found: selling every open position, no new buys".into());
@@ -1034,6 +1041,9 @@ impl Executor {
     }
 
     fn run_intents(&mut self) {
+        if crate::kill::aktif() {
+            return; // sells and approvals wait; they resume only after the owner clears the kill switch
+        }
         let pools: Vec<String> = self.ledger.positions.values().filter(|p| p.intent.is_some()).map(|p| p.pool.clone()).collect();
         for pool in pools {
             self.try_sell(&pool);

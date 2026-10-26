@@ -215,7 +215,12 @@ main(){
  Pantau  : cd $dir && sudo ./rhc.sh log
  Status  : cd $dir && sudo ./rhc.sh status
  Stop beli: sudo touch /opt/rhc/bot/rust_live/exec/STOP_BUYING
- Jual semua: sudo touch /opt/rhc/bot/rust_live/exec/FLATTEN_ALL
+ Jual semua: cd $dir && sudo ./rhc.sh jual-semua
+
+ KILL SWITCH: kalau sistem bot sendiri error (crash, ML/DL rusak,
+ catatan gagal disimpan), SEMUA order berhenti total dan tetap
+ berhenti walau restart. Tampil saat login SSH & di status.
+ Lanjutkan setelah dicek: cd $dir && sudo ./rhc.sh lanjut
 ==============================================================
 EOF
 }

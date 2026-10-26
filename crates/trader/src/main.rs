@@ -18,6 +18,7 @@ mod cfg;
 mod exec;
 mod fast_download;
 mod kelas;
+mod kill;
 mod live;
 mod loggate;
 mod net;

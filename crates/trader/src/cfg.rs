@@ -64,6 +64,8 @@ pub struct Cfg {
     pub latih_dasar: String,
     /// BELAJAR_LABEL_BARU: outcomes per scheduled ML retrain (default 300 = the tested setting; only a test lowers it)
     pub belajar_label_baru: usize,
+    /// UJI_PANIK_DETIK: test only — a deliberate panic N seconds after start, to prove the kill switch (0 = never)
+    pub uji_panik_detik: u64,
     // operasional VPS (tanpa Claude)
     pub label: bool,
     pub telegram_token: String,
@@ -152,6 +154,7 @@ impl Cfg {
             catboost_bin: get("CATBOOST_BIN").unwrap_or("/opt/rhc/bin/catboost".into()),
             latih_dasar: get("LATIH_DASAR").unwrap_or_default(),
             belajar_label_baru: (num("BELAJAR_LABEL_BARU", 300.0) as usize).max(1),
+            uji_panik_detik: num("UJI_PANIK_DETIK", 0.0) as u64,
             label: on("LABEL", true),
             telegram_token: get("TELEGRAM_TOKEN").unwrap_or_default(),
             telegram_chat: get("TELEGRAM_CHAT_ID").unwrap_or_default(),

@@ -222,6 +222,13 @@ impl Ledger {
     /// Atomic, durable rewrite of positions.json (fsync before the rename, so a power loss right after a broadcast
     /// cannot leave the sent transaction out of the book).
     pub fn save(&self) -> Result<(), String> {
+        // a book that cannot be written could forget a sent transaction: internal error -> kill switch
+        self.save_inner().map_err(|e| {
+            crate::kill::picu(&format!("ledger eksekusi gagal disimpan: {e}"));
+            e
+        })
+    }
+    fn save_inner(&self) -> Result<(), String> {
         let snap = Snapshot { positions: self.positions.clone(), approvals: self.approvals.clone(), totals: self.totals.clone() };
         let body = serde_json::to_vec_pretty(&snap).map_err(|e| e.to_string())?;
         let tmp = self.dir.join("positions.json.tmp");

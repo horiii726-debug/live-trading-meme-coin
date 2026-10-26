@@ -25,6 +25,8 @@ owner=$(stat -c %U "$repo")
 chk "tidak ada berkas git yang berubah" [ -z "$(sudo -u "$owner" git -C "$repo" status --porcelain)" ]
 chk "model + riwayat dev + data dasar ada di /opt/rhc/bot" sudo test -s /opt/rhc/bot/dev_history.json -a -s /opt/rhc/bot/filter_cat.json -a -s /opt/rhc/bot/latih_dasar.csv
 chk "service menyala otomatis saat boot" [ "$(systemctl is-enabled rhc-trader)" = enabled ]
+chk "kill switch TIDAK aktif pada bot sehat" sudo test ! -e /opt/rhc/bot/rust_live/KILL_SWITCH
+chk "peringatan kill switch saat login SSH terpasang" test -s /etc/profile.d/rhc-kill-switch.sh
 chk "program CatBoost (C++) terpasang dan asli" sh -c 'echo "478dc57f4c19de205b19b709fd4c6af93f79753dc462b6bb49d33c920dddec75  /opt/rhc/bin/catboost" | sha256sum -c --status'
 chk "tidak ada sisa Python lama" [ ! -e /opt/rhc/venv ] && [ ! -e /etc/systemd/system/rhc-retrain.timer ]
 chk "filter adaptif aktif di log bot" sudo grep -q "filter adaptif AKTIF" /opt/rhc/bot/rust_live/live.log

@@ -149,6 +149,10 @@ impl Sender {
     /// When every endpoint failed at the network level (HTTP 429, timeout), the very same signed bytes are sent
     /// again, twice at most: same hash and nonce, so a copy that did arrive just answers "already known".
     pub fn broadcast(&mut self, tx: &SignedTx) -> SendOutcome {
+        // TOTAL KILL SWITCH (kill.rs): this is the one path to the chain, nothing goes out while it is on
+        if crate::kill::aktif() {
+            return SendOutcome::Rejected { error: "KILL SWITCH aktif: tidak ada transaksi yang dikirim".into(), maybe_sent: false };
+        }
         let raw = format!("0x{}", hex::encode(&tx.raw));
         let mut outcome = SendOutcome::Rejected { error: "no endpoint".into(), maybe_sent: false };
         let mut delivered_before = false; // an earlier round may have reached a node

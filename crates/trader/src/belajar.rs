@@ -411,6 +411,18 @@ impl Pembelajar {
             label_baru: LABEL_BARU,
         }
     }
+    /// The learner's numbers are sane. A NaN / Inf anywhere is an internal error: the kill switch stops the bot.
+    pub fn cek_sehat(&self) -> Result<(), String> {
+        let x = vec![-1.0; self.feats.len()];
+        let (m, d) = (self.skor_ml(&x), self.skor_dl(&x));
+        if !(m.is_finite() && d.is_finite()) {
+            return Err(format!("prediksi tidak valid (ML {m}, DL {d})"));
+        }
+        if self.dl.w.iter().flatten().chain(self.dl.b.iter().flatten()).any(|v| !v.is_finite()) {
+            return Err("bobot DL rusak (NaN/Inf)".into());
+        }
+        Ok(())
+    }
     /// Out-of-sample AUC of (DL, ML) over the last outcomes; None before 100 of them.
     pub fn akurasi(&self) -> Option<(f64, f64)> {
         if self.uji.len() < 100 {

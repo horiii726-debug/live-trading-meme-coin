@@ -108,7 +108,7 @@ impl Kabar {
             return;
         }
         let k = self.clone();
-        std::thread::spawn(move || {
+        let _ = std::thread::Builder::new().name("rhc-kabar".into()).spawn(move || {
             let host = "api.telegram.org";
             let ip = if k.doh {
                 doh_resolve(host).ok()
@@ -607,6 +607,10 @@ impl Live {
             if let Some(p) = self.pemb.as_mut() {
                 k.score = p.skor(&k.feats);
             }
+            if !k.score.is_finite() {
+                crate::kill::picu(&format!("skor filter ML+DL tidak valid ({}) untuk {pool}", k.score));
+                return;
+            }
         }
         let mut a = self.m.akun.lock().unwrap();
         a.terima_skor(pool, k.clone());
@@ -779,6 +783,9 @@ impl Live {
             return;
         }
         let orders: Vec<ModelOrder> = self.m.orders.drain(..).collect();
+        if crate::kill::aktif() {
+            return;
+        }
         let Some(ex) = &self.exec else { return };
         if self.replaying {
             return;
@@ -852,6 +859,9 @@ impl Live {
                 for (x, ret, blk, pick) in belajar {
                     p.label(x, ret, blk, pick);
                 }
+                if let Err(e) = p.cek_sehat() {
+                    crate::kill::picu(&format!("pembelajar ML/DL rusak: {e}"));
+                }
                 if p.dl_aktif != dl_sebelum {
                     let (d, m) = p.akurasi().unwrap_or((f64::NAN, f64::NAN));
                     let s = if p.dl_aktif {
@@ -874,6 +884,25 @@ impl Live {
         }
     }
     fn status(&mut self) {
+        // account numbers that cannot be right = an internal error (checked only while the switch is off)
+        if !crate::kill::aktif() {
+            let a = self.m.akun.lock().unwrap();
+            let (cash, eb, ep, kel) = (a.cash, a.ekuitas_beli(), a.ekuitas_pasar(), a.kelly());
+            let max_k = a.cfg.kelly_maks.max(a.cfg.kelly_min);
+            drop(a);
+            let salah = if !(cash.is_finite() && eb.is_finite() && ep.is_finite() && kel.is_finite()) {
+                Some(format!("angka akun tidak valid: kas {cash}, equity {eb}/{ep}, kelly {kel}"))
+            } else if cash < -1.0 || eb < -1.0 {
+                Some(format!("akun negatif: kas ${cash:.2}, equity ${eb:.2}"))
+            } else if !(0.0..=max_k + 1e-9).contains(&kel) {
+                Some(format!("fraksi Kelly {kel} di luar 0..{max_k}"))
+            } else {
+                None
+            };
+            if let Some(s) = salah {
+                crate::kill::picu(&s);
+            }
+        }
         let a = self.m.akun.lock().unwrap();
         let killed = a.killed;
         let j = json!({
@@ -889,6 +918,7 @@ impl Live {
                 "trade_dibeli": a.n_beli, "trade_selesai": a.n_tutup, "menang": a.n_menang,
             },
             "saringan": { "skor_tersimpan": a.recent.len(), "ambang_awal": a.thr0, "tolak": a.tolak, "data_basi": self.n_basi, "cek_gagal": self.n_cek_gagal },
+            "kill_switch": {"aktif": crate::kill::aktif(), "alasan": crate::kill::alasan()},
             "label_latihan_ditulis": self.n_label,
             "filter": match &self.pemb {
                 Some(p) => json!({"mode": "adaptif: ML CatBoost (latih ulang C++) + DL Rust", "hasil_koin_dipelajari": p.labels.len(),
@@ -1113,7 +1143,10 @@ impl Live {
         if let Some(p) = &self.pemb {
             match p.simpan(&self.dir.join("belajar.json")) {
                 Ok(()) => self.label_disimpan = p.labels.len(),
-                Err(e) => self.log.tulis(&format!("simpan keadaan filter adaptif gagal: {e}")),
+                Err(e) => {
+                    self.log.tulis(&format!("simpan keadaan filter adaptif gagal: {e}"));
+                    crate::kill::picu(&format!("keadaan pembelajar ML/DL gagal disimpan: {e}"));
+                }
             }
         }
     }
@@ -1128,12 +1161,13 @@ impl Live {
         let d = p.data_latih(tip, alasan);
         if !Path::new(&bin).exists() {
             let _ = p.selesai_latih(Err("program CatBoost tidak ada".into()), d.n_label, d.alasan);
-            self.log.tulis(&format!("latih ulang ML dilewati: {bin} tidak ada (DL tetap belajar; pasang ulang: sudo ./rhc.sh pasang)"));
+            self.log.tulis(&format!("latih ulang ML tidak bisa: {bin} tidak ada (pasang ulang: sudo ./rhc.sh pasang)"));
+            crate::kill::picu(&format!("program CatBoost {bin} tidak ada: ML tidak bisa dilatih ulang"));
             return;
         }
         let feats = p.feats.clone();
         self.log.tulis(&format!("LATIH ULANG ML mulai ({alasan}): {} baris ({} hasil koin live)", d.x.len(), d.n_label));
-        std::thread::spawn(move || {
+        let _ = std::thread::Builder::new().name("rhc-latih".into()).spawn(move || {
             let r = belajar::latih_catboost(&bin, &kerja, &feats, &d);
             let _ = tx.send(HasilLatih { r, n_label: d.n_label, alasan: d.alasan });
         });
@@ -1172,12 +1206,16 @@ impl Live {
                             self.log.tulis(&s);
                             self.kabar.kirim(s);
                         }
-                        Err(e) => self.log.tulis(&format!("model ML baru DITOLAK ({e}); model lama tetap dipakai")),
+                        Err(e) => {
+                            self.log.tulis(&format!("model ML baru DITOLAK ({e}); model lama tetap dipakai"));
+                            crate::kill::picu(&format!("model ML hasil latih ulang ditolak: {e}"));
+                        }
                     }
                 }
                 Err(e) => {
                     let _ = p.selesai_latih(Err(e.clone()), h.n_label, h.alasan);
                     self.log.tulis(&format!("latih ulang ML GAGAL ({}); model lama tetap dipakai", e.chars().take(200).collect::<String>()));
+                    crate::kill::picu(&format!("latih ulang ML gagal: {}", e.chars().take(200).collect::<String>()));
                 }
             }
             self.simpan_belajar();
@@ -1254,9 +1292,17 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     if dir.join("stop.txt").exists() {
         return Err("stop.txt ada — hapus dulu untuk menjalankan bot".into());
     }
+    // TOTAL KILL SWITCH (kill.rs): read first, so a switch left on by a crash keeps every order blocked
+    let kill_lama = crate::kill::siapkan(&dir);
     let lp = dir.join("live.log");
     std::panic::set_hook(Box::new(move |info| {
-        tambah(&lp, &format!("[{}] PANIK: {info}", &sekarang_iso()[..19]));
+        let nama = std::thread::current().name().unwrap_or("").to_string();
+        tambah(&lp, &format!("[{}] PANIK (thread '{nama}'): {info}", &sekarang_iso()[..19]));
+        // side threads that never decide or send a trade (pool radar, DEX Screener, Telegram) only log; any other
+        // panic is an error of our trading system: stop everything
+        if !(nama.starts_with("rhc-radar") || nama == "rhc-ds" || nama == "rhc-kabar") {
+            crate::kill::picu(&format!("panic di thread '{}': {info}", if nama.is_empty() { "pengecekan koin" } else { nama.as_str() }));
+        }
     }));
     // model + cek kesamaan model (WAJIB, sama dengan paper_live.js)
     let (cat, thr0) = muat_model_filter(bot_dir)?;
@@ -1301,7 +1347,7 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     let laju = Arc::new(radar::Laju::new());
     for _ in 0..2 {
         let (rx, tx2, rpc2, laju2) = (minta_rx.clone(), hasil_tx.clone(), rpc.clone(), laju.clone());
-        std::thread::spawn(move || loop {
+        let _ = std::thread::Builder::new().name("rhc-radar".into()).spawn(move || loop {
             let m = { rx.lock().unwrap().recv() };
             let r = match m {
                 Ok(Minta::Meta(p, lama)) => {
@@ -1340,7 +1386,7 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     let ds_mau = Arc::new(Mutex::new(Vec::<String>::new()));
     if std::env::var("DS").map(|v| v == "1").unwrap_or(false) {
         let (tx3, mau, doh) = (hasil_tx.clone(), ds_mau.clone(), cfg.doh);
-        std::thread::spawn(move || ds_loop(tx3, mau, doh));
+        let _ = std::thread::Builder::new().name("rhc-ds".into()).spawn(move || ds_loop(tx3, mau, doh));
     }
     let mut radar_obj = Radar::new();
     radar_obj.mulai_blk = f64::NAN;
@@ -1548,6 +1594,12 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
         )),
         None => b.log.tulis("PERINGATAN: BELAJAR=0 — filter beku (model bawaan, tidak belajar)"),
     }
+    if b.pemb.is_some() && !Path::new(&cfg.catboost_bin).exists() {
+        crate::kill::picu(&format!("program CatBoost {} tidak ada: filter ML tidak bisa dilatih ulang (pasang ulang: sudo ./rhc.sh pasang)", cfg.catboost_bin));
+    }
+    if let Some(r) = &kill_lama {
+        b.log.tulis(&format!("KILL SWITCH MASIH AKTIF (sejak {r}). Bot TIDAK mengirim order apa pun. Cek: sudo ./rhc.sh status | lanjutkan: sudo ./rhc.sh lanjut"));
+    }
     b.simpan_belajar();
     b.kabar.kirim(format!("bot mulai ({VERSI}), blok {}", b.last + 1.0));
     b.status();
@@ -1555,12 +1607,31 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     let mut t_radar = Instant::now();
     let mut t_simpan = Instant::now();
     let mut backoff = POLL_BACKOFF_MIN;
+    let mut kill_dicatat = false;
+    let mut uji_panik = cfg.uji_panik_detik == 0;
     loop {
         if dir.join("stop.txt").exists() {
             b.log.tulis("stop.txt ditemukan -> berhenti dengan rapi.");
             b.simpan_belajar();
             b.status();
             return Ok(());
+        }
+        // TOTAL KILL SWITCH: the strategy stops too (no new decisions, no orders); status.json keeps saying why
+        if crate::kill::aktif() {
+            if !kill_dicatat {
+                kill_dicatat = true;
+                b.log.tulis(&format!("KILL SWITCH AKTIF: {} | semua order dihentikan. Cek: sudo ./rhc.sh status | lanjutkan: sudo ./rhc.sh lanjut", crate::kill::alasan().unwrap_or_default()));
+                b.simpan_belajar();
+            }
+            b.status();
+            std::thread::sleep(Duration::from_secs(5));
+            continue;
+        }
+        // test only (UJI_PANIK_DETIK): an injected error proves the kill switch on a running bot
+        if !uji_panik && b.mulai.elapsed().as_secs() >= cfg.uji_panik_detik {
+            uji_panik = true;
+            b.log.tulis("UJI: panic sengaja dipicu (UJI_PANIK_DETIK) — kill switch harus menyala");
+            let _ = std::thread::Builder::new().name("rhc-uji".into()).spawn(|| panic!("UJI: panic sengaja (UJI_PANIK_DETIK)"));
         }
         // 1) tip; 2) logs for an EXPLICIT block range, re-reading the last blocks (loggate.rs). A node that does not
         // have `to` yet answers with an error (no partial answer is taken as complete); repeats and out-of-range logs

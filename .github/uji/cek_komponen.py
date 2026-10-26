@@ -227,6 +227,14 @@ for j in jr:
 if skip:
     nilai("alasan beli dilewati eksekutor", None, json.dumps(dict(skip.most_common(6)), ensure_ascii=False))
 
+# ---------------------------------------------------------------- 9
+bagian(9, "Kill switch (harus TIDAK aktif selama sistem sehat)")
+ks = st.get("kill_switch", {})
+ada = os.path.exists(os.path.join(live, "KILL_SWITCH"))
+nilai("kill switch tidak aktif tanpa error", not ada and not ks.get("aktif"), f"file: {'ADA' if ada else 'tidak ada'}, status.json: {ks}")
+panik = [l for l in log if "PANIK" in l]
+nilai("tidak ada panic", not panik, f"{len(panik)} baris PANIK" + (f": {panik[-1][:160]}" if panik else ""))
+
 # ---------------------------------------------------------------- ringkas
 print()
 print("=" * 90)

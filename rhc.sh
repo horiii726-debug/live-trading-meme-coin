@@ -31,6 +31,22 @@ need_root(){ [ "$(id -u)" -eq 0 ] || die "jalankan dengan sudo: sudo ./rhc.sh $*
 ask(){ local p=$1 d=${2:-} a; read -r -p "$p${d:+ [$d]}: " a; printf '%s' "${a:-$d}"; }
 yes_no(){ local a; read -r -p "$1 (y/n) [n]: " a; [ "${a,,}" = y ]; }
 have_bin(){ [ -x "$BIN" ] || BIN="$ROOT/target/release/rhc-trader"; [ -x "$BIN" ]; }
+KILL=$BOT/rust_live/KILL_SWITCH
+# the total kill switch (crates/trader/src/kill.rs): on = the bot sends no order at all until the owner resumes it
+kill_banner(){
+    [ -f "$KILL" ] || return 0
+    printf '\n\033[1;41;97m  KILL SWITCH AKTIF — bot TIDAK mengirim order apa pun (beli, jual, approve)  \033[0m\n'
+    printf '  sejak/alasan : %s\n' "$(head -n1 "$KILL" 2>/dev/null)"
+    printf '  lanjutkan    : sudo ./rhc.sh lanjut      (setelah penyebabnya dicek)\n'
+    printf '  jual semua   : sudo ./rhc.sh jual-semua  (jual semua posisi, beli tetap diblok)\n\n'
+}
+restart_bot(){
+    case "$(svc_kind)" in
+        systemd)    systemctl restart rhc-trader;;
+        supervisor) supervisorctl restart rhc-trader >/dev/null || true;;
+        *) say "    jalankan ulang bot sendiri: $BIN live --bot $BOT --env $BOT/.env";;
+    esac
+}
 
 # ---------------------------------------------------------------- service manager
 svc_kind(){
@@ -134,12 +150,19 @@ cmd_pasang(){
     install -o rhc -g rhc -m 644 "$ROOT/models/latih_dasar.csv" "$BOT/latih_dasar.csv"
     # the old Python retrain is gone (the bot retrains itself with the CatBoost program): remove its leftovers
     rm -rf "$PREFIX/venv" "$PREFIX/training"
-    # the official CatBoost program (C++) retrains the ML half of the filter; without it the bot still trades and the
-    # deep-learning half still learns, so a failed download must not stop the install
-    if ! "$ROOT/deploy/catboost.sh" "$PREFIX/bin/catboost"; then
-        say "    PERINGATAN: CatBoost gagal dipasang -> ML tidak dilatih ulang (bot tetap jalan, DL tetap belajar)."
-        say "               Ulangi nanti: sudo ./rhc.sh pasang"
-    fi
+    # the adaptive filter needs it: no CatBoost = the kill switch would stop the bot at once, so fail the install here
+    "$ROOT/deploy/catboost.sh" "$PREFIX/bin/catboost" || die "program CatBoost gagal dipasang (filter ML+DL membutuhkannya). Cek internet/disk lalu ulangi: sudo ./rhc.sh pasang"
+
+    # SSH login banner: the owner sees an active kill switch the moment he logs in (no Telegram needed)
+    cat > /etc/profile.d/rhc-kill-switch.sh <<BANNER
+# rhc-trader: show the total kill switch at login
+if [ -f $BOT/rust_live/KILL_SWITCH ]; then
+    printf '\\n\\033[1;41;97m  KILL SWITCH AKTIF — bot TIDAK mengirim order apa pun  \\033[0m\\n'
+    printf '  alasan : %s\\n' "\$(head -n1 $BOT/rust_live/KILL_SWITCH 2>/dev/null)"
+    printf '  cek    : cd $ROOT && sudo ./rhc.sh status\\n  lanjut : cd $ROOT && sudo ./rhc.sh lanjut\\n\\n'
+fi
+BANNER
+    chmod 644 /etc/profile.d/rhc-kill-switch.sh
     say "    terpasang di $PREFIX"
 
     hr; say " 4/4  service"; hr
@@ -353,6 +376,8 @@ cmd_log(){
 }
 cmd_status(){
     hr; say " Status"; hr
+    kill_banner
+    [ -f "$KILL" ] || say "  kill switch: tidak aktif (tidak ada error sistem)"
     printf '  service   : %s\n' "$(svc_running && echo JALAN || echo berhenti)"
     printf '  binary    : %s\n' "$(have_bin && echo "$BIN" || echo 'belum dibuild')"
     printf '  konfig    : %s\n' "$([ -f "$BOT/.env" ] && echo "$BOT/.env" || echo 'belum ada')"
@@ -372,6 +397,42 @@ if d.get('last_error'): print("  error     : %s"%d['last_error'][:70])
 PY
     fi
     say ""
+}
+
+cmd_lanjut(){
+    need_root lanjut
+    local ya=${1:-}
+    if [ ! -f "$KILL" ] && [ ! -f "$BOT/rust_live/exec/FLATTEN_ALL" ] && [ ! -f "$BOT/rust_live/exec_shadow/FLATTEN_ALL" ]; then
+        say "kill switch tidak aktif — bot sudah jalan normal."; return 0
+    fi
+    if [ -f "$KILL" ]; then
+        hr; say " Kill switch: catatan error"; hr
+        sed 's/^/  /' "$KILL"
+        say ""
+        say "  Lihat log sebelum melanjutkan: sudo ./rhc.sh log"
+        say "  Kalau penyebabnya belum dibereskan, kill switch akan menyala lagi."
+    fi
+    [ "$ya" = --ya ] || yes_no "Lanjutkan trading sekarang?" || { say "dibatalkan — bot tetap berhenti."; return 0; }
+    local bak=$BOT/rust_live/KILL_SWITCH.$(date -u +%Y%m%d_%H%M%S).txt
+    [ -f "$KILL" ] && mv -f "$KILL" "$bak" && say "  catatan disimpan: $bak"
+    rm -f "$BOT/rust_live/exec/FLATTEN_ALL" "$BOT/rust_live/exec_shadow/FLATTEN_ALL"
+    restart_bot
+    say "  bot dijalankan lagi. Pantau: sudo ./rhc.sh log"
+}
+cmd_jual_semua(){
+    need_root jual-semua
+    local ya=${1:-}
+    say "Semua posisi terbuka akan DIJUAL, beli baru tetap diblok (FLATTEN_ALL)."
+    say "Kalau kill switch aktif, kuncinya dibuka khusus untuk menjual."
+    [ "$ya" = --ya ] || yes_no "Jual semua sekarang?" || { say "dibatalkan."; return 0; }
+    local d
+    for d in "$BOT/rust_live/exec" "$BOT/rust_live/exec_shadow"; do
+        install -d -o rhc -g rhc -m 755 "$d" 2>/dev/null || install -d -m 755 "$d"
+        touch "$d/FLATTEN_ALL"; chown rhc:rhc "$d/FLATTEN_ALL" 2>/dev/null || true
+    done
+    [ -f "$KILL" ] && mv -f "$KILL" "$BOT/rust_live/KILL_SWITCH.$(date -u +%Y%m%d_%H%M%S).txt"
+    restart_bot
+    say "  bot menjual semua posisi. Setelah kosong, trading normal lagi dengan: sudo ./rhc.sh lanjut"
 }
 
 # Is any real position still held? positions.json stores statuses in snake_case ("buying", "open", "stuck");
@@ -421,11 +482,13 @@ menu(){
         say "  4) dompet   — alamat wallet dan saldo"
         say "  5) mulai    6) stop    7) log"
         say "  8) bersih   — kosongkan catatan sebelum live"
+        say "  l) lanjut   — buka kill switch setelah dicek     j) jual-semua"
         say "  0) keluar"
         say ""
         case "$(ask 'Pilih')" in
             1) cmd_pasang;; 2) cmd_atur;; 3) cmd_cek || true;; 4) cmd_dompet || true;;
             5) cmd_mulai;;  6) cmd_stop;; 7) cmd_log;; 8) cmd_bersih;; 9) cmd_isi;;
+            l) cmd_lanjut;; j) cmd_jual_semua;;
             0|q|keluar) exit 0;;
             *) say "pilihan tidak dikenal";;
         esac
@@ -443,6 +506,8 @@ case "${1:-menu}" in
     log)     cmd_log;;
     status)  cmd_status;;
     bersih)  cmd_bersih;;
+    lanjut)  cmd_lanjut "${2:-}";;
+    jual-semua) cmd_jual_semua "${2:-}";;
     menu)    menu;;
-    *) say "pakai: sudo ./rhc.sh [pasang|atur|isi|cek|dompet|mulai|stop|log|status|bersih]"; exit 1;;
+    *) say "pakai: sudo ./rhc.sh [pasang|atur|isi|cek|dompet|mulai|stop|log|status|bersih|lanjut|jual-semua]"; exit 1;;
 esac
