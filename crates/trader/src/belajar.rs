@@ -364,6 +364,8 @@ pub struct Pembelajar {
     uji: VecDeque<(f64, f64, bool)>,
     pub dl_aktif: bool,
     pub n_dl_mati: u64,
+    /// new outcomes that trigger an ML retrain (300; BELAJAR_LABEL_BARU lowers it only for a short live test)
+    pub label_baru: usize,
 }
 
 impl Pembelajar {
@@ -406,6 +408,7 @@ impl Pembelajar {
             uji: VecDeque::new(),
             dl_aktif: true,
             n_dl_mati: 0,
+            label_baru: LABEL_BARU,
         }
     }
     /// Out-of-sample AUC of (DL, ML) over the last outcomes; None before 100 of them.
@@ -487,7 +490,7 @@ impl Pembelajar {
                 return Some("kinerja pilihan terakhir turun");
             }
         }
-        if self.labels.len() - self.n_label_fit >= LABEL_BARU {
+        if self.labels.len() - self.n_label_fit >= self.label_baru {
             return Some("300 hasil koin baru");
         }
         None

@@ -62,6 +62,8 @@ pub struct Cfg {
     pub catboost_bin: String,
     /// base training data (Aug-Sep); empty = <bot>/latih_dasar.csv
     pub latih_dasar: String,
+    /// BELAJAR_LABEL_BARU: outcomes per scheduled ML retrain (default 300 = the tested setting; only a test lowers it)
+    pub belajar_label_baru: usize,
     // operasional VPS (tanpa Claude)
     pub label: bool,
     pub telegram_token: String,
@@ -149,6 +151,7 @@ impl Cfg {
             belajar: on("BELAJAR", true),
             catboost_bin: get("CATBOOST_BIN").unwrap_or("/opt/rhc/bin/catboost".into()),
             latih_dasar: get("LATIH_DASAR").unwrap_or_default(),
+            belajar_label_baru: (num("BELAJAR_LABEL_BARU", 300.0) as usize).max(1),
             label: on("LABEL", true),
             telegram_token: get("TELEGRAM_TOKEN").unwrap_or_default(),
             telegram_chat: get("TELEGRAM_CHAT_ID").unwrap_or_default(),

@@ -125,7 +125,9 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
         let (dx, dy) = belajar::baca_dasar(std::path::Path::new(&dasar), &cat.feats)?;
         let ml = CatModel::load(&format!("{}/filter_cat.json", a.bot_dir)).map_err(|e| e.to_string())?;
         eprintln!("filter adaptif: ML CatBoost + DL, {} baris data dasar, latih ulang ML lewat {}", dx.len(), cfg.catboost_bin);
-        Some(Pembelajar::baru(ml, dx, dy))
+        let mut p = Pembelajar::baru(ml, dx, dy);
+        p.label_baru = cfg.belajar_label_baru;
+        Some(p)
     } else {
         None
     };

@@ -1267,6 +1267,7 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
         let (dx, dy) = belajar::baca_dasar(Path::new(&dasar), &cat.feats)?;
         let ml = CatModel::load(&format!("{bot_dir}/filter_cat.json")).map_err(|e| e.to_string())?;
         let mut p = Pembelajar::baru(ml, dx, dy);
+        p.label_baru = cfg.belajar_label_baru;
         let labels = baca_label(&dir.join("labels.jsonl"), &p.feats);
         let dikejar = p.pulihkan(&dir.join("belajar.json"), labels)?;
         Some((p, dikejar))

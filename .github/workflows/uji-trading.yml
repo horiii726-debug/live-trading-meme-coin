@@ -8,8 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       menit:
-        description: berapa menit bot diamati
-        default: "150"
+        description: paling lama berapa menit bot diamati
+        default: "280"
+      trade:
+        description: berhenti setelah sekian trade selesai
+        default: "10"
   # a push to this branch starts an observation of that commit (workflow_dispatch needs the file on main first)
   push:
     branches: [uji-trading]
@@ -34,21 +37,27 @@ jobs:
       - name: switch to shadow (build + sign every order, never broadcast)
         run: |
           sudo sed -i 's/^EXEC_MODE=.*/EXEC_MODE=shadow/' /opt/rhc/bot/.env
+          # test only: retrain the ML half after 40 outcomes (not 300) so the CatBoost path runs within the observation
+          echo "BELAJAR_LABEL_BARU=40" | sudo tee -a /opt/rhc/bot/.env
           sudo systemctl restart rhc-trader
           sleep 20; systemctl is-active rhc-trader
 
       - name: observe the bot on the live chain
         run: |
-          total=${{ github.event.inputs.menit || '150' }}
-          for i in $(seq 1 $((total / 10))); do
-            sleep 600
-            echo "=== $((i * 10)) menit — service: $(systemctl is-active rhc-trader), restarts: $(systemctl show -p NRestarts --value rhc-trader)"
-            sudo python3 -c "import json;d=json.load(open('/opt/rhc/bot/rust_live/status.json'));a=d['akun'];print('blok',d['last_block'],'lag',d['lag_blocks'],'aman',d.get('mode_aman'),'| dibeli',a['trade_dibeli'],'selesai',a['trade_selesai'],'| saringan',d['saringan'])" || true
+          total=${{ github.event.inputs.menit || '280' }}
+          target=${{ github.event.inputs.trade || '10' }}
+          for i in $(seq 1 $((total / 5))); do
+            sleep 300
+            echo "=== $((i * 5)) menit — service: $(systemctl is-active rhc-trader), restarts: $(systemctl show -p NRestarts --value rhc-trader)"
+            sudo python3 -c "import json;d=json.load(open('/opt/rhc/bot/rust_live/status.json'));a=d['akun'];f=d.get('filter',{});print('blok',d['last_block'],'lag',d['lag_blocks'],'aman',d.get('mode_aman'),'| dibeli',a['trade_dibeli'],'selesai',a['trade_selesai'],'menang',a['menang'],'| dinilai',f.get('koin_dinilai'),'dipelajari',f.get('hasil_koin_dipelajari'),'ML dilatih',f.get('ml_dilatih_ulang'),'akurasi',f.get('akurasi_data_belum_dilihat_500'))" || true
+            n=$(sudo python3 -c "import json;print(json.load(open('/opt/rhc/bot/rust_live/status.json'))['akun']['trade_selesai'])" 2>/dev/null || echo 0)
+            if [ "${n:-0}" -ge "$target" ]; then echo "target $target trade selesai tercapai"; break; fi
           done
 
       - name: report
         if: always()
         run: |
           sudo python3 .github/uji/laporan.py /opt/rhc/bot
+          sudo python3 .github/uji/cek_komponen.py /opt/rhc/bot ${{ github.event.inputs.trade || '10' }}
           echo "--------------------------------------------------------------- live.log (60 baris terakhir)"
           sudo tail -n 60 /opt/rhc/bot/rust_live/live.log
