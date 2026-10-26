@@ -101,7 +101,7 @@ cmd_pasang(){
     if command -v apt-get >/dev/null; then
         apt_update
         DEBIAN_FRONTEND=noninteractive $APT install -y --no-install-recommends \
-            build-essential pkg-config libssl-dev python3-venv ca-certificates curl git cron >/dev/null
+            build-essential pkg-config libssl-dev ca-certificates curl git cron >/dev/null
     fi
     say "    siap"
 
@@ -123,21 +123,21 @@ cmd_pasang(){
 
     hr; say " 3/4  build (beberapa menit)"; hr
     id rhc >/dev/null 2>&1 || useradd --system --home "$PREFIX" --shell /usr/sbin/nologin rhc
-    install -d -o rhc -g rhc -m 755 "$PREFIX" "$PREFIX/bin" "$BOT" "$PREFIX/training"
+    install -d -o rhc -g rhc -m 755 "$PREFIX" "$PREFIX/bin" "$BOT"
     install -d -o rhc -g rhc -m 700 "$SECRETS"
     if [ "$u" = root ]; then "$cargo" build --release --manifest-path "$ROOT/Cargo.toml"
     else sudo -u "$u" -H "$cargo" build --release --manifest-path "$ROOT/Cargo.toml"; fi
     # mulai.sh installs the new binary itself, only after it passed the on-chain self-test
     [ "${RHC_DARI_MULAI:-}" = 1 ] || install -m 755 "$ROOT/target/release/rhc-trader" "$PREFIX/bin/rhc-trader"
     for f in "$ROOT"/models/*; do [ -e "$BOT/$(basename "$f")" ] || install -o rhc -g rhc -m 644 "$f" "$BOT/"; done
-    cp -r "$ROOT"/training/* "$PREFIX/training/" && chown -R rhc:rhc "$PREFIX/training"
-    # Python is only for the daily retrain (the bot itself never runs it): a failed pip must not stop the install
-    if { [ -x "$PREFIX/venv/bin/python" ] || python3 -m venv "$PREFIX/venv"; } &&
-       "$PREFIX/venv/bin/pip" install --quiet --upgrade pip &&
-       "$PREFIX/venv/bin/pip" install --quiet numpy pandas scikit-learn catboost; then
-        :
-    else
-        say "    PERINGATAN: paket Python gagal dipasang -> latih ulang harian tidak jalan (bot tetap jalan)."
+    # base training data of the adaptive filter: static, always the shipped copy
+    install -o rhc -g rhc -m 644 "$ROOT/models/latih_dasar.csv" "$BOT/latih_dasar.csv"
+    # the old Python retrain is gone (the bot retrains itself with the CatBoost program): remove its leftovers
+    rm -rf "$PREFIX/venv" "$PREFIX/training"
+    # the official CatBoost program (C++) retrains the ML half of the filter; without it the bot still trades and the
+    # deep-learning half still learns, so a failed download must not stop the install
+    if ! "$ROOT/deploy/catboost.sh" "$PREFIX/bin/catboost"; then
+        say "    PERINGATAN: CatBoost gagal dipasang -> ML tidak dilatih ulang (bot tetap jalan, DL tetap belajar)."
         say "               Ulangi nanti: sudo ./rhc.sh pasang"
     fi
     say "    terpasang di $PREFIX"
@@ -145,19 +145,19 @@ cmd_pasang(){
     hr; say " 4/4  service"; hr
     case "$(svc_kind)" in
       systemd)
-        install -m 644 "$ROOT"/deploy/*.service "$ROOT"/deploy/*.timer /etc/systemd/system/
+        install -m 644 "$ROOT"/deploy/*.service /etc/systemd/system/
+        systemctl disable --now rhc-retrain.timer >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/rhc-retrain.timer /etc/systemd/system/rhc-retrain.service
         systemctl daemon-reload; say "    systemd";;
       supervisor)
         install -d -m 755 /etc/supervisor/conf.d /var/log/portal
         install -m 644 "$ROOT/deploy/rhc-trader.supervisor.conf" /etc/supervisor/conf.d/rhc-trader.conf
         supervisorctl reread >/dev/null 2>&1 || true
         supervisorctl update >/dev/null 2>&1 || true
-        if command -v crontab >/dev/null; then
-            { crontab -l 2>/dev/null | grep -v latih_ulang.py || true
-              echo "0 3 * * * cd $PREFIX/training && BOT_DIR=$BOT DATA_DIR=$PREFIX/training/data $PREFIX/venv/bin/python $PREFIX/training/latih_ulang.py >> /var/log/portal/retrain.log 2>&1"
-            } | crontab -
+        if command -v crontab >/dev/null && crontab -l 2>/dev/null | grep -q latih_ulang.py; then
+            crontab -l 2>/dev/null | grep -v latih_ulang.py | crontab -
         fi
-        say "    supervisor + cron";;
+        say "    supervisor";;
       *) say "    tidak ada systemd/supervisor — jalankan sendiri dengan: $BIN live --bot $BOT --env $BOT/.env";;
     esac
     [ "${RHC_DARI_MULAI:-}" = 1 ] && return 0   # mulai.sh continues by itself
@@ -325,7 +325,7 @@ cmd_mulai(){
     need_root mulai
     case "$(svc_kind)" in
         # status exits 3 while the unit is (re)starting; under pipefail that must not abort the caller
-        systemd)    systemctl enable --now rhc-trader rhc-retrain.timer; systemctl status --no-pager rhc-trader 2>/dev/null | head -5 || true;;
+        systemd)    systemctl enable --now rhc-trader; systemctl status --no-pager rhc-trader 2>/dev/null | head -5 || true;;
         supervisor) supervisorctl start rhc-trader || true; supervisorctl status rhc-trader;;
         *) die "tidak ada systemd/supervisor.";;
     esac
@@ -405,7 +405,7 @@ cmd_bersih(){
     fi
     chown -R rhc:rhc "$LIVE" 2>/dev/null || true
     say ""
-    say "DIPERTAHANKAN: model, labels.jsonl, riwayat retrain"
+    say "DIPERTAHANKAN: model, labels.jsonl, keadaan filter adaptif (belajar.json)"
     say "Mulai sekarang setiap baris di $LIVE/exec/ adalah transaksi nyata."
 }
 

@@ -210,7 +210,6 @@ sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$RPC_URLS")#" \
 if [ -n "$LIVE_CONFIRM" ]; then
     sed -i "s@^#*EXEC_LIVE_CONFIRM=.*@EXEC_LIVE_CONFIRM=$LIVE_CONFIRM@" "$TMP"
 fi
-[ -x /opt/rhc/venv/bin/python ] && sed -i "s#^PYTHON=.*#PYTHON=/opt/rhc/venv/bin/python#" "$TMP"
 install -m 600 "$TMP" "$BOT/.env"; chown rhc:rhc "$BOT/.env" 2>/dev/null || true
 [ -e "$BOT/kelly_seed_backtest_last100.json" ] || \
     install -m 644 "$ROOT/models/kelly_seed_backtest_last100.json" "$BOT/" 2>/dev/null || true
@@ -233,7 +232,7 @@ fi
 say "Berikutnya:"
 say "  1. $BIN exec selftest --env $BOT/.env      # wajib berakhir SELFTEST OK"
 if command -v systemctl >/dev/null && [ -d /run/systemd/system ]; then
-    say "  2. systemctl enable --now rhc-trader rhc-retrain.timer"
+    say "  2. systemctl enable --now rhc-trader"
     say "  3. journalctl -fu rhc-trader"
 else
     say "  2. supervisorctl start rhc-trader"

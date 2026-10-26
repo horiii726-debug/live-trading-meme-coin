@@ -56,9 +56,12 @@ pub struct Cfg {
     pub approve_usd: f64,
     pub fail_buy: f64,
     pub fail_sell: f64,
-    // belajar
-    pub retrain_tiap: usize,
-    pub python: String,
+    // belajar: filter adaptif ML (CatBoost, dilatih ulang program C++ resmi) + DL (jaringan saraf Rust), lihat belajar.rs
+    pub belajar: bool,
+    /// the official CatBoost command-line program used to retrain the ML half
+    pub catboost_bin: String,
+    /// base training data (Aug-Sep); empty = <bot>/latih_dasar.csv
+    pub latih_dasar: String,
     // operasional VPS (tanpa Claude)
     pub label: bool,
     pub telegram_token: String,
@@ -143,8 +146,9 @@ impl Cfg {
             approve_usd: num("APPROVE_USD", 0.03),
             fail_buy: num("FAIL_BUY", 0.0185),
             fail_sell: num("FAIL_SELL", 0.0054),
-            retrain_tiap: num("RETRAIN_TIAP", 0.0) as usize,
-            python: get("PYTHON").unwrap_or("python".into()),
+            belajar: on("BELAJAR", true),
+            catboost_bin: get("CATBOOST_BIN").unwrap_or("/opt/rhc/bin/catboost".into()),
+            latih_dasar: get("LATIH_DASAR").unwrap_or_default(),
             label: on("LABEL", true),
             telegram_token: get("TELEGRAM_TOKEN").unwrap_or_default(),
             telegram_chat: get("TELEGRAM_CHAT_ID").unwrap_or_default(),

@@ -5,7 +5,7 @@
 #   sudo deploy/bersihkan-live.sh --reset-akun # also restarts the strategy account from START_USD
 #
 # Everything is backed up to <bot>/rust_live_backup_<stamp>.tar.gz first. Models, training labels and
-# the retrain history are never touched.
+# the adaptive filter's state (belajar.json) are never touched.
 set -euo pipefail
 
 BOT=${BOT:-/opt/rhc/bot}
@@ -64,7 +64,7 @@ else
 fi
 
 say ""
-say "DIPERTAHANKAN: model (filter_cat/danger/pnaik), labels.jsonl, latih_ulang.jsonl, radar"
+say "DIPERTAHANKAN: model (filter_cat/danger/pnaik), labels.jsonl, belajar.json, radar"
 say "DICADANGKAN : $BAK"
 say ""
 say "Berikutnya:"

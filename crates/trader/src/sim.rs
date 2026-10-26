@@ -2,6 +2,7 @@
 //! Tujuan: membuktikan bot live = backtest. Data sama dengan replay uji maju:
 //! pools.csv + swaps_sorted.csv + liq.csv; keputusan menit-1 dari swaps_m1.json + transfers.json
 //! (port_features, identik bit dengan JS) dan dev_creator.json. Harga ETH = harga saat pool lahir (sama dengan replay "auto").
+use crate::belajar::{self, Pembelajar};
 use crate::bot::{Akun, Keputusan, Mesin};
 use crate::catmodel::CatModel;
 use crate::cfg::Cfg;
@@ -118,6 +119,16 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
         }
         None => None,
     };
+    // the adaptive filter (belajar.rs), exactly as the live bot runs it; --skor or BELAJAR=0 = fixed scores
+    let mut pemb: Option<Pembelajar> = if cfg.belajar && cfg.filter && skor_luar.is_none() {
+        let dasar = if cfg.latih_dasar.is_empty() { format!("{}/latih_dasar.csv", a.bot_dir) } else { cfg.latih_dasar.clone() };
+        let (dx, dy) = belajar::baca_dasar(std::path::Path::new(&dasar), &cat.feats)?;
+        let ml = CatModel::load(&format!("{}/filter_cat.json", a.bot_dir)).map_err(|e| e.to_string())?;
+        eprintln!("filter adaptif: ML CatBoost + DL, {} baris data dasar, latih ulang ML lewat {}", dx.len(), cfg.catboost_bin);
+        Some(Pembelajar::baru(ml, dx, dy))
+    } else {
+        None
+    };
     let mut kep: Vec<(f64, String, Keputusan)> = Vec::new();
     let mut skor_out = String::new();
     for j in &jobs {
@@ -126,15 +137,20 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
         }
         let fe = port_features::features(&j.meta, &j.swaps, &j.transfers, j.eth_usd);
         let x: Vec<f64> = cat.feats.iter().map(|k| fe.get(k).filter(|v| v.is_finite()).unwrap_or(-1.0)).collect();
-        let score = match &skor_luar { Some(m) => m.get(&j.pool).cloned().unwrap_or(f64::NAN), None => cat.predict(&x) };
+        let score = match (&skor_luar, &pemb) {
+            (Some(m), _) => m.get(&j.pool).cloned().unwrap_or(f64::NAN),
+            (None, Some(_)) => f64::NAN, // scored at its decision block below
+            (None, None) => cat.predict(&x),
+        };
         let q1 = j.meta.c1 == port_features::NATIVE;
         let jual = j.swaps.iter().filter(|s| (if q1 { s.a0 } else { s.a1 }) < 0.0).count() as i64;
         let dev = devs.get(&j.pool).and_then(|d| d.get("dev")).and_then(|d| d.as_str()).map(|s| s.to_string());
-        skor_out.push_str(&format!("{},{}\n", j.pool, score));
+        if pemb.is_none() {
+            skor_out.push_str(&format!("{},{}\n", j.pool, score));
+        }
         kep.push((j.meta.init + 600.0, j.pool.clone(), Keputusan { score, ml_ok: false, dev, jual_m1: jual, lp_m1: fe.get("lp_m1").unwrap_or(f64::NAN), feats: x.clone(), dikecualikan: None }));
     }
     kep.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap());
-    std::fs::write(format!("{}.skor.csv", a.out), format!("pool,score\n{skor_out}")).ok();
 
     let thr0 = {
         let t = std::fs::read_to_string(format!("{}/filter_cat.json", a.bot_dir)).map_err(|e| e.to_string())?;
@@ -165,6 +181,9 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
     let model = Model::load(&a.danger.clone().unwrap_or(format!("{}/danger_model.json", a.bot_dir)))?;
     let model_up = match &a.naik { Some(p) if p == "-" => None, Some(p) => Some(Model::load(p)?), None => Model::load(&format!("{}/pnaik_model.json", a.bot_dir)).ok() };
     let mut m = Mesin::new(akun, model, model_up);
+    // shadow trades (fixed size, no gate) give every coin its outcome, as live: the learner's labels
+    m.bayangan = pemb.is_some();
+    let kerja = std::path::PathBuf::from(format!("{}.catboost", a.out));
 
     // putar blok demi blok
     let mut lahir: Vec<&PoolMeta> = metas.values().collect();
@@ -189,7 +208,18 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
             let mut ak = m.akun.lock().unwrap();
             ak.tip = nb;
             while ik < kep.len() && kep[ik].0 <= nb {
-                let (_, pool, k) = kep[ik].clone();
+                let (_, pool, mut k) = kep[ik].clone();
+                if let Some(p) = pemb.as_mut() {
+                    if let Some(alasan) = p.perlu_latih() {
+                        let d = p.data_latih(nb, alasan);
+                        let r = belajar::latih_catboost(&cfg.catboost_bin, &kerja, &p.feats, &d).and_then(|(v, _)| CatModel::from_value(&v));
+                        let ok = r.is_ok();
+                        let e = p.selesai_latih(r, d.n_label, d.alasan);
+                        eprintln!("latih ulang ML #{} di blok {nb} ({alasan}, {} label): {}", p.n_latih, d.n_label, if ok { "dipasang".to_string() } else { format!("GAGAL {e:?}") });
+                    }
+                    k.score = p.skor(&k.feats);
+                    skor_out.push_str(&format!("{},{}\n", pool, k.score));
+                }
                 ak.terima_skor(&pool, k);
                 ik += 1;
             }
@@ -204,8 +234,21 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
             ie += 1;
         }
         m.blok(nb, &per);
+        if let Some(p) = pemb.as_mut() {
+            let lab: Vec<_> = m.label_selesai.drain(..).collect();
+            let ak = m.akun.lock().unwrap();
+            for t in lab {
+                if let Some(k) = ak.kep.get(&t.pool) {
+                    p.label(k.feats.clone(), t.ret, t.init + 600.0, k.ml_ok);
+                }
+            }
+        }
     }
     m.akhiri();
+    std::fs::write(format!("{}.skor.csv", a.out), format!("pool,score\n{skor_out}")).ok();
+    if let Some(p) = &pemb {
+        eprintln!("filter adaptif: {} koin dinilai, {} hasil koin dipelajari, ML dilatih ulang {}x", p.n_skor, p.labels.len(), p.n_latih);
+    }
 
     // laporan
     let ak = m.akun.lock().unwrap();

@@ -19,7 +19,7 @@ if command -v apt-get >/dev/null; then
     # apt-get update ignores DPkg::Lock::Timeout (it takes the lists lock): retry while first-boot updates run
     for i in $(seq 1 90); do apt-get -o DPkg::Lock::Timeout=600 update -qq && break; [ "$i" -lt 90 ] || exit 1; sleep 10; done
     DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y --no-install-recommends \
-        build-essential pkg-config libssl-dev python3-venv ca-certificates curl git cron >/dev/null
+        build-essential pkg-config libssl-dev ca-certificates curl git cron >/dev/null
 fi
 
 say "2/4  Rust"

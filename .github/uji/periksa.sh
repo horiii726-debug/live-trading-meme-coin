@@ -16,17 +16,18 @@ chk "folder secrets milik rhc"            [ "$(sudo stat -c '%U' /opt/rhc/secret
 for kv in EXEC_MODE=live EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK EXEC_KEY_FILE=$K START_USD=1000 \
           EXEC_MAX_ORDER_USD=0 EXEC_DAILY_LOSS_LIMIT_USD=0 EXEC_MAX_OPEN_POSITIONS=6 \
           RPC_URLS=https://rpc.mainnet.chain.robinhood.com "DOH_URL=$want_doh" \
-          KELLY_SEED=/opt/rhc/bot/kelly_seed_backtest_last100.json PYTHON=/opt/rhc/venv/bin/python; do
+          KELLY_SEED=/opt/rhc/bot/kelly_seed_backtest_last100.json BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost; do
     chk ".env: $kv" sudo grep -qx -- "$kv" $E
 done
 repo=$home/live-trading-meme-coin
 chk "private key dikosongkan dari formulir" sudo grep -qx 'WALLET_PRIVATE_KEY=' "$repo/config/isi-disini.env"
 owner=$(stat -c %U "$repo")
 chk "tidak ada berkas git yang berubah" [ -z "$(sudo -u "$owner" git -C "$repo" status --porcelain)" ]
-chk "model + riwayat dev ada di /opt/rhc/bot" sudo test -s /opt/rhc/bot/dev_history.json -a -s /opt/rhc/bot/filter_cat.json
+chk "model + riwayat dev + data dasar ada di /opt/rhc/bot" sudo test -s /opt/rhc/bot/dev_history.json -a -s /opt/rhc/bot/filter_cat.json -a -s /opt/rhc/bot/latih_dasar.csv
 chk "service menyala otomatis saat boot" [ "$(systemctl is-enabled rhc-trader)" = enabled ]
-chk "timer latih ulang aktif" systemctl is-active --quiet rhc-retrain.timer
-chk "venv Python + catboost terpasang" sudo /opt/rhc/venv/bin/python -c "import catboost, pandas, sklearn"
+chk "program CatBoost (C++) terpasang dan asli" sh -c 'echo "478dc57f4c19de205b19b709fd4c6af93f79753dc462b6bb49d33c920dddec75  /opt/rhc/bin/catboost" | sha256sum -c --status'
+chk "tidak ada sisa Python lama" [ ! -e /opt/rhc/venv ] && [ ! -e /etc/systemd/system/rhc-retrain.timer ]
+chk "filter adaptif aktif di log bot" sudo grep -q "filter adaptif AKTIF" /opt/rhc/bot/rust_live/live.log
 
 echo "... bot dibiarkan jalan 120 dtk"
 n0=$(systemctl show -p NRestarts --value rhc-trader); sleep 120; n1=$(systemctl show -p NRestarts --value rhc-trader)

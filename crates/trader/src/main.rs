@@ -11,6 +11,7 @@
 //!   rhc-trader exec status   [--bot DIR] [--env FILE]          print the executor status
 //!   rhc-trader wallet address [--env FILE]                    address and ETH balance of EXEC_KEY_FILE
 //!   rhc-trader unduh|fast <from> <to> <dir> | fast1|menit1 <dir>   historical data download (research)
+mod belajar;
 mod bot;
 mod catmodel;
 mod cfg;

@@ -4,11 +4,12 @@
 //!  2. event disimpan ke store/ (format CSV collect.js) + state.json (blok terakhir)
 //!  3. di menit-1 tiap koin: transfer token + dev pembuat diambil PARALEL di thread -> fitur -> skor
 //!  4. gerbang beli & posisi: bot.rs + mesin keluar v4 Rust
-//!  5. simulasi bayangan tiap koin -> labels.jsonl (bahan latih ulang otomatis)
-//!  6. model filter baru di disk dimuat otomatis SETELAH lolos cek kesamaan
+//!  5. simulasi bayangan tiap koin -> labels.jsonl + filter adaptif (belajar.rs): DL belajar dari tiap hasil koin,
+//!     ML CatBoost dilatih ulang oleh program C++ resmi saat perlu, dipasang SETELAH lolos cek kesamaan Rust vs CatBoost
 //!  7. restart: muat checkpoint (dibuat saat akun tanpa posisi) lalu putar ulang event sesudahnya
 //!     secara mengalir (tanpa jaringan) -> akun & posisi pulih persis; store dipadatkan bila besar
 //! TIDAK ADA transaksi, dompet, atau kunci privat di kode ini.
+use crate::belajar::{self, Label, Pembelajar};
 use crate::bot::{Akun, Keputusan, Mesin, ModelOrder, SwapState};
 use crate::catmodel::CatModel;
 use crate::cfg::Cfg;
@@ -466,9 +467,6 @@ fn cek_parity(bot_dir: &str, nama: &str, pred: &dyn Fn(&[f64]) -> f64, f: &str) 
     eprintln!("model {nama}: parity {mx:.2e} OK ({} sampel)", xs.len());
     Ok(())
 }
-fn mtime(p: &str) -> Option<SystemTime> {
-    std::fs::metadata(p).and_then(|m| m.modified()).ok()
-}
 
 // ---------- bot ----------
 struct Live {
@@ -488,7 +486,11 @@ struct Live {
     rx: mpsc::Receiver<HasilCek>,
     rpc: Rpc,
     cat: Arc<CatModel>,
-    cat_mtime: Option<SystemTime>,
+    // adaptive filter (None = BELAJAR=0: the shipped model, frozen)
+    pemb: Option<Pembelajar>,
+    latih_tx: mpsc::Sender<HasilLatih>,
+    latih_rx: mpsc::Receiver<HasilLatih>,
+    label_disimpan: usize,
     last: f64,
     tip: f64,
     cp_blk: f64,
@@ -525,6 +527,37 @@ struct Live {
 /// fraction of a second of data, not a fixed 3 s).
 const POLL_BACKOFF_MIN: Duration = Duration::from_millis(250);
 const POLL_BACKOFF_MAX: Duration = Duration::from_secs(3);
+
+/// A finished ML retrain (CatBoost program, in its own thread).
+struct HasilLatih {
+    r: Result<(Value, Value), String>,
+    n_label: usize,
+    alasan: &'static str,
+}
+
+/// labels.jsonl -> the learner's labels (features in model order; "lolos" = the coin passed the filter)
+fn baca_label(p: &Path, feats: &[String]) -> Vec<(Label, bool)> {
+    let mut out = Vec::new();
+    let f = match std::fs::File::open(p) {
+        Ok(f) => f,
+        Err(_) => return out,
+    };
+    for l in BufReader::new(f).lines().map_while(Result::ok) {
+        let j: Value = match serde_json::from_str(&l) {
+            Ok(j) => j,
+            Err(_) => continue,
+        };
+        let (ret, blk) = match (j["ret"].as_f64(), j["decide"].as_f64()) {
+            (Some(r), Some(b)) if r.is_finite() => (r, b),
+            _ => continue,
+        };
+        let x: Option<Vec<f64>> = feats.iter().map(|k| j["f"].get(k).and_then(|v| v.as_f64())).collect();
+        if let Some(x) = x {
+            out.push((Label { x, ret, blk }, j["lolos"].as_bool().unwrap_or(false)));
+        }
+    }
+    out
+}
 
 /// Pekerjaan latar radar (RPC baca saja)
 enum Minta {
@@ -565,7 +598,16 @@ impl Live {
         }
     }
     /// Terapkan hasil cek (urutan kedatangan). Disimpan ke decisions.jsonl agar putar ulang identik.
-    fn terapkan(&mut self, blk: f64, pool: &str, k: Keputusan) {
+    fn terapkan(&mut self, blk: f64, pool: &str, mut k: Keputusan) {
+        // adaptive filter: the score is given here, at the decision (a replay re-applies the stored score instead)
+        if !self.replaying && self.pemb.is_some() {
+            if let Some(alasan) = self.pemb.as_ref().and_then(|p| p.perlu_latih()) {
+                self.mulai_latih(alasan);
+            }
+            if let Some(p) = self.pemb.as_mut() {
+                k.score = p.skor(&k.feats);
+            }
+        }
         let mut a = self.m.akun.lock().unwrap();
         a.terima_skor(pool, k.clone());
         let ok = a.kep.get(pool).map_or(false, |x| x.ml_ok);
@@ -788,19 +830,31 @@ impl Live {
         if !labels.is_empty() && !self.replaying {
             let a = self.m.akun.lock().unwrap();
             let mut out = String::new();
+            let mut belajar: Vec<(Vec<f64>, f64, f64, bool)> = Vec::new();
             for t in &labels {
                 if let Some(k) = a.kep.get(&t.pool) {
                     if k.feats.len() == self.cat.feats.len() {
                         let f: serde_json::Map<String, Value> = self.cat.feats.iter().cloned().zip(k.feats.iter().map(|v| json!(v))).collect();
                         let j = json!({"pool": t.pool, "init": t.init, "decide": t.init + 600.0, "entry": t.entry_blk, "exit": t.exit_blk,
-                            "ret": t.ret, "reason": t.reason, "dev": k.dev, "jual_m1": k.jual_m1, "score": k.score, "f": f});
+                            "ret": t.ret, "reason": t.reason, "dev": k.dev, "jual_m1": k.jual_m1, "score": k.score, "lolos": k.ml_ok, "f": f});
                         out.push_str(&j.to_string());
                         out.push('\n');
                         self.n_label += 1;
+                        if t.ret.is_finite() {
+                            belajar.push((k.feats.clone(), t.ret, t.init + 600.0, k.ml_ok));
+                        }
                     }
                 }
             }
             drop(a);
+            if let Some(p) = self.pemb.as_mut() {
+                for (x, ret, blk, pick) in belajar {
+                    p.label(x, ret, blk, pick);
+                }
+                if p.labels.len() >= self.label_disimpan + 25 {
+                    self.simpan_belajar();
+                }
+            }
             if !out.is_empty() {
                 if let Ok(mut fh) = std::fs::OpenOptions::new().create(true).append(true).open(self.dir.join("labels.jsonl")) {
                     let _ = fh.write_all(out.as_bytes());
@@ -825,6 +879,11 @@ impl Live {
             },
             "saringan": { "skor_tersimpan": a.recent.len(), "ambang_awal": a.thr0, "tolak": a.tolak, "data_basi": self.n_basi, "cek_gagal": self.n_cek_gagal },
             "label_latihan_ditulis": self.n_label,
+            "filter": match &self.pemb {
+                Some(p) => json!({"mode": "adaptif: ML CatBoost (latih ulang C++) + DL Rust", "hasil_koin_dipelajari": p.labels.len(),
+                                  "ml_dilatih_ulang": p.n_latih, "sedang_melatih_ml": p.sedang_latih, "koin_dinilai": p.n_skor}),
+                None => json!({"mode": "beku (BELAJAR=0)"}),
+            },
             "log_gate": { "reread_ok": self.gate.stats.reread, "duplicate_dropped": self.gate.stats.duplicate, "outside_range_dropped": self.gate.stats.outside_range,
                           "removed_dropped": self.gate.stats.removed, "late_delivered": self.gate.stats.late, "range_cap_blocks": self.range_cap },
             "radar": { "pool_dikenal": self.radar.meta.len(), "swap_tercatat": self.radar.n_swap, "token_terklasifikasi": self.radar.kelas.len(), "label_radar": self.radar.n_label },
@@ -867,6 +926,7 @@ impl Live {
         drop(a);
         tulis_aman(&self.dir.join("checkpoint.json"), &j.to_string());
         self.cp_blk = self.last;
+        self.simpan_belajar();
         // bersihkan keputusan koin yang sudah tidak dipantau (memori tetap kecil)
         let sims = &self.m.sims;
         let mut a = self.m.akun.lock().unwrap();
@@ -1036,23 +1096,78 @@ impl Live {
         let ms = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as f64).unwrap_or(0.0);
         *self.ds_mau.lock().unwrap() = self.radar.perlu_ds(ms, 30);
     }
-    /// Model filter baru (dari latih ulang otomatis) dimuat hanya kalau lolos cek kesamaan Rust vs Python.
-    fn cek_model_baru(&mut self) {
-        let p = format!("{}/filter_cat.json", self.bot_dir);
-        let t = mtime(&p);
-        if t.is_none() || t == self.cat_mtime {
+    fn simpan_belajar(&mut self) {
+        if let Some(p) = &self.pemb {
+            match p.simpan(&self.dir.join("belajar.json")) {
+                Ok(()) => self.label_disimpan = p.labels.len(),
+                Err(e) => self.log.tulis(&format!("simpan keadaan filter adaptif gagal: {e}")),
+            }
+        }
+    }
+    /// Start an ML retrain in its own thread (the bot keeps trading with the current model meanwhile).
+    fn mulai_latih(&mut self, alasan: &'static str) {
+        let bin = self.cfg.catboost_bin.clone();
+        let (tip, kerja, tx) = (self.tip, self.dir.join("catboost_kerja"), self.latih_tx.clone());
+        let p = match self.pemb.as_mut() {
+            Some(p) => p,
+            None => return,
+        };
+        let d = p.data_latih(tip, alasan);
+        if !Path::new(&bin).exists() {
+            let _ = p.selesai_latih(Err("program CatBoost tidak ada".into()), d.n_label, d.alasan);
+            self.log.tulis(&format!("latih ulang ML dilewati: {bin} tidak ada (DL tetap belajar; pasang ulang: sudo ./rhc.sh pasang)"));
             return;
         }
-        self.cat_mtime = t;
-        match muat_model_filter(&self.bot_dir) {
-            Ok((cat, thr0)) => {
-                let s = format!("MODEL FILTER BARU dimuat: {} pohon, ambang awal {:.3} (cek kesamaan lolos)", cat.trees.len(), thr0);
-                self.cat = Arc::new(cat);
-                self.m.akun.lock().unwrap().thr0 = thr0;
-                self.log.tulis(&s);
-                self.kabar.kirim(s);
+        let feats = p.feats.clone();
+        self.log.tulis(&format!("LATIH ULANG ML mulai ({alasan}): {} baris ({} hasil koin live)", d.x.len(), d.n_label));
+        std::thread::spawn(move || {
+            let r = belajar::latih_catboost(&bin, &kerja, &feats, &d);
+            let _ = tx.send(HasilLatih { r, n_label: d.n_label, alasan: d.alasan });
+        });
+    }
+    /// A retrain finished: the new model is used only after the Rust predictor matched CatBoost itself (checked in
+    /// latih_catboost); it is also written to filter_cat.json (old one archived) so a restart keeps it.
+    fn cek_latih(&mut self) {
+        while let Ok(h) = self.latih_rx.try_recv() {
+            let thr0 = self.m.akun.lock().unwrap().thr0;
+            let p = match self.pemb.as_mut() {
+                Some(p) => p,
+                None => return,
+            };
+            match h.r {
+                Ok((mut model, cek)) => {
+                    let cm = CatModel::from_value(&model);
+                    let n_pohon = cm.as_ref().map(|m| m.trees.len()).unwrap_or(0);
+                    match p.selesai_latih(cm, h.n_label, h.alasan) {
+                        Ok(()) => {
+                            model["thr_start"] = json!(thr0);
+                            model["waktu"] = json!(sekarang_iso());
+                            model["alasan"] = json!(h.alasan);
+                            model["n_label"] = json!(h.n_label);
+                            let bot = PathBuf::from(&self.bot_dir);
+                            let arsip = bot.join("arsip_model");
+                            let _ = std::fs::create_dir_all(&arsip);
+                            let tag = sekarang_iso().replace([':', '-'], "");
+                            for f in ["filter_cat.json", "filter_cat_check.json"] {
+                                let _ = std::fs::copy(bot.join(f), arsip.join(format!("{tag}_{f}")));
+                            }
+                            // check first, then the model: a restart in between still finds a matching pair
+                            tulis_aman(&bot.join("filter_cat_check.json"), &cek.to_string());
+                            tulis_aman(&bot.join("filter_cat.json"), &model.to_string());
+                            let s = format!("MODEL ML BARU dipasang (latih ulang #{}, {}): {n_pohon} pohon, {} hasil koin live, Rust = CatBoost (selisih {:.1e})",
+                                p.n_latih, h.alasan, h.n_label, cek["selisih_catboost"].as_f64().unwrap_or(f64::NAN));
+                            self.log.tulis(&s);
+                            self.kabar.kirim(s);
+                        }
+                        Err(e) => self.log.tulis(&format!("model ML baru DITOLAK ({e}); model lama tetap dipakai")),
+                    }
+                }
+                Err(e) => {
+                    let _ = p.selesai_latih(Err(e.clone()), h.n_label, h.alasan);
+                    self.log.tulis(&format!("latih ulang ML GAGAL ({}); model lama tetap dipakai", e.chars().take(200).collect::<String>()));
+                }
             }
-            Err(e) => self.log.tulis(&format!("model filter baru DITOLAK ({e}); model lama tetap dipakai")),
+            self.simpan_belajar();
         }
     }
 }
@@ -1132,6 +1247,19 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     }));
     // model + cek kesamaan model (WAJIB, sama dengan paper_live.js)
     let (cat, thr0) = muat_model_filter(bot_dir)?;
+    // adaptive filter: fail closed on its data (the installer ships latih_dasar.csv), so the bot never trades on a
+    // half-built filter
+    let pemb = if cfg.belajar && cfg.filter {
+        let dasar = if cfg.latih_dasar.is_empty() { format!("{bot_dir}/latih_dasar.csv") } else { cfg.latih_dasar.clone() };
+        let (dx, dy) = belajar::baca_dasar(Path::new(&dasar), &cat.feats)?;
+        let ml = CatModel::load(&format!("{bot_dir}/filter_cat.json")).map_err(|e| e.to_string())?;
+        let mut p = Pembelajar::baru(ml, dx, dy);
+        let labels = baca_label(&dir.join("labels.jsonl"), &p.feats);
+        let dikejar = p.pulihkan(&dir.join("belajar.json"), labels)?;
+        Some((p, dikejar))
+    } else {
+        None
+    };
     let model = Model::load(&format!("{bot_dir}/danger_model.json"))?;
     cek_parity(bot_dir, "p_bahaya", &|x| model.predict(x), "danger_check.json")?;
     let model_up = Model::load(&format!("{bot_dir}/pnaik_model.json")).ok();
@@ -1223,9 +1351,12 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     // Fail closed: with DEV_RULE=1 a missing or broken file would leave the rug rule blind.
     let riwayat_dev = if cfg.dev_rule { Some(muat_riwayat_dev(&mut akun, &PathBuf::from(bot_dir).join("dev_history.json"))?) } else { None };
     let mut m = Mesin::new(akun, model, model_up);
-    m.bayangan = cfg.label;
+    // the adaptive filter learns from the shadow trades' outcomes
+    m.bayangan = cfg.label || pemb.is_some();
     m.emit_orders = exec.is_some();
     let (tx, rx) = mpsc::channel();
+    let (latih_tx, latih_rx) = mpsc::channel();
+    let pemb_info = pemb.as_ref().map(|(p, n)| (p.labels.len(), *n, p.n_latih));
     let mut b = Live {
         cfg: cfg.clone(),
         bot_dir: bot_dir.to_string(),
@@ -1243,7 +1374,10 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
         rx,
         rpc: rpc.clone(),
         cat: Arc::new(cat),
-        cat_mtime: mtime(&format!("{bot_dir}/filter_cat.json")),
+        label_disimpan: pemb.as_ref().map_or(0, |(p, _)| p.labels.len()),
+        pemb: pemb.map(|(p, _)| p),
+        latih_tx,
+        latih_rx,
         last: 0.0,
         tip: 0.0,
         cp_blk: if cp_blk.is_finite() { cp_blk } else { 0.0 },
@@ -1392,19 +1526,25 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
             b.last + 1.0
         ));
     }
-    if cfg.retrain_tiap > 0 {
-        b.log.tulis("catatan: latih ulang dijalankan terjadwal oleh latih_ulang.py (gerbang mutu); bot memuat model baru otomatis.");
+    match pemb_info {
+        Some((n, dikejar, n_latih)) => b.log.tulis(&format!(
+            "filter adaptif AKTIF: ML CatBoost + DL | {n} hasil koin sudah dipelajari ({dikejar} dikejar sekarang), ML sudah dilatih ulang {n_latih}x | program CatBoost {}: {}",
+            cfg.catboost_bin,
+            if Path::new(&cfg.catboost_bin).exists() { "ada" } else { "TIDAK ADA (ML tidak bisa dilatih ulang, DL tetap belajar)" }
+        )),
+        None => b.log.tulis("PERINGATAN: BELAJAR=0 — filter beku (model bawaan, tidak belajar)"),
     }
+    b.simpan_belajar();
     b.kabar.kirim(format!("bot mulai ({VERSI}), blok {}", b.last + 1.0));
     b.status();
     let mut t_status = Instant::now();
-    let mut t_model = Instant::now();
     let mut t_radar = Instant::now();
     let mut t_simpan = Instant::now();
     let mut backoff = POLL_BACKOFF_MIN;
     loop {
         if dir.join("stop.txt").exists() {
             b.log.tulis("stop.txt ditemukan -> berhenti dengan rapi.");
+            b.simpan_belajar();
             b.status();
             return Ok(());
         }
@@ -1480,10 +1620,7 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
             b.status();
             t_status = Instant::now();
         }
-        if t_model.elapsed() > Duration::from_secs(60) {
-            b.cek_model_baru();
-            t_model = Instant::now();
-        }
+        b.cek_latih();
         if t_radar.elapsed() > Duration::from_secs(10) {
             b.radar_latar();
             {

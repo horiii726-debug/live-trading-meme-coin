@@ -181,7 +181,6 @@ sed -e "s#^RPC_URLS=.*#RPC_URLS=$(sedrepl "$RPC_URLS")#" \
     -e "s#^KELLY_SEED=.*#KELLY_SEED=$BOT/kelly_seed_backtest_last100.json#" \
     "$ROOT/config/trader.env.example" > "$TMP"
 [ "$MODE" = live ] && sed -i "s@^#*EXEC_LIVE_CONFIRM=.*@EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK@" "$TMP"
-[ -x /opt/rhc/venv/bin/python ] && sed -i "s#^PYTHON=.*#PYTHON=/opt/rhc/venv/bin/python#" "$TMP"
 install -m 600 "$TMP" "$BOT/.env"; chown rhc:rhc "$BOT/.env" 2>/dev/null || true
 [ -e "$BOT/kelly_seed_backtest_last100.json" ] || \
     install -m 644 "$ROOT/models/kelly_seed_backtest_last100.json" "$BOT/" 2>/dev/null || true
