@@ -430,6 +430,10 @@ impl Pembelajar {
         let mut y = self.dasar_y.clone();
         let mut w = vec![BOBOT_DASAR; x.len()];
         for l in &self.labels {
+            // older than 45 days weighs < 0.00003: left out so a retrain stays fast after months of trading
+            if (now - l.blk) / BLOK_PER_HARI > 45.0 {
+                continue;
+            }
             x.push(l.x.clone());
             y.push(l.ret > 1.0);
             w.push(0.5f64.powf(((now - l.blk) / BLOK_PER_HARI).max(0.0) / PARUH_HARI));

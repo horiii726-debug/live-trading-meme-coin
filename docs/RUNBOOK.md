@@ -34,7 +34,7 @@ nothing and needs no funds.
 ## 4. Paper, then shadow
 
 ```
-sudo systemctl enable --now rhc-trader rhc-retrain.timer
+sudo systemctl enable --now rhc-trader
 ```
 `EXEC_MODE=off` first, until the warm-up (30 scored coins) is done and trades look like the backtest. Then set
 `EXEC_MODE=shadow` and restart: every strategy buy and sell is simulated against live state and recorded in the
@@ -91,8 +91,12 @@ Files in `/opt/rhc/bot/rust_live/exec/`: `positions.json` (open positions, rewri
 - **Position `stuck`**: the token reverted on approve or on repeated sells. The executor keeps retrying every 30 s;
   check the token on the explorer.
 
-## 9. Retraining
+## 9. Retraining (automatic, inside the bot)
 
-`rhc-retrain.timer` runs `training/latih_ulang.py` daily at 03:00 UTC. It retrains only the entry filter on the
-historical training data plus the bot's own live labels, and installs the new model only if it is not worse on the
-most recent hold-out. The bot loads it automatically after a Rust/Python parity check.
+The entry filter is adaptive (`crates/trader/src/belajar.rs`): score = (CatBoost + deep-learning network) / 2. The
+network learns from every coin's outcome as soon as its shadow trade closes. The CatBoost half is retrained by
+`/opt/rhc/bin/catboost` (the official C++ program, installed by `deploy/catboost.sh`) when the last 20 known picks go bad
+(win < 65% or rug > 20%) or after 300 new outcomes, in a background thread at low CPU priority; the new model is used
+only after the Rust predictor matched CatBoost's own predictions on 500 rows, and is saved to `filter_cat.json` (the
+old one goes to `arsip_model/`). The learner's state is `rust_live/belajar.json`. Log lines: `filter adaptif AKTIF`
+at start, `LATIH ULANG ML mulai`, `MODEL ML BARU dipasang`. `BELAJAR=0` in `.env` freezes the filter (emergency only).

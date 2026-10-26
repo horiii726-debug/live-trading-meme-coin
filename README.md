@@ -126,7 +126,7 @@ systemctl stop rhc-trader        # or: supervisorctl stop rhc-trader
 sudo deploy/bersihkan-live.sh    # add --reset-akun to also restart the strategy account from START_USD
 ```
 
-It tars `rust_live/` to a timestamped backup first, then empties the execution ledger. It refuses to run while the bot is up, and refuses if `positions.json` still holds an open position (flatten first). Models, `labels.jsonl` and the retrain history are never touched.
+It tars `rust_live/` to a timestamped backup first, then empties the execution ledger. It refuses to run while the bot is up, and refuses if `positions.json` still holds an open position (flatten first). Models, `labels.jsonl` and the adaptive filter's state (`belajar.json`) are never touched.
 
 ## What is guaranteed, and how it is checked
 
@@ -212,15 +212,21 @@ the next positions. The 1% LP cap still applies.
 | `crates/engine` | Uniswap v4 replay/exit engine, unchanged |
 | `crates/features` | minute-1 feature extraction, unchanged |
 | `crates/trader` | the bot (`live.rs`, `bot.rs`, `sim.rs`, `radar.rs`, ...) and `src/exec/`, the execution layer |
-| `models/` | the models the backtest used (`filter_cat.json`, `danger_model.json`, `pnaik_model.json`) + parity check files |
-| `training/` | quality-gated daily retraining (`latih_ulang.py`) and its historical training data (`data/arena_feats.csv`) |
+| `models/` | the starting models (`filter_cat.json`, `danger_model.json`, `pnaik_model.json`) + parity check files, and `latih_dasar.csv`, the Aug-Sep base training data of the adaptive filter |
 | `config/trader.env.example` | every setting, documented |
-| `deploy/` | systemd units and `install.sh` for a VPS |
+| `deploy/` | systemd unit, `install.sh` for a VPS, `catboost.sh` (the official CatBoost program, pinned by sha256) |
 | `scripts/parity.sh` | backtest parity gate |
 | `docs/RUNBOOK.md` | setup, going live, monitoring, emergencies |
 
 The large historical swap dataset stays in the research repository; this repository only carries what the live bot and
-its retraining need.
+its adaptive filter need.
+
+**Entry filter (adaptive, `crates/trader/src/belajar.rs`).** Each coin's score is the average of an ML model
+(CatBoost) and a deep-learning network (34-128-64-32, written in Rust). The network learns from every coin the moment
+its outcome is known; the CatBoost model is retrained by the official CatBoost program (C++) when the bot's last 20
+known picks go bad (win < 65% or rug > 20%) or after 300 new outcomes, and is used only after the Rust predictor
+matched CatBoost's own predictions. No Python anywhere. In the bot's own simulator on 18 Sep - 16 Oct (same data,
+installed settings): $100 -> $200,642, drawdown 19.5%, rug 11.7% vs the frozen filter's $148,429, 29.5%, 17.6%.
 
 The vendored engine keeps its original Indonesian identifiers and log strings (they are part of the parity
 contract and of the training data). Glossary: *beli* buy, *jual* sell, *tutup* close, *tolak* reject,
