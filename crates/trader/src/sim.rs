@@ -184,6 +184,13 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
     // shadow trades (fixed size, no gate) give every coin its outcome, as live: the learner's labels
     m.bayangan = pemb.is_some();
     let kerja = std::path::PathBuf::from(format!("{}.catboost", a.out));
+    // research only (BELAJAR_UJI_ACAK=1): the learner gets a random earlier coin's outcome instead of this coin's.
+    // Leak test: if the adaptive filter still beat the frozen one, its edge would not come from what it learns.
+    let uji_acak = std::env::var("BELAJAR_UJI_ACAK").map(|v| v == "1").unwrap_or(false);
+    let (mut kolam, mut acak) = (Vec::<f64>::new(), belajar::Acak::new(77));
+    if uji_acak {
+        eprintln!("UJI KEBOCORAN: hasil koin yang dipelajari DIACAK");
+    }
 
     // putar blok demi blok
     let mut lahir: Vec<&PoolMeta> = metas.values().collect();
@@ -239,7 +246,18 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
             let ak = m.akun.lock().unwrap();
             for t in lab {
                 if let Some(k) = ak.kep.get(&t.pool) {
-                    p.label(k.feats.clone(), t.ret, t.init + 600.0, k.ml_ok);
+                    let ret = if uji_acak {
+                        kolam.push(t.ret);
+                        kolam[acak.idx(kolam.len())]
+                    } else {
+                        t.ret
+                    };
+                    p.label(k.feats.clone(), ret, t.init + 600.0, k.ml_ok);
+                    if p.labels.len() % 2000 == 0 {
+                        if let Some((d, m)) = p.akurasi() {
+                            eprintln!("akurasi data belum dilihat (500 koin terakhir) di {} hasil: DL AUC {d:.3}, ML AUC {m:.3}, DL {}", p.labels.len(), if p.dl_aktif { "aktif" } else { "DIMATIKAN" });
+                        }
+                    }
                 }
             }
         }
@@ -247,7 +265,7 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
     m.akhiri();
     std::fs::write(format!("{}.skor.csv", a.out), format!("pool,score\n{skor_out}")).ok();
     if let Some(p) = &pemb {
-        eprintln!("filter adaptif: {} koin dinilai, {} hasil koin dipelajari, ML dilatih ulang {}x", p.n_skor, p.labels.len(), p.n_latih);
+        eprintln!("filter adaptif: {} koin dinilai, {} hasil koin dipelajari, ML dilatih ulang {}x, DL dimatikan pengaman {}x", p.n_skor, p.labels.len(), p.n_latih, p.n_dl_mati);
     }
 
     // laporan

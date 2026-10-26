@@ -848,8 +848,19 @@ impl Live {
             }
             drop(a);
             if let Some(p) = self.pemb.as_mut() {
+                let dl_sebelum = p.dl_aktif;
                 for (x, ret, blk, pick) in belajar {
                     p.label(x, ret, blk, pick);
+                }
+                if p.dl_aktif != dl_sebelum {
+                    let (d, m) = p.akurasi().unwrap_or((f64::NAN, f64::NAN));
+                    let s = if p.dl_aktif {
+                        format!("PENGAMAN: DL dipakai lagi (akurasi data belum dilihat DL AUC {d:.3}, ML {m:.3})")
+                    } else {
+                        format!("PENGAMAN OVERFIT: DL dimatikan, skor = ML saja (DL AUC {d:.3} setara tebakan acak, ML {m:.3})")
+                    };
+                    self.log.tulis(&s);
+                    self.kabar.kirim(s);
                 }
                 if p.labels.len() >= self.label_disimpan + 25 {
                     self.simpan_belajar();
@@ -881,7 +892,9 @@ impl Live {
             "label_latihan_ditulis": self.n_label,
             "filter": match &self.pemb {
                 Some(p) => json!({"mode": "adaptif: ML CatBoost (latih ulang C++) + DL Rust", "hasil_koin_dipelajari": p.labels.len(),
-                                  "ml_dilatih_ulang": p.n_latih, "sedang_melatih_ml": p.sedang_latih, "koin_dinilai": p.n_skor}),
+                                  "ml_dilatih_ulang": p.n_latih, "sedang_melatih_ml": p.sedang_latih, "koin_dinilai": p.n_skor,
+                                  "akurasi_data_belum_dilihat_500": p.akurasi().map(|(d, m)| json!({"dl_auc": d, "ml_auc": m})),
+                                  "dl_aktif": p.dl_aktif, "dl_dimatikan_pengaman": p.n_dl_mati}),
                 None => json!({"mode": "beku (BELAJAR=0)"}),
             },
             "log_gate": { "reread_ok": self.gate.stats.reread, "duplicate_dropped": self.gate.stats.duplicate, "outside_range_dropped": self.gate.stats.outside_range,

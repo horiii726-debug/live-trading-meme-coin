@@ -25,20 +25,25 @@ SYS_A="QTHR=0.80 MAX_POS=10 DANGER_TH=0.5 TRAIL_PUNCAK=0.4 TUTUP_SAAT_RUG=1 DUMP
 sed -e "s#^START_USD=.*#START_USD=100#" -e "s#^KELLY_SEED=.*#KELLY_SEED=$ROOT/models/kelly_seed_backtest_last100.json#" config/trader.env.example > sim.env
 jalan(){ mode=$1; sys=$2; per=$3
     case $per in p1) a=65779486; b=79411485;; p2) a=79411486; b=90197095;; full) a=65779486; b=90197095;; esac
-    case $mode in baru) bl=1;; lama) bl=0;; esac
+    case $mode in baru) bl=1; ac=0;; lama) bl=0; ac=0;; acak) bl=1; ac=1;; esac
     k=${mode}_${sys}_$per
     if [ "$sys" = a ]; then
-        env -i PATH="$PATH" HOME="$HOME" START_USD=100 BELAJAR=$bl CATBOOST_BIN=/opt/rhc/bin/catboost $SYS_A \
+        env -i PATH="$PATH" HOME="$HOME" START_USD=100 BELAJAR=$bl BELAJAR_UJI_ACAK=$ac CATBOOST_BIN=/opt/rhc/bin/catboost $SYS_A \
             "$BIN/rhc-trader" sim "$W/all" "$a" "$b" "$O/$k.jsonl" --bot models > "$O/$k.txt" 2>&1 || true
     else
-        BELAJAR=$bl CATBOOST_BIN=/opt/rhc/bin/catboost "$BIN/rhc-trader" sim "$W/all" "$a" "$b" "$O/$k.jsonl" --bot models --env sim.env > "$O/$k.txt" 2>&1 || true
+        BELAJAR=$bl BELAJAR_UJI_ACAK=$ac CATBOOST_BIN=/opt/rhc/bin/catboost "$BIN/rhc-trader" sim "$W/all" "$a" "$b" "$O/$k.jsonl" --bot models --env sim.env > "$O/$k.txt" 2>&1 || true
     fi
     printf '%-5s %s %-4s %s | %s\n' "$mode" "$sys" "$per" "$(grep '^SIM' "$O/$k.txt" | sed 's/^SIM [^|]*| //' | cut -c1-125)" "$(grep 'filter adaptif:.*dipelajari' "$O/$k.txt" | sed 's/.*filter adaptif: //')"
 }
 export -f jalan; export BIN W O SYS_A
 
-say "2. adaptive (baru) vs frozen (lama)"
-for mode in baru lama; do for sys in a b; do for per in full p1 p2; do echo "$mode $sys $per"; done; done; done \
+say "2. adaptive (baru) vs frozen (lama) vs leak test (acak: the learner gets shuffled outcomes)"
+{ for mode in baru lama; do for sys in a b; do for per in full p1 p2; do echo "$mode $sys $per"; done; done; done
+  for sys in a b; do echo "acak $sys full"; done; } \
     | xargs -P 2 -L 1 bash -c 'jalan "$0" "$1" "$2"' | sort | tee "$O/tabel.txt"
 say "retrains in the full B run"
-grep -E "latih ulang ML" "$O/baru_b_full.txt" | head -80 || true
+grep -E "latih ulang ML" "$O/baru_b_full.txt" | tail -5 || true
+say "out-of-sample accuracy (each coin predicted before it is learned), full B: real outcomes vs shuffled"
+grep -E "akurasi data belum dilihat|DL dimatikan" "$O/baru_b_full.txt" || true
+echo "--- acak"
+grep -E "akurasi data belum dilihat|DL dimatikan" "$O/acak_b_full.txt" || true

@@ -9,6 +9,10 @@
 //!        step on that coin plus 32 random recent coins)
 //!
 //! The bot still only buys the top (1 - QTHR) of its recent scores (bot.rs), so only the ranking matters.
+//!
+//! Overfit guard: every coin is predicted by both halves BEFORE it is learned, so the AUC over the last 500 outcomes
+//! is out-of-sample. If the network's falls to chance (< 0.52) the score is ML alone until it recovers (> 0.55); the
+//! network keeps learning meanwhile. No look-ahead: a coin is scored at its decision, learned only after its outcome.
 //! Research: ml_uji2.py / uji-gabung (18 Sep - 16 Oct, the bot's own simulator, causal): $148k frozen -> $185k.
 use crate::catmodel::CatModel;
 use serde_json::{json, Value};
@@ -32,6 +36,10 @@ const LABEL_BARU: usize = 300;
 const JEDA_SKOR: u64 = 30;
 const BOBOT_DASAR: f64 = 0.3;
 const PARUH_HARI: f64 = 3.0;
+/// overfit guard: out-of-sample accuracy over the last 500 outcomes (each coin is predicted BEFORE it is learned)
+const UJI_JENDELA: usize = 500;
+const DL_MATI_AUC: f64 = 0.52;
+const DL_HIDUP_AUC: f64 = 0.55;
 
 // ---------------------------------------------------------------- small deterministic RNG (splitmix64)
 #[derive(Clone)]
@@ -301,6 +309,31 @@ pub struct Label {
     pub blk: f64,
 }
 
+/// AUC (probability a random winner scores above a random loser), ties counted half
+pub fn auc(p: &[f64], y: &[bool]) -> f64 {
+    let mut o: Vec<usize> = (0..p.len()).collect();
+    o.sort_by(|a, b| p[*a].partial_cmp(&p[*b]).unwrap_or(std::cmp::Ordering::Equal));
+    let mut rank = vec![0.0; p.len()];
+    let mut i = 0;
+    while i < o.len() {
+        let mut j = i;
+        while j + 1 < o.len() && p[o[j + 1]] == p[o[i]] {
+            j += 1;
+        }
+        for k in i..=j {
+            rank[o[k]] = (i + j) as f64 / 2.0 + 1.0;
+        }
+        i = j + 1;
+    }
+    let n1 = y.iter().filter(|v| **v).count() as f64;
+    let n0 = y.len() as f64 - n1;
+    if n1 == 0.0 || n0 == 0.0 {
+        return 0.5;
+    }
+    let s: f64 = rank.iter().zip(y).filter(|(_, v)| **v).map(|(r, _)| *r).sum();
+    (s - n1 * (n1 + 1.0) / 2.0) / (n1 * n0)
+}
+
 /// What a retrain needs: a snapshot, so the live bot can train in a thread while it keeps trading.
 pub struct DataLatih {
     pub x: Vec<Vec<f64>>,
@@ -327,6 +360,10 @@ pub struct Pembelajar {
     pub sedang_latih: bool,
     pub n_latih: u64,
     rng: Acak,
+    /// (DL prediction, ML prediction, won) of the last 500 coins, each made before the coin was learned
+    uji: VecDeque<(f64, f64, bool)>,
+    pub dl_aktif: bool,
+    pub n_dl_mati: u64,
 }
 
 impl Pembelajar {
@@ -366,7 +403,20 @@ impl Pembelajar {
             sedang_latih: false,
             n_latih: 0,
             rng,
+            uji: VecDeque::new(),
+            dl_aktif: true,
+            n_dl_mati: 0,
         }
+    }
+    /// Out-of-sample AUC of (DL, ML) over the last outcomes; None before 100 of them.
+    pub fn akurasi(&self) -> Option<(f64, f64)> {
+        if self.uji.len() < 100 {
+            return None;
+        }
+        let y: Vec<bool> = self.uji.iter().map(|u| u.2).collect();
+        let pd: Vec<f64> = self.uji.iter().map(|u| u.0).collect();
+        let pm: Vec<f64> = self.uji.iter().map(|u| u.1).collect();
+        Some((auc(&pd, &y), auc(&pm, &y)))
     }
     pub fn skor_ml(&self, x: &[f64]) -> f64 {
         self.ml.predict(x)
@@ -377,12 +427,31 @@ impl Pembelajar {
     /// The filter score of one coin at its minute-1 decision.
     pub fn skor(&mut self, x: &[f64]) -> f64 {
         self.n_skor += 1;
-        0.5 * self.skor_ml(x) + 0.5 * self.skor_dl(x)
+        if self.dl_aktif {
+            0.5 * self.skor_ml(x) + 0.5 * self.skor_dl(x)
+        } else {
+            self.skor_ml(x)
+        }
     }
     /// A coin's outcome is known (its shadow trade closed). `pick` = it passed the filter when it was decided.
     pub fn label(&mut self, x: Vec<f64>, ret: f64, blk: f64, pick: bool) {
         let z = self.qt.ubah(&x);
         let y = if ret > 1.0 { 1.0 } else { 0.0 };
+        // out-of-sample check first: both halves predict this coin before anything learns from it
+        self.uji.push_back((self.dl.prob(&z), self.ml.predict(&x), ret > 1.0));
+        if self.uji.len() > UJI_JENDELA {
+            self.uji.pop_front();
+        }
+        if self.uji.len() == UJI_JENDELA {
+            if let Some((a_dl, _)) = self.akurasi() {
+                if self.dl_aktif && a_dl < DL_MATI_AUC {
+                    self.dl_aktif = false;
+                    self.n_dl_mati += 1;
+                } else if !self.dl_aktif && a_dl > DL_HIDUP_AUC {
+                    self.dl_aktif = true;
+                }
+            }
+        }
         self.recent.push_back((z.clone(), y));
         if self.recent.len() > REPLAY_JENDELA {
             self.recent.pop_front();
@@ -463,6 +532,7 @@ impl Pembelajar {
             "n_skor": self.n_skor, "n_skor_fit": self.n_skor_fit, "n_latih": self.n_latih,
             "picks": self.picks.iter().map(|(w, r)| json!([w, r])).collect::<Vec<_>>(),
             "recent": self.recent.iter().map(|(z, y)| json!([z, y])).collect::<Vec<_>>(), "rng": self.rng.0,
+            "uji": self.uji.iter().map(|(d, m, y)| json!([d, m, y])).collect::<Vec<_>>(), "dl_aktif": self.dl_aktif, "n_dl_mati": self.n_dl_mati,
         });
         let tmp = p.with_extension("tmp");
         std::fs::write(&tmp, j.to_string()).map_err(|e| e.to_string())?;
@@ -490,6 +560,9 @@ impl Pembelajar {
                         .and_then(|v| v.as_array())
                         .map(|a| a.iter().filter_map(|r| Some((r.get(0)?.as_array()?.iter().filter_map(|v| v.as_f64()).collect::<Vec<f64>>(), r.get(1)?.as_f64()?))).collect())
                         .unwrap_or_default();
+                    self.uji = j.get("uji").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|r| Some((r.get(0)?.as_f64()?, r.get(1)?.as_f64()?, r.get(2)?.as_bool()?))).collect()).unwrap_or_default();
+                    self.dl_aktif = j.get("dl_aktif").and_then(|v| v.as_bool()).unwrap_or(true);
+                    self.n_dl_mati = u("n_dl_mati");
                 }
             }
         }
@@ -675,6 +748,29 @@ mod tests {
             p.label(vec![0.0, 0.0], 2.0, 2.0, false);
         }
         assert_eq!(p.perlu_latih(), Some("300 hasil koin baru"));
+    }
+
+    #[test]
+    fn overfit_guard_drops_a_network_that_predicts_no_better_than_chance() {
+        assert!((auc(&[0.1, 0.4, 0.35, 0.8], &[false, false, true, true]) - 0.75).abs() < 1e-12);
+        let feats: Vec<String> = vec!["a".into(), "b".into()];
+        let dx: Vec<Vec<f64>> = (0..600).map(|i| vec![(i % 10) as f64, (i % 3) as f64]).collect();
+        let dy: Vec<bool> = (0..600).map(|i| i % 10 > 4).collect();
+        let mut p = Pembelajar::baru(model_satu_pohon(&feats), dx, dy);
+        assert!(p.dl_aktif);
+        // outcomes unrelated to the features: the network cannot be better than chance out of sample
+        let mut r = Acak::new(9);
+        for i in 0..1500 {
+            let x = vec![(i % 10) as f64, (i % 3) as f64];
+            p.label(x, if r.f64() < 0.5 { 2.0 } else { 0.0 }, i as f64, false);
+        }
+        let (a_dl, _) = p.akurasi().unwrap();
+        assert!(a_dl < 0.6, "chance-level network, AUC {a_dl}");
+        assert!(p.n_dl_mati >= 1 || !p.dl_aktif, "the guard switched the network off at least once (AUC {a_dl})");
+        let x = [3.0, 1.0];
+        if !p.dl_aktif {
+            assert_eq!(p.skor(&x), p.skor_ml(&x), "network off: the score is ML alone");
+        }
     }
 
     #[test]
