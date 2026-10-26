@@ -1284,7 +1284,8 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
         let mut hi = (start - 1.0).max(0.0) as u64;
         while seed.is_empty() && hi > 0 && (start as u64).saturating_sub(hi) <= 520_000 {
             let lo = hi.saturating_sub(19_999);
-            seed = rpc.logs_ranged(&json!({"address": PM, "topics": [T_SWAP, ETH_POOL]}), lo, hi, 1000, 20_000)?;
+            // a public RPC answering 429 right at start must not stop the bot: retry with backoff for 3 minutes
+            seed = ulangi(Instant::now() + Duration::from_secs(180), || rpc.logs_ranged(&json!({"address": PM, "topics": [T_SWAP, ETH_POOL]}), lo, hi, 1000, 20_000))?;
             hi = lo.saturating_sub(1);
         }
         let e = seed.last().and_then(dekode).ok_or("harga ETH awal tidak ketemu")?;
