@@ -190,6 +190,9 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
     // Leak test: if the adaptive filter still beat the frozen one, its edge would not come from what it learns.
     let uji_acak = std::env::var("BELAJAR_UJI_ACAK").map(|v| v == "1").unwrap_or(false);
     let (mut kolam, mut acak) = (Vec::<f64>::new(), belajar::Acak::new(77));
+    // causality check: a coin's outcome may be learned only once its shadow trade has closed (exit block <= now)
+    // and after the coin's own decision (its decision exists in the account) — counted, must stay 0
+    let mut n_langgar = 0u64;
     if uji_acak {
         eprintln!("UJI KEBOCORAN: hasil koin yang dipelajari DIACAK");
     }
@@ -247,6 +250,9 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
             let lab: Vec<_> = m.label_selesai.drain(..).collect();
             let ak = m.akun.lock().unwrap();
             for t in lab {
+                if t.exit_blk > nb || t.init + 600.0 > nb {
+                    n_langgar += 1;
+                }
                 if let Some(k) = ak.kep.get(&t.pool) {
                     let ret = if uji_acak {
                         kolam.push(t.ret);
@@ -268,6 +274,7 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
     std::fs::write(format!("{}.skor.csv", a.out), format!("pool,score\n{skor_out}")).ok();
     if let Some(p) = &pemb {
         eprintln!("filter adaptif: {} koin dinilai, {} hasil koin dipelajari, ML dilatih ulang {}x, DL dimatikan pengaman {}x", p.n_skor, p.labels.len(), p.n_latih, p.n_dl_mati);
+        eprintln!("cek kausal label: {} pelanggaran (hasil koin dipelajari sebelum trade bayangannya selesai / sebelum keputusannya)", n_langgar);
     }
 
     // laporan
