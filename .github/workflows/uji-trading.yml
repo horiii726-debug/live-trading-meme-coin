@@ -22,7 +22,7 @@ permissions:
 jobs:
   amati:
     runs-on: ubuntu-24.04
-    timeout-minutes: 300
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +44,7 @@ jobs:
 
       - name: observe the bot on the live chain
         run: |
-          total=${{ github.event.inputs.menit || '280' }}
+          total=${{ github.event.inputs.menit || '320' }}
           target=${{ github.event.inputs.trade || '10' }}
           for i in $(seq 1 $((total / 5))); do
             sleep 300

@@ -6,7 +6,7 @@ name: uji-instal
 on:
   workflow_dispatch:
   push:
-    branches-ignore: [uji-trading, uji-untung, uji-gabung, uji-trading-baru, uji-holdout]
+    branches-ignore: [uji-trading, uji-untung, uji-gabung, uji-trading-baru, uji-holdout, uji-trading-6jam]
     paths: [mulai.sh, rhc.sh, 'deploy/**', 'config/**', 'crates/**', 'models/**', Cargo.toml, Cargo.lock, '.github/**']
 permissions:
   contents: read
