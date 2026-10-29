@@ -44,7 +44,8 @@ jobs:
           sudo systemctl stop rhc-trader
           sudo deploy/bersihkan-live.sh --reset-akun
           sudo systemctl start rhc-trader
-          sleep 20; systemctl is-active rhc-trader
+          for i in $(seq 1 60); do sleep 5; [ "$(systemctl is-active rhc-trader)" = active ] && break; done
+          systemctl is-active rhc-trader
           # time -> block map for the fill check (realita.py): once a second, the block the bot had processed and its lag
           sudo nohup bash -c 'while :; do python3 -c "import json,time;d=json.load(open(\"/opt/rhc/bot/rust_live/status.json\"));print(int(time.time()*1000),d[\"last_block\"],d[\"lag_blocks\"])" 2>/dev/null; sleep 1; done >> /tmp/sampler.txt' >/dev/null 2>&1 &
 
