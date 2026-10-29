@@ -48,7 +48,9 @@ say "   $(du -h "$BAK" | cut -f1)"
 
 say "2. mengosongkan ledger eksekusi (catatan transaksi nyata)"
 rm -rf "$LIVE/exec" "$LIVE/exec_shadow"
-install -d -m 755 "$LIVE/exec"
+# the service runs as the owner of rust_live (user rhc), not root: the new directory must be theirs or the bot
+# cannot write its ledger and restarts forever
+install -d -m 755 -o "$(stat -c %U "$LIVE")" -g "$(stat -c %G "$LIVE")" "$LIVE/exec"
 say "   $LIVE/exec kosong"
 
 if [ "$RESET_AKUN" = yes ]; then

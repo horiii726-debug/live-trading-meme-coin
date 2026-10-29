@@ -46,6 +46,10 @@ jobs:
           sudo systemctl start rhc-trader
           for i in $(seq 1 60); do sleep 5; [ "$(systemctl is-active rhc-trader)" = active ] && break; done
           systemctl is-active rhc-trader
+          # the bot must stay up after the reset: no restarts in the first minute, else show why and stop the test
+          sleep 60
+          r=$(systemctl show -p NRestarts --value rhc-trader); echo "restarts after reset: $r"
+          if [ "${r:-0}" -gt 0 ]; then sudo journalctl -u rhc-trader -n 60 --no-pager; exit 1; fi
           # time -> block map for the fill check (realita.py): once a second, the block the bot had processed and its lag
           sudo nohup bash -c 'while :; do python3 -c "import json,time;d=json.load(open(\"/opt/rhc/bot/rust_live/status.json\"));print(int(time.time()*1000),d[\"last_block\"],d[\"lag_blocks\"])" 2>/dev/null; sleep 1; done >> /tmp/sampler.txt' >/dev/null 2>&1 &
 
@@ -57,6 +61,8 @@ jobs:
             sleep 300
             echo "=== $((i * 5)) menit — service: $(systemctl is-active rhc-trader), restarts: $(systemctl show -p NRestarts --value rhc-trader)"
             sudo python3 -c "import json;d=json.load(open('/opt/rhc/bot/rust_live/status.json'));a=d['akun'];f=d.get('filter',{});print('blok',d['last_block'],'lag',d['lag_blocks'],'aman',d.get('mode_aman'),'| dibeli',a['trade_dibeli'],'selesai',a['trade_selesai'],'menang',a['menang'],'| dinilai',f.get('koin_dinilai'),'dipelajari',f.get('hasil_koin_dipelajari'),'ML dilatih',f.get('ml_dilatih_ulang'),'akurasi',f.get('akurasi_data_belum_dilihat_500'))" || true
+            r=$(systemctl show -p NRestarts --value rhc-trader)
+            if [ "${r:-0}" -gt 3 ]; then echo "GAGAL: bot restart $r kali"; sudo journalctl -u rhc-trader -n 60 --no-pager; exit 1; fi
             n=$(sudo python3 -c "import json;print(json.load(open('/opt/rhc/bot/rust_live/status.json'))['akun']['trade_selesai'])" 2>/dev/null || echo 0)
             if [ "${n:-0}" -ge "$target" ]; then echo "target $target trade selesai tercapai"; break; fi
           done
