@@ -39,8 +39,14 @@ jobs:
           sudo sed -i 's/^EXEC_MODE=.*/EXEC_MODE=shadow/' /opt/rhc/bot/.env
           # test only: retrain the ML half after 10 outcomes (not 300) so the CatBoost path runs within the observation
           echo "BELAJAR_LABEL_BARU=10" | sudo tee -a /opt/rhc/bot/.env
-          sudo systemctl restart rhc-trader
+          # test only: start the strategy account at $100 (the owner's deposit) instead of the typed 1.000
+          sudo sed -i 's/^START_USD=.*/START_USD=100/' /opt/rhc/bot/.env
+          sudo systemctl stop rhc-trader
+          sudo deploy/bersihkan-live.sh --reset-akun
+          sudo systemctl start rhc-trader
           sleep 20; systemctl is-active rhc-trader
+          # time -> block map for the fill check (realita.py): once a second, the block the bot had processed and its lag
+          sudo nohup bash -c 'while :; do python3 -c "import json,time;d=json.load(open(\"/opt/rhc/bot/rust_live/status.json\"));print(int(time.time()*1000),d[\"last_block\"],d[\"lag_blocks\"])" 2>/dev/null; sleep 1; done >> /tmp/sampler.txt' >/dev/null 2>&1 &
 
       - name: observe the bot on the live chain
         run: |
@@ -61,6 +67,20 @@ jobs:
           sudo python3 .github/uji/cek_komponen.py /opt/rhc/bot ${{ github.event.inputs.trade || '10' }}
           echo "--------------------------------------------------------------- live.log (60 baris terakhir)"
           sudo tail -n 60 /opt/rhc/bot/rust_live/live.log
+
+      - name: realita — would the orders have filled against the other bots?
+        if: always()
+        run: |
+          sudo python3 .github/uji/realita.py /opt/rhc/bot /tmp/sampler.txt | tee realita.json
+          mkdir -p hasil && cp realita.json /tmp/sampler.txt hasil/
+          sudo tar -czf hasil/rust_live.tar.gz -C /opt/rhc/bot --exclude='rust_live/rust_live_backup_*' rust_live
+          sudo chown -R "$USER" hasil
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-realita
+          path: hasil/
+          retention-days: 30
 
       - name: kill switch — an injected error stops every order, survives a restart, resumes only on request
         run: |
