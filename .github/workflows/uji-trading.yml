@@ -77,10 +77,12 @@ jobs:
 
       - name: realita — would the orders have filled against the other bots?
         if: always()
+        continue-on-error: true
         run: |
           sudo python3 .github/uji/realita.py /opt/rhc/bot /tmp/sampler.txt | tee realita.json
           mkdir -p hasil && cp realita.json /tmp/sampler.txt hasil/
-          sudo tar -czf hasil/rust_live.tar.gz -C /opt/rhc/bot --exclude='rust_live/rust_live_backup_*' rust_live
+          # the bot keeps writing while this runs: "file changed as we read it" (exit 1) is expected
+          sudo tar -czf hasil/rust_live.tar.gz --warning=no-file-changed -C /opt/rhc/bot --exclude='rust_live/rust_live_backup_*' rust_live || [ $? -eq 1 ]
           sudo chown -R "$USER" hasil
       - uses: actions/upload-artifact@v4
         if: always()

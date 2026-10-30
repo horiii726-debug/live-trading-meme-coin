@@ -49,7 +49,26 @@ fn coba<T>(mut f: impl FnMut() -> Result<T, String>) -> Result<T, String> {
     f()
 }
 
+/// An answer saying the RPC does not offer the method at all (a paid RPC without `eth_simulateV1`), as opposed to a
+/// revert or a wrong result.
+fn tanpa_metode(e: &str) -> bool {
+    let e = e.to_lowercase();
+    e.starts_with("rpc:") && ["method not found", "does not exist", "not available", "not supported", "unsupported method"].iter().any(|s| e.contains(s))
+}
+
+/// A paid RPC may not offer `eth_simulateV1` (step 4). The bot never calls it, so instead of failing, the whole check is
+/// repeated on the next RPC in RPC_URLS (the installer puts the public one there).
 pub fn run(rpc_urls: &[String], doh: bool, pool: Option<&str>, init_block: Option<u64>) -> Result<(), String> {
+    match run_on(rpc_urls, doh, pool, init_block) {
+        Err(e) if tanpa_metode(&e) && rpc_urls.len() > 1 => {
+            println!("   this RPC does not offer a method the check needs ({e}); the bot does not use it. Repeating the check on the next RPC:");
+            run(&rpc_urls[1..], doh, pool, init_block)
+        }
+        r => r,
+    }
+}
+
+fn run_on(rpc_urls: &[String], doh: bool, pool: Option<&str>, init_block: Option<u64>) -> Result<(), String> {
     let rpc = Rpc::new(&rpc_urls.join(","), doh)?;
     chain::verify_deployment(&rpc)?;
     println!("1. deployment: chainId {}, PoolManager/UniversalRouter/Permit2/V4Quoter/StateView verified", chain::CHAIN_ID);
@@ -125,7 +144,17 @@ pub fn run(rpc_urls: &[String], doh: bool, pool: Option<&str>, init_block: Optio
 
 #[cfg(test)]
 mod tests {
-    use super::coba;
+    use super::{coba, tanpa_metode};
+
+    #[test]
+    fn a_missing_method_is_told_apart_from_a_revert() {
+        assert!(tanpa_metode("rpc: the method eth_simulateV1 does not exist/is not available"));
+        assert!(tanpa_metode("rpc: Method not found"));
+        assert!(tanpa_metode("rpc: method eth_simulateV1 is not supported"));
+        assert!(!tanpa_metode("rpc: execution reverted"));
+        assert!(!tanpa_metode("net: http 429 too many requests"));
+        assert!(!tanpa_metode("tokens received differ from the quote at the same block"));
+    }
 
     #[test]
     fn coba_retries_rate_limits_but_not_real_answers() {

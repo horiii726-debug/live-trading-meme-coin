@@ -129,13 +129,17 @@ nilai("harga ETH masuk akal", isinstance(eth, (int, float)) and 500 < eth < 2000
 # ---------------------------------------------------------------- 4
 bagian(4, "Penyaringan koin di menit ke-1")
 sar = [l for l in log if "] SARING " in l]
-hasil_sar = collections.Counter()
+hasil_sar, stabil = collections.Counter(), collections.Counter()
 for l in sar:
     m = re.search(r"SARING \S+ \| skor [0-9.]+ (\S+)", l)
     if m:
         hasil_sar[m.group(1)] += 1
-lolos = hasil_sar.get("LOLOS", 0)
-dinilai = lolos + hasil_sar.get("tolak(ml)", 0)
+        # the first 30 scores after a (re)start use the fixed start threshold; the ±20% target holds after that
+        k = re.search(r"skor ke-(\d+)", l)
+        if k and int(k.group(1)) >= 30:
+            stabil[m.group(1)] += 1
+lolos = stabil.get("LOLOS", 0)
+dinilai = lolos + stabil.get("tolak(ml)", 0)
 nilai("koin dinilai di menit ke-1", len(sar) > 0, f"{len(sar)} koin -> {dict(hasil_sar)}")
 nilai("porsi lolos filter ML (target ±20% = QTHR 0,80)", None if dinilai < 30 else (0.08 < lolos / dinilai < 0.35), f"{lolos}/{dinilai} = {100 * lolos / max(dinilai, 1):.0f}%")
 sg = st.get("saringan", {})
@@ -190,7 +194,8 @@ except Exception as e:  # noqa: BLE001
     nilai("model ML di disk", False, str(e))
 nilai("keadaan pembelajar tersimpan (belajar.json)", os.path.exists(os.path.join(live, "belajar.json")), "rust_live/belajar.json")
 lab = jsonl(os.path.join(live, "labels.jsonl"))
-lab_ok = sum(1 for l in lab if angka(l.get("ret")) is not None and l.get("ret") >= 0 and l.get("decide", 0) <= l.get("exit", 0))
+# a total loss is a return a little below 0 (the gas is lost too), so the floor is -0.05, not 0
+lab_ok = sum(1 for l in lab if angka(l.get("ret")) is not None and l.get("ret") >= -0.05 and l.get("decide", 0) <= l.get("exit", 0))
 nilai("label hasil koin bersih (ret valid, keputusan sebelum keluar)", lab_ok == len(lab) and len(lab) > 0, f"{lab_ok}/{len(lab)}")
 peng = [l for l in log if "PENGAMAN" in l]
 nilai("pengaman overfit", None, f"{len(peng)} pergantian" + (f": {peng[-1].split('] ', 1)[-1][:160]}" if peng else ""))
