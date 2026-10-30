@@ -15,7 +15,7 @@ chk ".env milik rhc, mode 600"            [ "$(sudo stat -c '%U %a' $E)" = "rhc 
 chk "folder secrets milik rhc"            [ "$(sudo stat -c '%U' /opt/rhc/secrets)" = rhc ]
 for kv in EXEC_MODE=live EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK EXEC_KEY_FILE=$K START_USD=1000 \
           EXEC_MAX_ORDER_USD=0 EXEC_DAILY_LOSS_LIMIT_USD=0 EXEC_MAX_OPEN_POSITIONS=6 \
-          RPC_URLS=https://rpc.mainnet.chain.robinhood.com "DOH_URL=$want_doh" \
+          "RPC_URLS=${UJI_RPC_URLS:-https://rpc.mainnet.chain.robinhood.com}" "DOH_URL=$want_doh" \
           KELLY_SEED=/opt/rhc/bot/kelly_seed_backtest_last100.json BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost; do
     chk ".env: $kv" sudo grep -qx -- "$kv" $E
 done

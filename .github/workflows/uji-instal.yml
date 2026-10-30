@@ -37,6 +37,12 @@ jobs:
           - nama: user sudo, DNS diblokir seperti Internet Positif
             sebagai: sudo
             dns_blok: true
+          # the owner's own RPC typed in (the public URL stands in for a paid one), then the clean before going live
+          - nama: login root, RPC sendiri diisi, lalu bersih sebelum live
+            sebagai: root
+            dns_blok: false
+            rpc: https://rpc.mainnet.chain.robinhood.com
+            bersih: true
     env:
       PATH_VPS: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
@@ -68,12 +74,13 @@ jobs:
             cmd="curl -sSL $url | sudo bash"
           fi
           echo "$cmd" > /tmp/cmd
-          python3 .github/uji/ketik.py "$cmd"
+          UJI_RPC="${{ matrix.rpc }}" python3 .github/uji/ketik.py "$cmd"
 
       - name: check the result
         run: |
           home=/home/runner; [ "${{ matrix.sebagai }}" = root ] && home=/root
           doh=""; [ "${{ matrix.dns_blok }}" = true ] && doh=https://1.1.1.1/dns-query
+          [ -z "${{ matrix.rpc }}" ] || export UJI_RPC_URLS="${{ matrix.rpc }},https://rpc.mainnet.chain.robinhood.com"
           bash .github/uji/periksa.sh "$doh" "$home"
 
       - name: run the same line again (update) — must ask nothing and keep the bot up
@@ -83,5 +90,31 @@ jobs:
         run: |
           home=/home/runner; [ "${{ matrix.sebagai }}" = root ] && home=/root
           doh=""; [ "${{ matrix.dns_blok }}" = true ] && doh=https://1.1.1.1/dns-query
+          [ -z "${{ matrix.rpc }}" ] || export UJI_RPC_URLS="${{ matrix.rpc }},https://rpc.mainnet.chain.robinhood.com"
           bash .github/uji/periksa.sh "$doh" "$home"
           timeout 5 sudo "$home/live-trading-meme-coin/rhc.sh" log || true
+
+      - name: before going live — the README's clean and the menu's clean; the bot must come back and stay up
+        if: matrix.bersih
+        run: |
+          home=/home/runner; [ "${{ matrix.sebagai }}" = root ] && home=/root
+          repo=$home/live-trading-meme-coin
+          tetap_jalan(){
+            for i in $(seq 1 60); do sleep 5; [ "$(systemctl is-active rhc-trader)" = active ] && break; done
+            n0=$(systemctl show -p NRestarts --value rhc-trader); sleep 90; n1=$(systemctl show -p NRestarts --value rhc-trader)
+            pemilik=$(sudo stat -c %U /opt/rhc/bot/rust_live/exec)
+            echo "$1: service $(systemctl is-active rhc-trader), restarts $n0 -> $n1, exec/ milik $pemilik"
+            if [ "$(systemctl is-active rhc-trader)" != active ] || [ "$n0" != "$n1" ] || [ "$pemilik" != rhc ]; then
+              echo "GAGAL: bot tidak jalan normal setelah $1"; sudo journalctl -u rhc-trader -n 40 --no-pager; exit 1
+            fi
+          }
+          sudo systemctl stop rhc-trader
+          sudo bash -c "cd $repo && deploy/bersihkan-live.sh --reset-akun"
+          sudo systemctl start rhc-trader
+          tetap_jalan "deploy/bersihkan-live.sh --reset-akun"
+          sudo systemctl stop rhc-trader
+          echo y | sudo bash -c "cd $repo && ./rhc.sh bersih"
+          sudo systemctl start rhc-trader
+          tetap_jalan "rhc.sh bersih"
+          sudo bash -c "cd $repo && ./rhc.sh cek" | tee /tmp/cek.txt
+          grep -q "SELFTEST OK" /tmp/cek.txt || { echo "GAGAL: rhc.sh cek tidak berakhir SELFTEST OK"; exit 1; }
