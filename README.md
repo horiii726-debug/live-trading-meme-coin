@@ -132,7 +132,6 @@ It tars `rust_live/` to a timestamped backup first, then empties the execution l
 
 | Claim | Check |
 |---|---|
-| Decisions are identical to the backtest | `scripts/parity.sh <data/all>` reproduces System A: 2,496 trades, $100 → $161,557.85, and the SHA-256 of every trade record |
 | Calldata is exactly what Uniswap expects | golden test: the encoder rebuilds a real Universal Router buy from this chain byte for byte |
 | Buy → approve → sell works on chain | `rhc-trader exec selftest` runs the full cycle with this binary's calldata in `eth_simulateV1` (nothing is sent) |
 | Local quotes equal the official Quoter | unit test on recorded on-chain state, and the self-test at the current block |
@@ -143,7 +142,6 @@ It tars `rust_live/` to a timestamped backup first, then empties the execution l
 
 ```
 cargo test --release                          # 38 unit tests
-scripts/parity.sh /path/to/research/data/all  # backtest parity gate (dataset lives in the research repo)
 target/release/rhc-trader exec selftest --env /opt/rhc/bot/.env
 ```
 
@@ -215,7 +213,6 @@ the next positions. The 1% LP cap still applies.
 | `models/` | the starting models (`filter_cat.json`, `danger_model.json`, `pnaik_model.json`) + parity check files, and `latih_dasar.csv`, the Aug-Sep base training data of the adaptive filter |
 | `config/trader.env.example` | every setting, documented |
 | `deploy/` | systemd unit, `install.sh` for a VPS, `catboost.sh` (the official CatBoost program, pinned by sha256) |
-| `scripts/parity.sh` | backtest parity gate |
 | `docs/RUNBOOK.md` | setup, going live, monitoring, emergencies |
 
 The large historical swap dataset stays in the research repository; this repository only carries what the live bot and
