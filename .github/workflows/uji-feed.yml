@@ -1,0 +1,19 @@
+name: uji-feed
+# Test only: does Robinhood Chain's sequencer feed answer, and how much earlier than the RPC does it show each block?
+# Nothing of the bot runs here.
+on:
+  push:
+    branches: [uji-feed]
+permissions:
+  contents: read
+
+jobs:
+  ukur:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: websocket client (test only)
+        run: python3 -m venv /tmp/v && /tmp/v/bin/pip install --quiet websockets==13.1
+      - name: feed vs RPC, 5 minutes
+        run: /tmp/v/bin/python .github/uji/feed_ukur.py 300 | tee feed.json
