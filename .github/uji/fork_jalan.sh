@@ -47,7 +47,7 @@ echo "wallet $ADDR, balance $BAL"
 
 # the installed settings, exactly, with only the RPC, mode and wallet set
 sed -e "s#^RPC_URLS=.*#RPC_URLS=https://fork1.uji.local,https://fork2.uji.local#" -e "s#^EXEC_MODE=.*#EXEC_MODE=live#" \
-    -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$W/wallet.key#" -e "s@^#*EXEC_LIVE_CONFIRM=.*@EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK@" \
+    -e "s#^EXEC_KEY_FILE=.*#EXEC_KEY_FILE=$W/wallet.key#" -e "s#^KELLY_SEED=.*#KELLY_SEED=$ROOT/models/kelly_seed_backtest_last100.json#" -e "s@^#*EXEC_LIVE_CONFIRM=.*@EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK@" \
     config/trader.env.example > "$W/fork.env"
 sed -e "s#^RPC_URLS=.*#RPC_URLS=$PUB#" "$W/fork.env" > "$W/pub.env"
 
