@@ -103,8 +103,16 @@ fn lulus(nama: &str, u: &Uji, token: Address, pool: &str) -> Result<(), String> 
 fn kunci(rpc: &Rpc, p: &str) -> Result<(String, Key), String> {
     let (pool, blk) = p.split_once('@').ok_or("pool@blok")?;
     let pool = pool.to_lowercase();
-    let k = pools::fetch_key(rpc, &pool, Some(blk.parse().map_err(|_| "blok")?))?;
-    Ok((pool, k))
+    let blk: u64 = blk.parse().map_err(|_| "blok")?;
+    let mut last = String::new();
+    for _ in 0..12 {
+        match pools::fetch_key(rpc, &pool, Some(blk)) {
+            Ok(k) => return Ok((pool, k)),
+            Err(e) => last = e,
+        }
+        std::thread::sleep(Duration::from_secs(5));
+    }
+    Err(last)
 }
 
 fn siapkan(env_file: Option<&str>, bot_dir: &str, cfg: &crate::cfg::Cfg) -> Result<Uji, String> {
@@ -314,8 +322,13 @@ pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenari
             u.beli(&pool, key, u.state(&pool)?);
             u.tunggu("beli dan 2 approval terkirim", 20, |u| u.jurnal_n("approve_sent") >= 2)?;
             u.rpc.call("anvil_dropAllTransactions", json!([]))?;
-            u.tunggu("transaksi hilang dikenali, beli gagal", 120, |u| u.ditutup(&pool).is_some())?;
+            u.tunggu("transaksi hilang dikenali, beli gagal", 120, |u| u.pos(&pool)["status"] == "buy_failed")?;
             u.rpc.call("evm_setAutomine", json!([true]))?;
+            u.rpc.call("evm_mine", json!([]))?;
+            u.tunggu("posisi gagal diarsipkan", 120, |u| u.ditutup(&pool).is_some())?;
+            let txs = u.ditutup(&pool).unwrap_or(Value::Null);
+            println!("   approval dikirim ulang untuk beli yang gagal: {}", u.jurnal_n("approve_sent"));
+            let _ = txs;
             println!("   catatan: {}", u.ditutup(&pool).unwrap_or(Value::Null));
             let (p2, k2) = kunci(&kunci_rpc, pool2.ok_or("pool2")?)?;
             std::thread::sleep(Duration::from_secs(4));

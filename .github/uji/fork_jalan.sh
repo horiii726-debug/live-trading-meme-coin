@@ -95,6 +95,7 @@ jalan mati "$W/fork.env" mati "$P2" "" mati
 sleep 1
 jalan pulih "$W/fork.env" mati "$P2"
 jalan tx_hilang "$W/fork.env" hilang "$P1" "$P3"
+curl -s -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"evm_setAutomine","params":[true]}' http://127.0.0.1:8545 >/dev/null
 say "endpoint pertama mati: semua harus lewat endpoint kedua"
 sed -e "s#^RPC_URLS=.*#RPC_URLS=https://fork3.uji.local,https://fork1.uji.local#" "$W/fork.env" > "$W/mati1.env"
 jalan normal "$W/mati1.env" ep "$P3"
