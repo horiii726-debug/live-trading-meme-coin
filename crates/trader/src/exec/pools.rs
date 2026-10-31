@@ -22,18 +22,18 @@ pub fn eth_call(rpc: &Rpc, to: Address, data: &Bytes, block: &str) -> Result<Byt
 }
 
 /// Pool key from its `Initialize` event, verified against the pool id (a wrong hint can only make the lookup fail,
-/// never return a different pool). With `init_block` the search is one 1000-block query; without it the whole
-/// history is scanned, which needs an RPC endpoint that allows wide log ranges (keep the public RPC in RPC_URLS).
+/// never return a different pool). With `init_block` the search is one 1000-block query; without it the last 9.9
+/// million blocks are searched (the public RPC's limit for one query), which needs an endpoint that allows wide log
+/// ranges (keep the public RPC in RPC_URLS). An older pool needs `--init-block`.
 pub fn fetch_key(rpc: &Rpc, pool: &str, init_block: Option<u64>) -> Result<Key, String> {
+    // never ask for blocks the node does not have yet (young pools)
+    let tip = rpc.call_once("eth_blockNumber", json!([]), Duration::from_secs(5))?;
+    let tip = tip.as_str().and_then(|s| u64::from_str_radix(s.trim_start_matches("0x"), 16).ok()).ok_or("eth_blockNumber: bad response")?;
     let (from, to) = match init_block {
-        Some(b) => {
-            // never ask for blocks the node does not have yet (young pools)
-            let tip = rpc.call_once("eth_blockNumber", json!([]), Duration::from_secs(5))?;
-            let tip = tip.as_str().and_then(|s| u64::from_str_radix(s.trim_start_matches("0x"), 16).ok()).ok_or("eth_blockNumber: bad response")?;
-            (format!("{b:#x}"), format!("{:#x}", (b + 999).min(tip)))
-        }
-        None => ("0x0".to_string(), "latest".to_string()),
+        Some(b) => (b, (b + 999).min(tip)),
+        None => (tip.saturating_sub(9_900_000), tip),
     };
+    let (from, to) = (format!("{from:#x}"), format!("{to:#x}"));
     let logs = rpc.call_once(
         "eth_getLogs",
         json!([{"address": format!("{POOL_MANAGER:#x}"), "topics": [TOPIC_INITIALIZE, pool], "fromBlock": from, "toBlock": to}]),

@@ -519,6 +519,8 @@ struct Live {
     t_err_log: Instant,
     // blocks processed in MODE AMAN while live (from decisions.jsonl), replayed identically
     aman_simpan: HashSet<u64>,
+    /// block of the first ETH price rejected by the jump guard (NaN = none)
+    eth_tolak_sejak: f64,
     // dev lookups started when a pool is born, read by the minute-1 check
     dev_pra: DevPra,
 }
@@ -713,11 +715,20 @@ impl Live {
                     self.simpan_event(e);
                     let s = big_f64(sp) / Q96;
                     let baru = s * s * 1e12;
-                    // batas kewajaran: satu swap manipulatif di pool ETH/USDG tidak boleh menggeser seluruh valuasi
-                    if baru > 500.0 && baru < 20000.0 && (!self.eth.is_finite() || (baru / self.eth - 1.0).abs() < 0.10) {
-                        self.eth = baru;
-                        for s in self.m.sims.values_mut() {
-                            s.eth_usd = baru;
+                    // batas kewajaran: satu swap manipulatif di pool ETH/USDG tidak boleh menggeser seluruh valuasi. Harga
+                    // yang menjauh selama 2 menit adalah harga pasar (bot mati saat ETH bergerak >10%): tanpa ini harga
+                    // ETH beku selamanya, juga setelah restart, karena checkpoint menyimpan harga lama itu.
+                    if baru > 500.0 && baru < 20000.0 {
+                        let wajar = !self.eth.is_finite() || (baru / self.eth - 1.0).abs() < 0.10;
+                        if !wajar && self.eth_tolak_sejak.is_nan() {
+                            self.eth_tolak_sejak = blk;
+                        }
+                        if wajar || blk - self.eth_tolak_sejak >= 1200.0 {
+                            self.eth_tolak_sejak = f64::NAN;
+                            self.eth = baru;
+                            for s in self.m.sims.values_mut() {
+                                s.eth_usd = baru;
+                            }
                         }
                     }
                 }
@@ -949,7 +960,9 @@ impl Live {
         tulis_aman(&self.dir.join("account_rust.json"), &akun_json);
         if killed && !self.killed_dikabarkan {
             self.killed_dikabarkan = true;
-            self.kabar.kirim(format!("STOP DARURAT aktif (drawdown > {:.0}%). Bot berhenti membeli. {ringkas}", 100.0 * self.cfg.kill_dd));
+            let s = format!("STOP DARURAT aktif (drawdown > {:.0}%). Bot berhenti membeli. {ringkas}", 100.0 * self.cfg.kill_dd);
+            self.log.tulis(&s);
+            self.kabar.kirim(s);
         }
         if self.ringkas_t.elapsed() > Duration::from_secs(86400) {
             self.ringkas_t = Instant::now();
@@ -1345,8 +1358,11 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     let (hasil_tx, hasil_rx) = mpsc::channel::<HasilLatar>();
     let minta_rx = Arc::new(Mutex::new(minta_rx));
     let laju = Arc::new(radar::Laju::new());
+    // the radar never trades: its background reads go to the last endpoint first (the public RPC), so its wide scans
+    // do not use up the paid RPC's quota, which the trading path needs
+    let rpc_radar = Rpc::new(&cfg.rpc_urls.split(',').rev().collect::<Vec<_>>().join(","), cfg.doh)?;
     for _ in 0..2 {
-        let (rx, tx2, rpc2, laju2) = (minta_rx.clone(), hasil_tx.clone(), rpc.clone(), laju.clone());
+        let (rx, tx2, rpc2, laju2) = (minta_rx.clone(), hasil_tx.clone(), rpc_radar.clone(), laju.clone());
         let _ = std::thread::Builder::new().name("rhc-radar".into()).spawn(move || loop {
             let m = { rx.lock().unwrap().recv() };
             let r = match m {
@@ -1462,6 +1478,7 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
         range_cap: cfg.chunk.max(2 * crate::loggate::OVERLAP_BLOCKS),
         t_err_log: Instant::now() - Duration::from_secs(60),
         aman_simpan: HashSet::new(),
+        eth_tolak_sejak: f64::NAN,
         dev_pra: Arc::new(Mutex::new(HashMap::new())),
     };
     match riwayat_dev {
@@ -1574,6 +1591,12 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
         let _ = std::fs::rename(&baru, &store);
         // harga ETH terakhir ditulis supaya store baru mandiri
         b.log.tulis(&format!("store dipadatkan ({} MB); yang lama diarsipkan ke {}", besar / 1_000_000, arsip.display()));
+        // only the newest archive stays: the disk must not fill up (a full disk stops the ledger, then the kill switch)
+        if let Ok(rd) = std::fs::read_dir(&dir) {
+            for e in rd.flatten().filter(|e| e.file_name().to_string_lossy().starts_with("arsip_store_") && e.path() != arsip) {
+                let _ = std::fs::remove_dir_all(e.path());
+            }
+        }
     }
     {
         let a = b.m.akun.lock().unwrap();
@@ -1606,6 +1629,7 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
     let mut t_status = Instant::now();
     let mut t_radar = Instant::now();
     let mut t_simpan = Instant::now();
+    let mut t_meta = Instant::now();
     let mut backoff = POLL_BACKOFF_MIN;
     let mut kill_dicatat = false;
     let mut uji_panik = cfg.uji_panik_detik == 0;
@@ -1719,9 +1743,16 @@ pub fn jalan(cfg: Cfg, bot_dir: &str, env_file: Option<&str>) -> Result<(), Stri
             t_radar = Instant::now();
         }
         if t_simpan.elapsed() > Duration::from_secs(300) {
-            b.radar.simpan_meta(&dir.join("radar_meta.json"));
             b.kc.lock().unwrap().simpan(&dir.join("kelas_token.json"));
             t_simpan = Instant::now();
+        }
+        // the radar's pool list reaches 190 MB: written by its own thread, so polling (and every exit) never waits for it
+        if t_meta.elapsed() > Duration::from_secs(1800) {
+            t_meta = Instant::now();
+            if let Some((m, d)) = b.radar.salinan_meta() {
+                let p = dir.join("radar_meta.json");
+                let _ = std::thread::Builder::new().name("rhc-radar-simpan".into()).spawn(move || Radar::simpan_meta(&m, &d, &p));
+            }
         }
         std::thread::sleep(Duration::from_millis(cfg.poll_ms));
     }

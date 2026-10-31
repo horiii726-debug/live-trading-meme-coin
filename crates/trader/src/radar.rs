@@ -130,6 +130,8 @@ struct Snap {
 
 pub struct Radar {
     pub meta: HashMap<String, MetaPool>,
+    /// pools in the last saved copy
+    meta_tersimpan: usize,
     stat: HashMap<String, StatPool>,
     pub token: HashMap<String, InfoToken>,
     pub perlu_meta: VecDeque<String>,
@@ -167,6 +169,7 @@ impl Radar {
     pub fn new() -> Radar {
         Radar {
             meta: HashMap::new(),
+            meta_tersimpan: 0,
             stat: HashMap::new(),
             token: HashMap::new(),
             perlu_meta: VecDeque::new(),
@@ -193,40 +196,65 @@ impl Radar {
             perlu_pabrik: VecDeque::new(),
         }
     }
+    /// Entry by entry: this file reaches 190 MB, and built as one JSON value it took well over a gigabyte at every start.
     pub fn muat_meta(&mut self, p: &Path) {
-        if let Ok(t) = std::fs::read_to_string(p) {
-            if let Ok(Value::Object(o)) = serde_json::from_str::<Value>(&t) {
-                for (k, v) in o {
-                    let f = |n: &str| v[n].as_f64().unwrap_or(f64::NAN);
-                    let s = |n: &str| v[n].as_str().unwrap_or("").to_string();
-                    if k == "__desimal" {
-                        if let Some(o) = v.as_object() {
-                            for (t, d) in o {
-                                if let Some(d) = d.as_f64() {
-                                    self.desimal.insert(t.clone(), d);
-                                }
-                            }
-                        }
-                        continue;
-                    }
-                    let (d0, d1) = (f("dec0"), f("dec1"));
-                    self.meta.insert(k, MetaPool { dex: s("dex"), t0: s("t0"), t1: s("t1"), fee: f("fee"), dec0: d0, dec1: d1, lahir: f("lahir"), ok: d0.is_finite() && d1.is_finite(), pabrik: s("pabrik") });
+        struct Isi<'a>(&'a mut Radar);
+        impl<'de> serde::de::Visitor<'de> for Isi<'_> {
+            type Value = ();
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("radar_meta")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, mut m: A) -> Result<(), A::Error> {
+                while let Some((k, v)) = m.next_entry::<String, Value>()? {
+                    self.0.satu_meta(k, v);
                 }
+                Ok(())
             }
         }
+        if let Ok(f) = std::fs::File::open(p) {
+            let mut de = serde_json::Deserializer::from_reader(std::io::BufReader::with_capacity(1 << 20, f));
+            let _ = serde::de::Deserializer::deserialize_map(&mut de, Isi(self));
+        }
     }
-    pub fn simpan_meta(&self, p: &Path) {
-        let mut o: serde_json::Map<String, Value> = self
-            .meta
-            .iter()
-            .filter(|(_, m)| !m.t0.is_empty() && !m.t1.is_empty())
-            .map(|(k, m)| (k.clone(), json!({"dex": m.dex, "t0": m.t0, "t1": m.t1, "fee": m.fee, "dec0": m.dec0, "dec1": m.dec1, "lahir": m.lahir, "pabrik": m.pabrik})))
-            .collect();
-        let d: serde_json::Map<String, Value> = self.desimal.iter().map(|(k, v)| (k.clone(), json!(v))).collect();
-        o.insert("__desimal".into(), Value::Object(d));
+    fn satu_meta(&mut self, k: String, v: Value) {
+        let f = |n: &str| v[n].as_f64().unwrap_or(f64::NAN);
+        let s = |n: &str| v[n].as_str().unwrap_or("").to_string();
+        if k == "__desimal" {
+            if let Some(o) = v.as_object() {
+                for (t, d) in o {
+                    if let Some(d) = d.as_f64() {
+                        self.desimal.insert(t.clone(), d);
+                    }
+                }
+            }
+            return;
+        }
+        let (d0, d1) = (f("dec0"), f("dec1"));
+        self.meta.insert(k, MetaPool { dex: s("dex"), t0: s("t0"), t1: s("t1"), fee: f("fee"), dec0: d0, dec1: d1, lahir: f("lahir"), ok: d0.is_finite() && d1.is_finite(), pabrik: s("pabrik") });
+    }
+    /// A copy for `simpan_meta`, which runs off the main loop; None when no pool was added since the last one.
+    pub fn salinan_meta(&mut self) -> Option<(Vec<(String, MetaPool)>, HashMap<String, f64>)> {
+        if self.meta.len() == self.meta_tersimpan {
+            return None;
+        }
+        self.meta_tersimpan = self.meta.len();
+        Some((self.meta.iter().filter(|(_, m)| !m.t0.is_empty() && !m.t1.is_empty()).map(|(k, m)| (k.clone(), m.clone())).collect(), self.desimal.clone()))
+    }
+    /// Written entry by entry, to a temporary file first: a stop half way leaves the old file.
+    pub fn simpan_meta(meta: &[(String, MetaPool)], desimal: &HashMap<String, f64>, p: &Path) {
         let tmp = p.with_extension("tmp");
-        if std::fs::write(&tmp, Value::Object(o).to_string()).is_ok() {
-            let _ = std::fs::rename(tmp, p);
+        let tulis = || -> std::io::Result<()> {
+            let mut w = std::io::BufWriter::with_capacity(1 << 20, std::fs::File::create(&tmp)?);
+            w.write_all(b"{")?;
+            for (k, m) in meta {
+                let v = json!({"dex": m.dex, "t0": m.t0, "t1": m.t1, "fee": m.fee, "dec0": m.dec0, "dec1": m.dec1, "lahir": m.lahir, "pabrik": m.pabrik});
+                write!(w, "{}:{v},", Value::from(k.as_str()))?;
+            }
+            write!(w, "\"__desimal\":{}}}", json!(desimal))?;
+            w.flush()
+        };
+        if tulis().is_ok() {
+            let _ = std::fs::rename(&tmp, p);
         }
     }
     fn minta_meta(&mut self, pool: &str) {
