@@ -61,9 +61,9 @@ while read -r p; do
     else
         echo "pool $p ditolak selftest: $(tail -1 "$W/st.txt")"
     fi
-    [ "$(wc -l < "$W/pool.txt")" -ge 3 ] && break
+    [ "$(wc -l < "$W/pool.txt")" -ge 4 ] && break
 done < "$W/calon.txt"
-P1=$(sed -n 1p "$W/pool.txt"); P2=$(sed -n 2p "$W/pool.txt"); P3=$(sed -n 3p "$W/pool.txt")
+P1=$(sed -n 1p "$W/pool.txt"); P2=$(sed -n 2p "$W/pool.txt"); P3=$(sed -n 3p "$W/pool.txt"); P4=$(sed -n 4p "$W/pool.txt")
 [ -n "$P3" ] || { echo "GAGAL: kurang dari 3 pool lolos selftest"; exit 1; }
 echo "pools: $P1 $P2 $P3"
 
@@ -98,8 +98,8 @@ jalan tx_hilang "$W/fork.env" hilang "$P1" "$P3"
 curl -s -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"evm_setAutomine","params":[true]}' http://127.0.0.1:8545 >/dev/null
 say "approval revert: posisi stuck, lalu pulih setelah approval bisa jalan lagi"
 sed -e "s#^EXEC_GAS_LIMIT_APPROVE=.*#EXEC_GAS_LIMIT_APPROVE=50000#" "$W/fork.env" > "$W/gas.env"
-jalan approve_gagal "$W/gas.env" appr "$P2"
-jalan approve_pulih "$W/fork.env" appr "$P2"
+jalan approve_gagal "$W/gas.env" appr "$P4"
+jalan approve_pulih "$W/fork.env" appr "$P4"
 say "satu endpoint menerima sambungan tapi tidak pernah menjawab"
 printf '127.0.0.3 fork4.uji.local\n' | sudo tee -a /etc/hosts >/dev/null
 openssl req -newkey rsa:2048 -nodes -keyout "$W/tls/m.key" -out "$W/tls/m.csr" -subj "/CN=fork4.uji.local" 2>/dev/null
