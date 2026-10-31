@@ -7,6 +7,7 @@ pub mod abi;
 pub mod amm;
 pub mod chain;
 pub mod config;
+pub mod e2e;
 pub mod fills;
 pub mod ledger;
 pub mod pools;

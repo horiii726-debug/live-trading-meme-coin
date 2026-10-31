@@ -1,0 +1,46 @@
+name: uji-siap
+# Test only (branch uji-siap, never merged): the parts of the bot no other test reaches.
+#   fork    real signed transactions from the real executor against a forked copy of the chain
+#   menu    every rhc.sh command on a real install
+#   windows a Windows build, to run the bot in shadow mode on the owner's PC with their own paid RPC
+on:
+  workflow_dispatch:
+  push:
+    branches: [uji-siap]
+permissions:
+  contents: read
+
+jobs:
+  fork:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y -qq pkg-config libssl-dev socat
+      - run: cargo build --release --locked
+      - name: anvil
+        run: |
+          curl -sSL -o /tmp/f.tgz https://github.com/foundry-rs/foundry/releases/download/stable/foundry_stable_linux_amd64.tar.gz
+          mkdir -p ~/.foundry/bin && tar -xzf /tmp/f.tgz -C ~/.foundry/bin
+          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
+      - run: anvil --version
+      - name: real transactions on the fork
+        run: bash .github/uji/fork_jalan.sh target/release/rhc-trader
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fork-hasil
+          path: hasil/
+          retention-days: 14
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo build --release --locked -p rhc-trader
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rhc-trader-windows
+          path: target/release/rhc-trader.exe
+          retention-days: 7

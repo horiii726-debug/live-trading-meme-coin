@@ -109,6 +109,7 @@ fn main() {
         (Some("live"), _) => live::jalan(cfg, &bot_dir, env_file.as_deref()),
         (Some("exec"), Some("selftest")) => exec::selftest::run(&urls, cfg.doh, opt("--pool").as_deref(), opt("--init-block").and_then(|b| b.parse().ok())),
         (Some("exec"), Some("status")) => exec_status(&bot_dir, env_file.as_deref()),
+        (Some("exec"), Some("e2e")) => exec::e2e::run(&cfg, env_file.as_deref(), &bot_dir, args.get(3).map(|s| s.as_str()).unwrap_or(""), &opt("--pool").unwrap_or_default(), opt("--pool2").filter(|p| !p.is_empty()).as_deref()),
         (Some("wallet"), Some("address")) => wallet_address(&cfg, env_file.as_deref()),
         (Some("unduh"), _) if args.len() >= 5 => net::Rpc::new(&cfg.rpc_urls, cfg.doh).and_then(|r| unduh::unduh(&r, args[2].parse().unwrap_or(0), args[3].parse().unwrap_or(0), &args[4])),
         (Some("fast"), _) if args.len() >= 5 => net::Rpc::new(&cfg.rpc_urls, cfg.doh).and_then(|r| fast_download::download_fast(&r, args[2].parse().unwrap_or(0), args[3].parse().unwrap_or(0), &args[4])),
