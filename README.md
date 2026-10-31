@@ -11,6 +11,9 @@
 VPS: **Ubuntu 22.04/24.04**, **x86_64** (AMD/Intel, bukan ARM), RAM 4 GB disarankan (2 GB jalan: swap dibuat otomatis), disk kosong ≥ 10 GB.
 Lokasi bebas — kalau DNS VPS memblokir RPC (mis. Internet Positif), script mendeteksinya dan memakai DNS-over-HTTPS.
 
+Di Vast.ai (container): pilih instance **On-demand** (bukan Interruptible), disk minimal 30 GB, buka terminal instance-nya,
+lalu tempel baris di bawah **tanpa kata `sudo`**, karena di sana Anda sudah root dan `sudo` belum tentu ada.
+
 Masuk VPS (`ssh root@IP-VPS`), lalu tempel **satu baris** ini:
 
 ```

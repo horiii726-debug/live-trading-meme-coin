@@ -1,0 +1,55 @@
+name: uji-kontainer
+# Real install inside a container, as on Vast.ai: no systemd, root, no sudo. One image already runs supervisor (Vast's
+# own images do), one has nothing. Then a stop and start of the container, and the bot must come back.
+on:
+  workflow_dispatch:
+  push:
+    branches: [vast]
+permissions:
+  contents: read
+
+jobs:
+  kontainer:
+    name: kontainer (${{ matrix.nama }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nama: tanpa supervisor
+            pra: "true"
+          - nama: supervisor sudah jalan
+            pra: "apt-get install -y -qq supervisor >/dev/null && (supervisord -c /etc/supervisor/supervisord.conf; true)"
+    steps:
+      - uses: actions/checkout@v4
+      - name: a container like a Vast.ai instance
+        run: |
+          docker run -d --name vast -v "$PWD:/repo:ro" ubuntu:24.04 sleep infinity
+          docker exec vast bash -c "apt-get update -qq && apt-get install -y -qq curl python3 git ca-certificates >/dev/null"
+          docker exec vast bash -c "${{ matrix.pra }}"
+          docker exec vast bash -c "command -v sudo || echo 'tidak ada sudo'; [ -d /run/systemd/system ] || echo 'tidak ada systemd'"
+      - name: install — the README's line, without sudo
+        run: |
+          url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/mulai.sh"
+          docker exec vast git clone -q -b "$GITHUB_REF_NAME" "https://github.com/$GITHUB_REPOSITORY.git" /root/live-trading-meme-coin
+          docker exec -t -e UJI_RPC_BAWAAN=true vast python3 /repo/.github/uji/ketik.py "curl -sSL $url | bash"
+      - name: the bot runs and the commands work
+        run: |
+          docker exec vast bash -c "supervisorctl status rhc-trader"
+          docker exec vast bash -c "supervisorctl status rhc-trader" | grep -q RUNNING
+          sleep 60
+          docker exec vast bash -c "cd /root/live-trading-meme-coin && ./rhc.sh status" | tee /tmp/s.txt
+          grep -q 'service   : JALAN' /tmp/s.txt
+          docker exec vast bash -c "cd /root/live-trading-meme-coin && sudo ./rhc.sh cek" | tail -2 | tee /tmp/c.txt
+          grep -q 'SELFTEST OK' /tmp/c.txt
+          docker exec vast bash -c "cat /root/onstart.sh 2>/dev/null; true"
+      - name: stop and start the instance
+        run: |
+          docker restart vast
+          sleep 5
+          docker exec vast bash -c "[ -f /root/onstart.sh ] && bash /root/onstart.sh; true"
+          sleep 45
+          docker exec vast bash -c "supervisorctl status rhc-trader" | tee /tmp/r.txt
+          grep -q RUNNING /tmp/r.txt
+          docker exec vast bash -c "tail -n 5 /opt/rhc/bot/rust_live/live.log" | cut -c1-140

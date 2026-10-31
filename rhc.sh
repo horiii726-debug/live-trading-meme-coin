@@ -119,7 +119,11 @@ cmd_pasang(){
     if command -v apt-get >/dev/null; then
         apt_update
         DEBIAN_FRONTEND=noninteractive $APT install -y --no-install-recommends \
-            build-essential pkg-config libssl-dev ca-certificates curl git cron >/dev/null
+            build-essential pkg-config libssl-dev ca-certificates curl git cron sudo python3 >/dev/null
+        # a container (Vast.ai, Docker) has no systemd: the bot runs under supervisor
+        if [ ! -d /run/systemd/system ] && ! command -v supervisorctl >/dev/null; then
+            DEBIAN_FRONTEND=noninteractive $APT install -y --no-install-recommends supervisor >/dev/null
+        fi
     fi
     say "    siap"
 
@@ -177,6 +181,13 @@ BANNER
       supervisor)
         install -d -m 755 /etc/supervisor/conf.d /var/log/portal
         install -m 644 "$ROOT/deploy/rhc-trader.supervisor.conf" /etc/supervisor/conf.d/rhc-trader.conf
+        # a plain container image does not start the daemon by itself
+        if ! supervisorctl pid >/dev/null 2>&1; then
+            supervisord -c /etc/supervisor/supervisord.conf
+            for _ in 1 2 3 4 5; do supervisorctl pid >/dev/null 2>&1 && break; sleep 1; done
+            # and after the instance restarts: Vast.ai runs this file at every start
+            grep -qs 'supervisord -c' /root/onstart.sh || printf '%s\n' 'supervisorctl pid >/dev/null 2>&1 || supervisord -c /etc/supervisor/supervisord.conf' >> /root/onstart.sh
+        fi
         supervisorctl reread >/dev/null 2>&1 || true
         supervisorctl update >/dev/null 2>&1 || true
         if command -v crontab >/dev/null && crontab -l 2>/dev/null | grep -q latih_ulang.py; then
