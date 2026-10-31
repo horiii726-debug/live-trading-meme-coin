@@ -1,12 +1,12 @@
 name: uji-siap
 # Test only (branch uji-siap, never merged): the parts of the bot no other test reaches.
 #   fork    real signed transactions from the real executor against a forked copy of the chain
-#   menu    every rhc.sh command on a real install
 #   windows a Windows build, to run the bot in shadow mode on the owner's PC with their own paid RPC
 on:
   workflow_dispatch:
   push:
     branches: [uji-siap]
+    paths: ['crates/**', '.github/uji/fork_jalan.sh', '.github/uji/pilih_pool.py']
 permissions:
   contents: read
 

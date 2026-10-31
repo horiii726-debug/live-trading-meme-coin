@@ -1,0 +1,24 @@
+name: uji-menu
+# Test only (branch uji-siap, never merged): installs like the README, then runs every rhc.sh command and the emergency
+# files, one by one. The wallet is a fresh random key with no ETH.
+on:
+  workflow_dispatch:
+  push:
+    branches: [uji-siap]
+    paths: ['.github/uji/menu_jalan.sh', '.github/workflows/uji-menu.yml']
+permissions:
+  contents: read
+
+jobs:
+  menu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: install — the README's one line
+        run: |
+          sudo git clone -q -b "$GITHUB_REF_NAME" "https://github.com/$GITHUB_REPOSITORY.git" /root/live-trading-meme-coin
+          url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/mulai.sh"
+          python3 .github/uji/ketik.py "curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash"
+      - name: every command, one by one
+        run: bash .github/uji/menu_jalan.sh
