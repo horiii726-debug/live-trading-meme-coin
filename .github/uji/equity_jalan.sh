@@ -28,22 +28,9 @@ bangun(){
     git -C "/tmp/b_$1" log --oneline -1
 }
 bangun main origin/main
-bangun baru origin/perbaikan-siap
-
 jalan(){
     say "backtest: $1"
-    env -i PATH="$PATH" HOME="$HOME" START_USD=100 BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost LAT_BLOCKS=3 $SYS_A \
-        "/tmp/b_$2/target/release/rhc-trader" sim "$W/all" 65779486 90197095 "$O/trades_$1.jsonl" --bot "/tmp/b_$2/models" 2>&1 \
-        | grep -E "^SIM|cek kausal" | sed "s/^/$1 | /" | tee -a "$O/equity.txt"
+    env -i PATH="$PATH" HOME="$HOME" START_USD=100 BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost LAT_BLOCKS=3 $SYS_A         "/tmp/b_$2/target/release/rhc-trader" sim "$W/all" 65779486 90197095 "$O/trades_$1.jsonl" --bot "/tmp/b_$2/models" 2>&1         | grep -E "^SIM" | sed "s/^/$1 | /" | tee -a "$O/equity.txt"
 }
 jalan main main
-jalan main_ulang main
-jalan baru baru
-
-say "perbandingan trade demi trade"
-{
-    sha256sum "$O"/trades_*.jsonl | sed "s#$O/##"
-    wc -l "$O"/trades_*.jsonl | sed "s#$O/##"
-    if cmp -s "$O/trades_main.jsonl" "$O/trades_baru.jsonl"; then echo "IDENTIK: main dan perbaikan menghasilkan semua trade yang sama, byte demi byte"; else echo "BEDA: main dan perbaikan tidak sama"; fi
-    if cmp -s "$O/trades_main.jsonl" "$O/trades_main_ulang.jsonl"; then echo "main diulang: identik"; else echo "main diulang: beda"; fi
-} | tee -a "$O/equity.txt"
+python3 .github/uji/hook_stat.py "$W/all/pools.csv" "$O/trades_main.jsonl" | tee -a "$O/equity.txt"
