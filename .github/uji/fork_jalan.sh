@@ -14,7 +14,7 @@ say "anvil: fork of the live chain"
 tip=$(curl -s -m 20 -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' $PUB | python3 -c "import json,sys;print(int(json.load(sys.stdin)['result'],16))")
 FORK=$((tip - 50))
 echo "tip $tip, fork at $FORK"
-anvil --fork-url "$PUB" --fork-block-number "$FORK" --chain-id 4663 --port 8545 --host 127.0.0.1 --retries 30 --fork-retry-backoff 1500 --no-storage-caching --hardfork latest > "$W/anvil.log" 2>&1 &
+anvil --fork-url "$PUB" --fork-block-number "$FORK" --chain-id 4663 --port 8545 --host 127.0.0.1 --retries 30 --fork-retry-backoff 1500 --no-storage-caching > "$W/anvil.log" 2>&1 &
 for i in $(seq 1 120); do
     r=$(curl -s -m 3 -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' http://127.0.0.1:8545) && [ -n "$r" ] && break
     sleep 1
