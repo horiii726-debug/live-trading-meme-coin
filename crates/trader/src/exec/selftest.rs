@@ -17,11 +17,11 @@ use super::{amm, pools, uniswap};
 use crate::net::Rpc;
 
 /// `eth_simulateV1` reports native ETH movements as transfers of this pseudo token.
-const NATIVE_PSEUDO: &str = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+pub const NATIVE_PSEUDO: &str = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 /// Throwaway sender; it has no key and exists only inside the simulation (funded by a state override).
 const SIM_SENDER: &str = "0x5e1f5e1f5e1f5e1f5e1f5e1f5e1f5e1f5e1f5e1f";
 
-fn transfers_to(logs: &Value, token: &str, to: &Address) -> U256 {
+pub fn transfers_to(logs: &Value, token: &str, to: &Address) -> U256 {
     let to_s = format!("{to:x}");
     logs.as_array()
         .into_iter()

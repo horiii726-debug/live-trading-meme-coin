@@ -625,19 +625,21 @@ impl Executor {
         }
     }
 
-    /// Buy, both approvals and a sell of half the tokens, simulated from the wallet (funded by a state override).
+    /// Buy, both approvals and a sell of the tokens, simulated from the wallet (funded by a state override). The sale
+    /// must also bring the money back: a hook can let it through and keep most of the ETH.
     fn cek_bisa_dijual(&self, key: &Key, amount_in: u128, min_out: u128, data: &Bytes) -> Result<(), String> {
         let me = self.sender.address;
         let now = unix_now();
         let approve = uniswap::erc20_approve_permit2_calldata();
         let p2 = uniswap::permit2_approve_router_calldata(key.token(), now + 86_400)?;
-        let sell = uniswap::sell_calldata(key, U256::from(min_out / 2), 1, U256::from(now + 300))?;
+        let sell = uniswap::sell_calldata(key, U256::from(min_out), 1, U256::from(now + 300))?;
         let call = |to: Address, value: U256, d: &Bytes| json!({"from": format!("{me:#x}"), "to": format!("{to:#x}"), "value": hx(value), "data": format!("0x{}", hex::encode(d)), "gas": "0x16e360"});
         let calls = vec![call(UNIVERSAL_ROUTER, U256::from(amount_in), data), call(key.token(), U256::ZERO, &approve), call(chain::PERMIT2, U256::ZERO, &p2), call(UNIVERSAL_ROUTER, U256::ZERO, &sell)];
         let saldo = hx(U256::from(amount_in).saturating_add(U256::from(10u128.pow(18))));
-        let req = json!({"blockStateCalls": [{"stateOverrides": {format!("{me:#x}"): {"balance": saldo}}, "calls": calls}], "validation": false});
+        let req = json!({"blockStateCalls": [{"stateOverrides": {format!("{me:#x}"): {"balance": saldo}}, "calls": calls}], "traceTransfers": true, "validation": false});
         let v = self.sender.simulate(&req, Duration::from_millis(1500)).map_err(|_| "cek jual: simulasi tidak terjawab".to_string())?;
-        jual_lolos(&v)
+        // min_out is 90% of the tokens: a healthy round trip brings back about 88% of the ETH
+        jual_lolos(&v, &me, U256::from(amount_in) * U256::from(MIN_BALIK_PERSEN) / U256::from(100u8))
     }
 
     fn simulate_buy(&self, key: &Key, pool: &str, amount_in: u128, data: &Bytes) -> Result<(U256, U256), String> {
@@ -1246,17 +1248,25 @@ impl Executor {
     }
 }
 
-/// Every simulated step of the sell check succeeded.
-fn jual_lolos(v: &Value) -> Result<(), String> {
+/// Least ETH a simulated sale may bring back, in percent of the buy: below this the coin takes too much on the way out.
+const MIN_BALIK_PERSEN: u8 = 70;
+
+/// Every simulated step of the sell check succeeded and the sale brought back at least `min_balik` wei.
+fn jual_lolos(v: &Value, me: &Address, min_balik: U256) -> Result<(), String> {
     let hasil = v[0]["calls"].as_array().ok_or("cek jual: jawaban simulasi rusak")?;
     let nama = ["beli", "approve token", "approve Permit2", "jual"];
     if hasil.len() != nama.len() {
         return Err("cek jual: jawaban simulasi rusak".into());
     }
     match nama.iter().zip(hasil).find(|(_, r)| r["status"].as_str() != Some("0x1")) {
-        Some((n, _)) => Err(format!("cek jual: {n} gagal di simulasi, koin dilewati")),
-        None => Ok(()),
+        Some((n, _)) => return Err(format!("cek jual: {n} gagal di simulasi, koin dilewati")),
+        None => {}
     }
+    let balik = super::selftest::transfers_to(&hasil[3]["logs"], super::selftest::NATIVE_PSEUDO, me);
+    if balik < min_balik {
+        return Err(format!("cek jual: hasil jual terlalu kecil ({balik} wei, minimal {min_balik}), koin dilewati"));
+    }
+    Ok(())
 }
 
 /// Flatten callTracer logs (nested calls) into receipt-shaped logs.
@@ -1289,13 +1299,21 @@ mod tests {
 
     #[test]
     fn sell_check_needs_every_step() {
+        let me = Address::repeat_byte(0x11);
+        let min = U256::from(70u8);
         let ok = json!({"status": "0x1"});
         let gagal = json!({"status": "0x0"});
-        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, ok]}])).is_ok());
-        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, gagal]}])).unwrap_err().contains("jual gagal"));
-        assert!(jual_lolos(&json!([{"calls": [gagal, ok, ok, ok]}])).unwrap_err().contains("beli gagal"));
-        assert!(jual_lolos(&json!([{"calls": [ok]}])).is_err(), "a short answer is not a pass");
-        assert!(jual_lolos(&json!({"error": "x"})).is_err());
+        let jual = |wei: u8| {
+            let to = format!("0x{:0>64}", format!("{me:x}"));
+            json!({"status": "0x1", "logs": [{"address": super::super::selftest::NATIVE_PSEUDO, "topics": [super::super::abi::TOPIC_TRANSFER, to, to], "data": format!("0x{wei:x}")}]})
+        };
+        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, jual(88)]}]), &me, min).is_ok());
+        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, jual(30)]}]), &me, min).unwrap_err().contains("terlalu kecil"), "a big sell tax");
+        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, ok]}]), &me, min).is_err(), "a sale that returns nothing");
+        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, gagal]}]), &me, min).unwrap_err().contains("jual gagal"));
+        assert!(jual_lolos(&json!([{"calls": [gagal, ok, ok, jual(88)]}]), &me, min).unwrap_err().contains("beli gagal"));
+        assert!(jual_lolos(&json!([{"calls": [ok]}]), &me, min).is_err(), "a short answer is not a pass");
+        assert!(jual_lolos(&json!({"error": "x"}), &me, min).is_err());
     }
 
     #[test]
