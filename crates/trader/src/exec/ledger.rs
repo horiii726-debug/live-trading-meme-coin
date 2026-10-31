@@ -421,6 +421,7 @@ mod tests {
         let mut p = pos("0xp");
         p.status = PosStatus::BuyFailed;
         p.eth_in = U256::from(10u128.pow(16));
+        p.eth_out = U256::ZERO;
         p.gas_wei = U256::from(10u128.pow(12));
         l.positions.insert("0xp".into(), p);
         l.archive("0xp", 2000.0);
@@ -432,6 +433,7 @@ mod tests {
     fn a_reverted_approval_is_stuck_until_retried() {
         let mut p = pos("0xp");
         p.status = PosStatus::Stuck;
+        p.approvals_ready = false;
         p.txs.push(rec(TxPurpose::ApproveToken, TxState::Reverted, 1000, 0));
         assert!(p.approvals_stuck());
         assert!(!p.approvals_retry_due(10_000), "the plain retry never re-sends a reverted approval");
