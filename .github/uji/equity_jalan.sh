@@ -38,6 +38,6 @@ b = '        if sim.m.hooks.trim_start_matches("0x").chars().any(|c| c != \'0\')
 open(p, 'w', encoding='utf-8').write(s.replace(a, b + a))
 PY
 (cd /tmp/b_main && git log --oneline -1 && cargo build --release --locked -p rhc-trader 2>&1 | tail -1)
-env -i PATH="$PATH" HOME="$HOME" START_USD=100 BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost LAT_BLOCKS=3 $SYS_A \
-    /tmp/b_main/target/release/rhc-trader sim "$W/all" 65779486 90197095 "$O/trades_tanpa_hook.jsonl" --bot /tmp/b_main/models 2>&1 \
-    | grep -E "^SIM|cek kausal" | tee -a "$O/equity.txt"
+sed -e "s#^START_USD=.*#START_USD=100#" -e "s#^KELLY_SEED=.*#KELLY_SEED=/tmp/b_main/models/kelly_seed_backtest_last100.json#" /tmp/b_main/config/trader.env.example > "$W/sim.env"
+grep -nE "^(START_USD|KELLY_SEED|LAT_BLOCKS|MAX_POS|MAX_POS_AWAL|BELAJAR|QTHR)" "$W/sim.env"
+BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost /tmp/b_main/target/release/rhc-trader sim "$W/all" 65779486 90197095 "$O/trades_terpasang.jsonl" --bot /tmp/b_main/models --env "$W/sim.env" 2>&1     | grep -E "^SIM|cek kausal" | tee -a "$O/equity.txt"
