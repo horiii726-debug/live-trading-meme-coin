@@ -96,6 +96,20 @@ sleep 1
 jalan pulih "$W/fork.env" mati "$P2"
 jalan tx_hilang "$W/fork.env" hilang "$P1" "$P3"
 curl -s -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"evm_setAutomine","params":[true]}' http://127.0.0.1:8545 >/dev/null
+say "approval revert: posisi stuck, lalu pulih setelah approval bisa jalan lagi"
+sed -e "s#^EXEC_GAS_LIMIT_APPROVE=.*#EXEC_GAS_LIMIT_APPROVE=50000#" "$W/fork.env" > "$W/gas.env"
+jalan approve_gagal "$W/gas.env" appr "$P2"
+jalan approve_pulih "$W/fork.env" appr "$P2"
+say "satu endpoint menerima sambungan tapi tidak pernah menjawab"
+printf '127.0.0.3 fork4.uji.local\n' | sudo tee -a /etc/hosts >/dev/null
+openssl req -newkey rsa:2048 -nodes -keyout "$W/tls/m.key" -out "$W/tls/m.csr" -subj "/CN=fork4.uji.local" 2>/dev/null
+printf 'subjectAltName=DNS:fork4.uji.local\n' > "$W/tls/ext4"
+openssl x509 -req -in "$W/tls/m.csr" -CA "$W/tls/ca.crt" -CAkey "$W/tls/ca.key" -CAcreateserial -days 2 -extfile "$W/tls/ext4" -out "$W/tls/m.crt" 2>/dev/null
+cat "$W/tls/m.crt" "$W/tls/m.key" > "$W/tls/m.pem"
+sudo nohup socat OPENSSL-LISTEN:443,bind=127.0.0.3,fork,reuseaddr,cert="$W/tls/m.pem",verify=0 EXEC:"sleep 600" > /dev/null 2>&1 &
+sleep 1
+sed -e "s#^RPC_URLS=.*#RPC_URLS=https://fork1.uji.local,https://fork4.uji.local#" "$W/fork.env" > "$W/macet.env"
+jalan ujung_macet "$W/macet.env" macet "$P1"
 say "endpoint pertama mati: semua harus lewat endpoint kedua"
 sed -e "s#^RPC_URLS=.*#RPC_URLS=https://fork3.uji.local,https://fork1.uji.local#" "$W/fork.env" > "$W/mati1.env"
 jalan normal "$W/mati1.env" ep "$P3"

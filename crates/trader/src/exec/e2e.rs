@@ -340,6 +340,36 @@ pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenari
             u.habis(&p2)?;
             lulus(skenario, &u, k2.token(), &p2)
         }
+        // the approval reverts (here: out of gas, the gas limit of this run is too low): the position is stuck, unsold
+        "approve_gagal" => {
+            u.beli(&pool, key, u.state(&pool)?);
+            u.tunggu("approval revert, posisi stuck", 60, |u| u.pos(&pool)["status"] == "stuck")?;
+            println!("SKENARIO {skenario}: LULUS | approval revert tercatat, posisi stuck");
+            Ok(())
+        }
+        // the next run has a working limit: a simulation passes, the approvals go out again, the position is sold
+        "approve_pulih" => {
+            u.h.reconcile(vec![]);
+            u.tunggu("approval dikirim ulang dan posisi terjual", 90, |u| u.pos(&pool)["status"] == "closed")?;
+            println!("   reapprove tercatat: {}", u.jurnal_n("reapprove"));
+            u.habis(&pool)?;
+            lulus(skenario, &u, token, &pool)
+        }
+        // one endpoint accepts the connection and never answers: the executor must not wait for it
+        "ujung_macet" => {
+            u.beli(&pool, key, u.state(&pool)?);
+            u.terbuka(&pool)?;
+            let ms: Vec<u64> = u.jurnal().iter().filter(|j| j["event"] == "buy_sent").filter_map(|j| j["data"]["broadcast_ms"].as_u64()).collect();
+            println!("   lama kirim beli: {ms:?} ms");
+            if ms.iter().any(|m| *m > 1500) {
+                return Err(format!("kirim beli menunggu ujung yang macet: {ms:?} ms"));
+            }
+            u.order(&pool, OrderKind::Exit { why: "model bahaya".into() }, key, Some(u.state(&pool)?));
+            u.tunggu("habis", 30, |u| u.pos(&pool)["status"] == "closed")?;
+            u.model_tutup(&pool, key);
+            u.habis(&pool)?;
+            lulus(skenario, &u, token, &pool)
+        }
         _ => Err(format!("skenario tidak dikenal: {skenario}")),
     }
 }
