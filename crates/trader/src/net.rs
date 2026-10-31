@@ -1,6 +1,5 @@
 //! Jaringan bot: HTTPS (TLS bawaan Windows lewat native-tls/Schannel) dengan sambungan DIPAKAI ULANG
-//! (keep-alive) + DoH (DNS lewat HTTPS ke 1.1.1.1, karena DNS ISP dibajak). Hanya panggilan BACA:
-//! bot ini tidak punya kode untuk mengirim transaksi.
+//! (keep-alive) + DoH (DNS lewat HTTPS ke 1.1.1.1, karena DNS ISP dibajak).
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
@@ -32,9 +31,14 @@ impl Conn {
     }
     /// Kirim satu permintaan (GET kalau body None). Sambung ulang sekali kalau sambungan lama sudah mati.
     pub fn request(&mut self, path: &str, body: Option<&str>, extra: &str, to: Duration) -> Result<String, String> {
+        // the first failure is the one reported: the request may have been written on that try, and a connect error
+        // or a 429 on the retry must not make a sent transaction look as if it never left (sender.rs classify)
+        let mut pertama: Option<String> = None;
         for percobaan in 0..2 {
             if self.s.is_none() {
-                self.connect(to)?;
+                if let Err(e) = self.connect(to) {
+                    return Err(pertama.unwrap_or(e));
+                }
             }
             if let Some(s) = self.s.as_mut() {
                 s.get_ref().get_ref().set_read_timeout(Some(to)).ok();
@@ -44,8 +48,9 @@ impl Conn {
                 Err(e) => {
                     self.s = None;
                     if percobaan == 1 || e.starts_with("net: http") {
-                        return Err(e);
+                        return Err(pertama.unwrap_or(e));
                     }
+                    pertama = Some(e);
                 }
             }
         }
@@ -153,7 +158,12 @@ pub struct Rpc {
     eps: Arc<Vec<Ep>>,
     idx: Arc<std::sync::atomic::AtomicUsize>,
     doh: bool,
+    /// when the client was first seen away from the first endpoint
+    pindah: Arc<Mutex<Option<Instant>>>,
 }
+
+/// How long a failover lasts before the first endpoint (the owner's own RPC) gets another try.
+const KEMBALI: Duration = Duration::from_secs(5);
 
 impl Rpc {
     pub fn new(urls: &str, doh: bool) -> Result<Rpc, String> {
@@ -169,7 +179,28 @@ impl Rpc {
         if eps.is_empty() {
             return Err("RPC_URLS kosong".into());
         }
-        Ok(Rpc { eps: Arc::new(eps), idx: Arc::new(std::sync::atomic::AtomicUsize::new(0)), doh })
+        Ok(Rpc { eps: Arc::new(eps), idx: Arc::new(std::sync::atomic::AtomicUsize::new(0)), doh, pindah: Arc::new(Mutex::new(None)) })
+    }
+    /// The endpoint to use now. One 429 from the first endpoint must not leave the bot on the slower public RPC until
+    /// that one fails too, so after `KEMBALI` the first endpoint is tried again.
+    fn kini(&self) -> usize {
+        let cur = self.idx.load(std::sync::atomic::Ordering::Relaxed) % self.eps.len();
+        if cur == 0 {
+            return 0;
+        }
+        let mut t = self.pindah.lock().unwrap();
+        match *t {
+            Some(x) if x.elapsed() >= KEMBALI => {
+                *t = None;
+                self.idx.store(0, std::sync::atomic::Ordering::Relaxed);
+                0
+            }
+            Some(_) => cur,
+            None => {
+                *t = Some(Instant::now());
+                cur
+            }
+        }
     }
     pub fn rotate(&self) {
         self.idx.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -198,7 +229,7 @@ impl Rpc {
         Ok(ip)
     }
     pub fn call_once(&self, method: &str, params: Value, to: Duration) -> Result<Value, String> {
-        let cur = self.idx.load(std::sync::atomic::Ordering::Relaxed) % self.eps.len();
+        let cur = self.kini();
         let r = self.call_at(&self.eps[cur], method, params.clone(), to);
         // Some paid endpoints cap the eth_getLogs block range; fall back to the other endpoints for wide scans only.
         match r {
@@ -248,7 +279,7 @@ impl Rpc {
     }
     /// Beberapa panggilan dalam SATU permintaan HTTP (batch JSON-RPC). Hasil diurutkan sesuai urutan masukan.
     pub fn batch(&self, calls: &[(&str, Value)], to: Duration) -> Result<Vec<Result<Value, String>>, String> {
-        let cur = self.idx.load(std::sync::atomic::Ordering::Relaxed) % self.eps.len();
+        let cur = self.kini();
         match self.batch_at(&self.eps[cur], calls, to) {
             // the request itself failed (timeout, HTTP 429/5xx, not JSON): try the other endpoints, stay on the one that answers
             Err(e) => {
@@ -355,5 +386,24 @@ impl Rpc {
             }
         }
         Err(last)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn a_failover_goes_back_to_the_first_endpoint() {
+        let r = Rpc::new("https://a.example/k,https://b.example", false).unwrap();
+        assert_eq!(r.kini(), 0);
+        r.idx.store(1, Ordering::Relaxed);
+        assert_eq!(r.kini(), 1, "stays on the second endpoint right after the failover");
+        assert_eq!(r.kini(), 1);
+        *r.pindah.lock().unwrap() = Some(Instant::now() - KEMBALI - Duration::from_millis(1));
+        assert_eq!(r.kini(), 0, "the first endpoint gets another try");
+        assert_eq!(r.current_host(), "a.example");
+        assert!(r.pindah.lock().unwrap().is_none());
     }
 }

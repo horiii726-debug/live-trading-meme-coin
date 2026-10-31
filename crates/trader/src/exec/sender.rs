@@ -160,23 +160,23 @@ impl Sender {
             if round > 0 {
                 std::thread::sleep(Duration::from_millis(300));
             }
-            let results: Vec<Result<Value, String>> = std::thread::scope(|s| {
-                let hs: Vec<_> = self
-                    .endpoints
-                    .iter()
-                    .map(|ep| {
-                        let raw = raw.clone();
-                        s.spawn(move || ep.call_once("eth_sendRawTransaction", json!([raw]), Duration::from_secs(4)))
-                    })
-                    .collect();
-                hs.into_iter().map(|h| h.join().unwrap_or_else(|_| Err("broadcast thread panicked".into()))).collect()
-            });
+            // one thread per endpoint; the executor goes on at the first acceptance, a slow endpoint finishes on its own
+            let (kirim, jawab) = std::sync::mpsc::channel();
+            for ep in &self.endpoints {
+                let (ep, raw, kirim) = (ep.clone(), raw.clone(), kirim.clone());
+                std::thread::spawn(move || {
+                    let _ = kirim.send(ep.call_once("eth_sendRawTransaction", json!([raw]), Duration::from_secs(4)));
+                });
+            }
+            drop(kirim);
             let mut nonce_low = false;
             let mut maybe = false;
-            let mut all_network = !results.is_empty();
+            let mut all_network = true;
+            let mut n_jawab = 0;
             let mut first_err = String::new();
-            for r in &results {
-                let (ok, low, net, may, msg) = classify(r, &tx.hash);
+            for r in jawab.iter() {
+                n_jawab += 1;
+                let (ok, low, net, may, msg) = classify(&r, &tx.hash);
                 if ok {
                     if tx.nonce == self.nonce {
                         self.nonce += 1;
@@ -190,6 +190,7 @@ impl Sender {
                     first_err = msg;
                 }
             }
+            all_network &= n_jawab > 0;
             if nonce_low && !maybe {
                 if delivered_before {
                     // these very bytes may have gone out in an earlier round: "nonce too low" now almost certainly

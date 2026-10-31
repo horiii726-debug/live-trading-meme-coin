@@ -137,6 +137,27 @@ else
     fi
 fi
 
+# ---------------------------------------------------------------- posisi terbuka
+# The ledger belongs to one wallet, and outside live mode the executor does not run: changing either while tokens are
+# held would strand them. An unreadable file counts as open (same rule as `rhc.sh bersih`).
+ada_posisi(){
+    local f=$BOT/rust_live/exec/positions.json
+    [ -s "$f" ] || return 1
+    command -v python3 >/dev/null || return 0
+    python3 -c 'import json,sys
+try: d = json.load(open(sys.argv[1]))
+except Exception: sys.exit(0)
+sys.exit(0 if any(p.get("status") in ("buying", "open", "stuck") for p in d.get("positions", {}).values()) else 1)' "$f"
+}
+if ada_posisi; then
+    if [ -n "$WALLET_PRIVATE_KEY" ] && [ -s "$KEYFILE" ] && [ "$(tr 'A-F' 'a-f' < "$KEYFILE")" != "$(printf '%s' "${WALLET_PRIVATE_KEY#0x}" | tr 'A-F' 'a-f')" ]; then
+        die "masih ada posisi terbuka di wallet lama. Jual dulu: sudo ./rhc.sh jual-semua, baru ganti wallet."
+    fi
+    if [ "$MODE" != live ] && [ -f "$BOT/.env" ] && grep -q '^EXEC_MODE=live' "$BOT/.env"; then
+        die "masih ada posisi terbuka. Jual dulu: sudo ./rhc.sh jual-semua, baru ganti mode."
+    fi
+fi
+
 # ---------------------------------------------------------------- kolom 2: kunci
 install -d -m 700 "$SECRETS"
 install -d -m 755 "$BOT"

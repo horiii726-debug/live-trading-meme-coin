@@ -1,7 +1,7 @@
 //! rhc-trader: Robinhood Chain memecoin strategy with an optional live execution layer (Uniswap v4).
 //!
-//! The decision engine (engine + features + account rules) is the backtested one, byte-for-byte; see
-//! `scripts/parity.sh`. Execution is off (paper) unless EXEC_MODE says otherwise.
+//! The decision engine (engine + features + account rules) is the backtested one. Execution is off (paper) unless
+//! EXEC_MODE says otherwise.
 //!
 //! Usage:
 //!   rhc-trader live   [--bot DIR] [--env FILE]                 run the strategy (paper / shadow / live per EXEC_MODE)
@@ -77,6 +77,14 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let opt = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
     let env_file = opt("--env");
+    // an unreadable .env must stop here: read as empty it would start a paper bot with default settings and leave
+    // real positions unmanaged while the service looks healthy
+    if let Some(f) = &env_file {
+        if let Err(e) = std::fs::read_to_string(f) {
+            eprintln!("ERROR: {f}: {e}");
+            std::process::exit(1);
+        }
+    }
     // before any thread starts: set_var is only sound while the process is single-threaded
     if let Some(f) = &env_file {
         for (k, v) in env_file_map(f) {

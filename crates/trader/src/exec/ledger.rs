@@ -117,8 +117,9 @@ impl Position {
     pub fn has_pending(&self) -> bool {
         self.txs.iter().any(|t| t.state == TxState::Pending)
     }
+    /// Newest record with this hash: the same bytes signed again (same nonce, calldata and fee) make a second record.
     pub fn tx_mut(&mut self, hash: &B256) -> Option<&mut TxRec> {
-        self.txs.iter_mut().find(|t| &t.hash == hash)
+        self.txs.iter_mut().rev().find(|t| &t.hash == hash)
     }
     pub fn is_live(&self) -> bool {
         matches!(self.status, PosStatus::Buying | PosStatus::Open | PosStatus::Stuck)
@@ -144,6 +145,10 @@ impl Position {
             && !self.has_pending()
             && !self.current_approvals().any(|t| t.state == TxState::Reverted)
             && self.current_approvals().map(|t| t.sent_ms).max().map_or(true, |t| now_ms.saturating_sub(t) > 2_000)
+    }
+    /// An approval reverted, so the position cannot be sold: worth checking again with a free simulation.
+    pub fn approvals_stuck(&self) -> bool {
+        self.status == PosStatus::Stuck && !self.approvals_ready && !self.has_pending() && self.current_approvals().any(|t| t.state == TxState::Reverted)
     }
     /// (ETH out - gas) / ETH in, after the position is closed.
     pub fn real_ret(&self) -> Option<f64> {
@@ -251,7 +256,9 @@ impl Ledger {
         let Some(mut p) = self.positions.remove(pool) else { return };
         p.closed_ms.get_or_insert(now_ms());
         let gas_usd = u256_f64(p.gas_wei) / 1e18 * eth_usd;
-        let pnl_usd = (u256_f64(p.eth_out) - u256_f64(p.eth_in) - u256_f64(p.gas_wei)) / 1e18 * eth_usd;
+        // a failed buy spent only its gas: eth_in is what it would have paid
+        let dibayar = if p.status == PosStatus::BuyFailed { 0.0 } else { u256_f64(p.eth_in) };
+        let pnl_usd = (u256_f64(p.eth_out) - dibayar - u256_f64(p.gas_wei)) / 1e18 * eth_usd;
         p.realized_usd = Some(pnl_usd);
         if !p.shadow {
             let day = (p.closed_ms.unwrap_or(0) / 86_400_000) as i64;
@@ -404,6 +411,34 @@ mod tests {
         assert_eq!(l2.recent_closed.len(), 1);
         assert_eq!(l2.totals.closed, 1);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_failed_buy_costs_only_its_gas() {
+        let dir = std::env::temp_dir().join(format!("rhc_ledger_gagal_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut l = Ledger::open(&dir).unwrap();
+        let mut p = pos("0xp");
+        p.status = PosStatus::BuyFailed;
+        p.eth_in = U256::from(10u128.pow(16));
+        p.eth_out = U256::ZERO;
+        p.gas_wei = U256::from(10u128.pow(12));
+        l.positions.insert("0xp".into(), p);
+        l.archive("0xp", 2000.0);
+        assert!((l.totals.realized_usd + 0.002).abs() < 1e-9, "only the gas is lost, got {}", l.totals.realized_usd);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_reverted_approval_is_stuck_until_retried() {
+        let mut p = pos("0xp");
+        p.status = PosStatus::Stuck;
+        p.approvals_ready = false;
+        p.txs.push(rec(TxPurpose::ApproveToken, TxState::Reverted, 1000, 0));
+        assert!(p.approvals_stuck());
+        assert!(!p.approvals_retry_due(10_000), "the plain retry never re-sends a reverted approval");
+        p.approvals_since_ms = 2000;
+        assert!(!p.approvals_stuck(), "a retry starts from a clean slate");
     }
 
     #[test]

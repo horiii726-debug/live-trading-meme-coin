@@ -28,6 +28,7 @@ main(){
 
     [ "$(id -u)" -eq 0 ] || die "jalankan dengan sudo:  curl -sSL <url>/mulai.sh | sudo bash"
     command -v apt-get >/dev/null || die "VPS harus Ubuntu atau Debian (apt-get tidak ada)."
+    [ "$(uname -m)" = x86_64 ] || die "VPS harus x86_64 (AMD/Intel), mesin ini $(uname -m): program latihan ML tidak tersedia untuk ARM."
     # stdin adalah pipa dari curl; pertanyaan butuh keyboard
     { : </dev/tty; } 2>/dev/null || die "tidak ada terminal. Jalankan dari sesi SSH biasa."
 
@@ -42,7 +43,12 @@ main(){
     say "1/6  kode"
     local avail_kb mem_kb swap_kb i
     avail_kb=$(df -Pk "$h" | awk 'NR==2{print $4}')
-    [ "${avail_kb:-0}" -ge 5000000 ] || die "disk kosong tinggal $((${avail_kb:-0} / 1024)) MB; butuh minimal 5 GB (Rust + build + Python)."
+    # an update needs far less than a first install
+    if [ -d "$dir/.git" ]; then
+        [ "${avail_kb:-0}" -ge 1000000 ] || die "disk kosong tinggal $((${avail_kb:-0} / 1024)) MB; pembaruan butuh minimal 1 GB."
+    else
+        [ "${avail_kb:-0}" -ge 5000000 ] || die "disk kosong tinggal $((${avail_kb:-0} / 1024)) MB; butuh minimal 5 GB (Rust + build)."
+    fi
     # a VPS bought minutes ago is still provisioning (cloud-init) and updating itself: let that finish first
     if command -v cloud-init >/dev/null && cloud-init status 2>/dev/null | grep -q running; then
         echo "    VPS masih menyiapkan diri (cloud-init) -> menunggu ..."
@@ -67,7 +73,9 @@ main(){
     # cargo's release build (fat LTO, one codegen unit) needs about 3 GB: a small VPS without swap is OOM-killed
     mem_kb=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
     swap_kb=$(awk '/^SwapTotal:/{print $2}' /proc/meminfo)
-    if [ $((mem_kb + swap_kb)) -lt 3500000 ] && [ ! -e /swapfile ]; then
+    if [ $((mem_kb + swap_kb)) -lt 3500000 ] && [ -e /swapfile ]; then
+        echo "    PERINGATAN: RAM + swap hanya $(((mem_kb + swap_kb) / 1024)) MB dan /swapfile sudah ada; build bisa gagal. Disarankan VPS RAM 4 GB."
+    elif [ $((mem_kb + swap_kb)) -lt 3500000 ]; then
         if [ "$avail_kb" -ge 9500000 ] && { fallocate -l 4G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none 2>/dev/null; } &&
            chmod 600 /swapfile && mkswap /swapfile >/dev/null 2>&1 && swapon /swapfile 2>/dev/null; then
             grep -q '^/swapfile ' /etc/fstab 2>/dev/null || echo '/swapfile none swap sw 0 0' >> /etc/fstab
@@ -84,6 +92,13 @@ main(){
     say "3/6  RPC + wallet"
     if [ -s /opt/rhc/bot/.env ] && [ -s /opt/rhc/secrets/wallet.key ]; then
         echo "    sudah diatur sebelumnya — dilewati (ubah kapan saja: cd $dir && sudo ./rhc.sh isi)"
+        # settings a new version added reach the bot; the owner's own values are never changed
+        local baris k
+        while IFS= read -r baris; do
+            case "$baris" in ""|\#*) continue;; esac
+            k=${baris%%=*}
+            grep -q "^$k=" /opt/rhc/bot/.env || { printf '%s\n' "$baris" >> /opt/rhc/bot/.env; echo "    setelan baru ditambahkan: $baris"; }
+        done < config/trader.env.example
     else
         # Plain questions instead of an editor: paste + Enter. Each answer is checked before the next question, then
         # all go into the form deploy/pasang.sh validates against the network; it blanks the secrets on success.
@@ -153,7 +168,7 @@ main(){
             unset pk
             if FORM=$FORM_TMP ./deploy/pasang.sh; then FORM_TMP=""; break; fi
             rm -f "$FORM_TMP"
-            n=$((n + 1)); [ $n -lt 3 ] || die "isian ditolak 3x. Coba lagi nanti: cd $dir && sudo ./rhc.sh isi"
+            n=$((n + 1)); [ $n -lt 3 ] || die "isian ditolak 3x. Periksa isiannya, lalu jalankan lagi perintah instal yang sama."
             echo ""; echo "    Ada isian yang ditolak (lihat pesan GAGAL di atas). Ditanya lagi ..."
         done
     fi
@@ -171,7 +186,7 @@ main(){
     done
     if [ $cek_ok = 0 ]; then
         [ $running = 1 ] && die "self-test versi baru gagal 4x — versi baru TIDAK dipasang, bot lama tetap jalan. Kirim pesan error di atas, atau periksa RPC: cd $dir && sudo ./rhc.sh isi"
-        die "self-test gagal 4x — bot TIDAK dijalankan. Kirim pesan error di atas, atau periksa RPC: cd $dir && sudo ./rhc.sh isi"
+        die "self-test gagal 4x — bot TIDAK dijalankan. Kirim pesan error di atas. Kalau RPC-nya salah: cd $dir && sudo ./rhc.sh isi, lalu jalankan lagi perintah instal yang sama."
     fi
     install -m 755 "$dir/target/release/rhc-trader" /opt/rhc/bin/rhc-trader
 
@@ -215,8 +230,12 @@ main(){
  Dengan saldo 0 bot hanya melewati pembelian; begitu terisi
  ia mulai trading dalam hitungan detik.
 
+ 30 koin pertama (kira-kira 45 menit) bot hanya menilai, belum
+ membeli. Sesudah itu bot bisa berjam-jam tidak membeli kalau
+ skor koin sedang rendah: itu normal.
+
  Pantau  : cd $dir && sudo ./rhc.sh log
- Status  : cd $dir && sudo ./rhc.sh status
+ Status  : cd $dir && sudo ./rhc.sh status   (saldo nyata ada di sini)
  Stop beli: sudo touch /opt/rhc/bot/rust_live/exec/STOP_BUYING
  Jual semua: cd $dir && sudo ./rhc.sh jual-semua
 
