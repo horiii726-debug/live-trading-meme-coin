@@ -234,6 +234,18 @@ impl Sender {
         None
     }
 
+    /// eth_simulateV1 on the first endpoint that answers within `to` each (a read, nothing is sent).
+    pub fn simulate(&self, req: &Value, to: Duration) -> Result<Value, String> {
+        let mut last = String::from("no endpoint");
+        for ep in &self.endpoints {
+            match ep.call_once("eth_simulateV1", json!([req, "latest"]), to) {
+                Ok(v) => return Ok(v),
+                Err(e) => last = e,
+            }
+        }
+        Err(last)
+    }
+
     /// Receipts for many hashes in one HTTP request. `None` = not mined yet (or the lookup failed).
     pub fn receipts(&self, hashes: &[B256]) -> Vec<Option<Value>> {
         if hashes.is_empty() {
