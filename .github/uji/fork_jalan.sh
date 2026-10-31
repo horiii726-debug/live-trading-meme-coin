@@ -89,7 +89,7 @@ jalan(){  # jalan <scenario> <env file> <state name> <pool> <pool2>
 }
 jalan normal "$W/fork.env" normal "$P1"
 jalan banyak "$W/fork.env" banyak "$P2" "$P3"
-jalan beli_gagal "$W/fork.env" belig "$P1"
+EXEC_CEK_JUAL=0 jalan beli_gagal "$W/fork.env" belig "$P1"
 jalan jual_basi "$W/fork.env" jbasi "$P2"
 jalan nonce "$W/fork.env" nonce "$P1"
 jalan tidak_bisa_jual "$W/fork.env" stuck "$P3"
