@@ -25,7 +25,7 @@ jobs:
           echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
       - run: anvil --version
       - name: real transactions on the fork
-        run: bash .github/uji/fork_jalan.sh target/release/rhc-trader
+        run: POOL_UJI=0x55c209db6c3125ba0a87a4d2308e7defaba32d3832776945dbc8d9cd3779a579@102729777 bash .github/uji/fork_jalan.sh target/release/rhc-trader
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -51,6 +51,7 @@ sed -e "s#^RPC_URLS=.*#RPC_URLS=https://fork1.uji.local,https://fork2.uji.local#
     config/trader.env.example > "$W/fork.env"
 sed -e "s#^RPC_URLS=.*#RPC_URLS=$PUB#" "$W/fork.env" > "$W/pub.env"
 
+if [ -z "${POOL_UJI:-}" ]; then
 say "pick real memecoin pools: most traded in the last blocks, then the bot's own selftest on each"
 python3 .github/uji/pilih_pool.py "$PUB" "$tip" > "$W/calon.txt"
 wc -l "$W/calon.txt"
@@ -67,7 +68,15 @@ P1=$(sed -n 1p "$W/pool.txt"); P2=$(sed -n 2p "$W/pool.txt"); P3=$(sed -n 3p "$W
 [ -n "$P3" ] || { echo "GAGAL: kurang dari 3 pool lolos selftest"; exit 1; }
 echo "pools: $P1 $P2 $P3"
 
+fi
 export E2E_KEY_RPC=$PUB E2E_KEY_FILE=$W/wallet.key
+# one hooked pool only: buy in one block, sell in a later block, through the bot's own router
+if [ -n "${POOL_UJI:-}" ]; then
+    d=$W/s_hook; mkdir -p "$d"
+    EXEC_STATE_DIR=$d/exec timeout 300 "$BIN" exec e2e normal --env "$W/fork.env" --bot "$d" --pool "$POOL_UJI" 2>&1 | tail -30 | cut -c1-900
+    grep -h '"event":"\(receipt\|sell_sent\|sell_presim_reverted\)"' "$d/exec/journal.jsonl" | cut -c1-260
+    exit 0
+fi
 gagal=0
 jalan(){  # jalan <scenario> <env file> <state name> <pool> <pool2>
     local s=$1 env=$2 d=$W/s_$3
