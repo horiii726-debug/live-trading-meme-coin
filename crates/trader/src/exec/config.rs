@@ -61,7 +61,8 @@ pub struct ExecConfig {
     pub buy_slippage_bps: u32,
     /// Sell tolerance per attempt; the last tier is reused for further attempts. 10000 = accept any output.
     pub sell_slippage_bps: Vec<u32>,
-    /// Drop a buy if it could not be sent within this many ms of the model's fill (the price would be stale).
+    /// Drop a buy that waited this many ms in the executor's queue. This measures queue time only: how old the block
+    /// behind the order may be is the strategy's own limit (FRESH_BLOCKS).
     pub max_buy_delay_ms: u64,
     /// Refuse new buys while the base fee is above this.
     pub max_base_fee_gwei: f64,

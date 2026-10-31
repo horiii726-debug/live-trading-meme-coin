@@ -93,6 +93,14 @@ fn unix_now() -> u64 {
     now_ms() / 1000
 }
 
+fn pendek(pool: &str) -> &str {
+    &pool[..10.min(pool.len())]
+}
+
+fn eth(v: U256) -> f64 {
+    u256_f64(v) / 1e18
+}
+
 pub struct Executor {
     cfg: ExecConfig,
     sender: Sender,
@@ -118,6 +126,8 @@ pub struct Executor {
     flatten_seen: bool,
     /// last expensive "is it still alive?" check per unconfirmed transaction (receipts are polled every 100 ms)
     checked: HashMap<B256, Instant>,
+    /// last simulated re-approval per pool whose approval reverted
+    cek_approve: HashMap<String, Instant>,
 }
 
 /// A startup read on a rate-limited RPC: one HTTP 429 must not stop the bot (systemd would restart it in a loop
@@ -176,6 +186,7 @@ pub fn start(cfg: ExecConfig, alert: Alert) -> Result<Option<ExecHandle>, String
         t_px: Instant::now() - Duration::from_secs(60),
         flatten_seen: false,
         checked: HashMap::new(),
+        cek_approve: HashMap::new(),
     };
     ex.refresh_eth_usd();
     ex.write_status();
@@ -231,6 +242,14 @@ impl Executor {
     fn skip(&mut self, pool: &str, why: &str) {
         self.bump(&format!("buy_skipped: {why}"));
         self.ledger.journal("buy_skipped", json!({"pool": pool, "why": why}));
+        (self.alert)(format!("BELI DILEWATI {}: {why}", pendek(pool)));
+    }
+
+    /// What happened to real money, for `rhc.sh log` (journal.jsonl keeps the full record).
+    fn catat(&self, msg: String) {
+        if self.live() {
+            (self.alert)(msg);
+        }
     }
 
     fn alert_once(&mut self, key: &str, msg: String) {
@@ -493,6 +512,12 @@ impl Executor {
                             return SendResult::Accepted;
                         }
                     }
+                    // no proof either way: it can still land, so it stays in flight and keeps its nonce until
+                    // check_timeout settles it. Written off here, a buy that landed later left tokens nobody tracks.
+                    self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
+                    self.last_error = error.chars().take(160).collect();
+                    self.ledger.journal("tx_unconfirmed", json!({"pool": pool, "hash": format!("{:#x}", tx.hash), "nonce": tx.nonce}));
+                    return SendResult::Accepted;
                 }
                 self.mark_tx(pool, &tx.hash, TxState::Dropped);
                 self.last_error = error.chars().take(160).collect();
@@ -529,6 +554,10 @@ impl Executor {
                         self.mark_tx(pool, &tx.hash, TxState::Pending);
                         self.sender.nonce = self.sender.nonce.max(tx.nonce + 1);
                         return Some(tx);
+                    }
+                    // the read node still reports the stale nonce: signing again would give the very same bytes
+                    if self.sender.nonce <= tx.nonce {
+                        return None;
                     }
                     self.ledger.journal("nonce_resynced", json!({"pool": pool, "stale_nonce": tx.nonce, "nonce": self.sender.nonce}));
                 }
@@ -857,7 +886,14 @@ impl Executor {
                 self.ledger.totals.buys_failed += 1;
                 self.finish_if_done(pool);
             }
-            Some(TxPurpose::ApproveToken) | Some(TxPurpose::ApprovePermit2) => self.send_approvals(pool),
+            // a buy that failed has nothing to sell: its lost approvals are not sent again
+            Some(TxPurpose::ApproveToken) | Some(TxPurpose::ApprovePermit2) => {
+                if self.ledger.positions.get(pool).map_or(false, |p| p.is_live()) {
+                    self.send_approvals(pool)
+                } else {
+                    self.finish_if_done(pool)
+                }
+            }
             Some(TxPurpose::Sell) => {
                 if let Some(i) = self.ledger.positions.get_mut(pool).and_then(|p| p.intent.as_mut()) {
                     i.next_try_ms = now_ms();
@@ -873,6 +909,7 @@ impl Executor {
         let gas = fills::gas_cost(rc);
         let wallet = self.sender.address;
         let mut alert: Option<String> = None;
+        let mut catatan: Option<String> = None;
         let mut approved_until: Option<(Address, u64)> = None;
         {
             let Some(p) = self.ledger.positions.get_mut(pool) else { return };
@@ -893,6 +930,7 @@ impl Executor {
                         p.tokens_bought = tokens;
                         p.tokens_held = tokens;
                         p.status = if tokens.is_zero() { PosStatus::Stuck } else { PosStatus::Open };
+                        catatan = Some(format!("BELI OK {}: {:.6} ETH (${:.2})", pendek(pool), eth(p.eth_in), eth(p.eth_in) * self.eth_usd));
                         if tokens.is_zero() {
                             p.last_error = Some("buy mined but no tokens arrived".into());
                             alert = Some(format!("buy {pool} mined but delivered no tokens"));
@@ -900,6 +938,7 @@ impl Executor {
                     } else {
                         p.status = PosStatus::BuyFailed;
                         p.intent = None;
+                        catatan = Some(format!("BELI GAGAL {}: transaksi revert (harga lari), tidak ada token, hanya gas terpakai", pendek(pool)));
                     }
                 }
                 TxPurpose::ApproveToken | TxPurpose::ApprovePermit2 => {
@@ -922,6 +961,7 @@ impl Executor {
                         let eth = fills::received(a0);
                         // what left the wallet (includes any transfer tax); fall back to the pool side, then the request
                         let sold = [fills::tokens_sent(rc, token, wallet), fills::paid(a1), sold_hint].into_iter().find(|v| !v.is_zero()).unwrap_or_default();
+                        catatan = Some(format!("JUAL OK {}: {:.6} ETH (${:.2})", pendek(pool), u256_f64(eth) / 1e18, u256_f64(eth) / 1e18 * self.eth_usd));
                         p.eth_out = p.eth_out.saturating_add(eth);
                         p.tokens_held = p.tokens_held.saturating_sub(sold.min(p.tokens_held));
                         let dust = p.tokens_bought / U256::from(1_000_000u64);
@@ -936,6 +976,7 @@ impl Executor {
                             }
                         }
                     } else if let Some(i) = p.intent.as_mut() {
+                        catatan = Some(format!("JUAL REVERT {} (percobaan {}): dicoba lagi", pendek(pool), i.attempts + 1));
                         i.attempts += 1;
                         i.next_try_ms = now_ms();
                         if i.attempts >= self.cfg.max_sell_attempts {
@@ -952,6 +993,9 @@ impl Executor {
         }
         if let Some(a) = alert {
             self.alert_once(&format!("{pool}:{}", a.len()), a);
+        }
+        if let Some(c) = catatan {
+            self.catat(c);
         }
         if !ok {
             let purpose = self.ledger.positions.get(pool).and_then(|p| p.txs.iter().find(|t| t.hash == hash)).map(|t| t.purpose);
@@ -994,6 +1038,10 @@ impl Executor {
         if done {
             let eth_usd = if self.eth_usd.is_finite() { self.eth_usd } else { self.ledger.positions[pool].eth_usd_entry };
             self.ledger.archive(pool, eth_usd);
+            if let Some(c) = self.ledger.recent_closed.last() {
+                let (pnl, gas) = (c["pnl_usd"].as_f64().unwrap_or(0.0), c["gas_usd"].as_f64().unwrap_or(0.0));
+                self.catat(format!("POSISI SELESAI {}: hasil nyata ${pnl:+.2} (gas ${gas:.3}) | total nyata ${:+.2}", pendek(pool), self.ledger.totals.realized_usd));
+            }
             if self.cfg.daily_loss_limit_usd > 0.0 && self.ledger.today_realized_usd() < -self.cfg.daily_loss_limit_usd {
                 let msg = format!("daily loss limit hit (${:.2} today): new buys stopped until UTC midnight", self.ledger.today_realized_usd());
                 self.alert_once(&format!("daily:{}", self.ledger.totals.day), msg);
@@ -1057,6 +1105,32 @@ impl Executor {
         for pool in need {
             self.send_approvals(&pool);
         }
+        let stuck: Vec<String> = self.ledger.positions.values().filter(|p| p.approvals_stuck()).map(|p| p.pool.clone()).collect();
+        for pool in stuck {
+            self.approve_lagi(&pool);
+        }
+    }
+
+    /// An approval reverted, so the position cannot be sold. Every 30 s a free simulation looks whether it would work
+    /// now; only then it is sent again, so a token that refuses for good costs no gas.
+    fn approve_lagi(&mut self, pool: &str) {
+        if self.cek_approve.get(pool).map_or(false, |t| t.elapsed() < Duration::from_secs(30)) {
+            return;
+        }
+        self.cek_approve.insert(pool.to_string(), Instant::now());
+        let Some(token) = self.ledger.positions.get(pool).map(|p| p.key.token()) else { return };
+        let data = uniswap::erc20_approve_permit2_calldata();
+        if self.sender.eth_call_gas(token, &data, U256::ZERO, self.cfg.gas_limit_approve).is_err() {
+            return;
+        }
+        if let Some(p) = self.ledger.positions.get_mut(pool) {
+            p.status = PosStatus::Open;
+            p.approvals_since_ms = now_ms();
+            p.last_error = None;
+        }
+        self.ledger.journal("reapprove", json!({"pool": pool, "token": format!("{token:#x}")}));
+        self.send_approvals(pool);
+        let _ = self.ledger.save();
     }
 
     fn tick(&mut self) {
