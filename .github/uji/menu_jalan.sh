@@ -9,6 +9,8 @@ rhc(){ sudo timeout "${T:-120}" bash -c "cd $R && ./rhc.sh $*" 2>&1; }
 cek(){ local nama=$1 pola=$2 out; shift 2; printf '\n=== %s\n' "$nama"; out=$(rhc "$@"); echo "$out" | tail -14 | cut -c1-150; echo "$out" | grep -qE "$pola"; hasil "$nama" $?; }
 aktif(){ for _ in $(seq 1 60); do sleep 3; [ "$(systemctl is-active rhc-trader)" = active ] && return 0; done; return 1; }
 stat(){ sudo python3 -c "import json;print(json.load(open('$B/rust_live/exec/exec_status.json')).get('$1'))"; }
+# the status files keep the old process's text until the new process has started: wait for a fresh one
+segar(){ local f=$1 t0; t0=$(date +%s); for _ in $(seq 1 80); do sleep 3; [ "$(sudo stat -c %Y "$f")" -gt "$t0" ] && [ "$(($(date +%s) - t0))" -gt 6 ] && return 0; done; return 1; }
 
 printf '\n=== service\n'
 systemctl is-enabled rhc-trader; [ "$(systemctl is-enabled rhc-trader)" = enabled ]; hasil "menyala lagi setelah reboot (enabled)" $?
@@ -31,13 +33,13 @@ sudo rm -f $B/rust_live/exec/STOP_BUYING; sleep 4; v=$(stat buying); echo "buyin
 printf '\n=== jual-semua\n'
 rhc jual-semua --ya | tail -3; aktif; hasil "jual-semua: bot jalan" $?
 sudo test -e $B/rust_live/exec/FLATTEN_ALL; hasil "jual-semua: FLATTEN_ALL ada" $?
-sleep 15; v=$(stat buy_block_reason); echo "$v"; echo "$v" | grep -q FLATTEN; hasil "jual-semua: beli diblok" $?
+segar $B/rust_live/exec/exec_status.json; v=$(stat buy_block_reason); echo "$v"; echo "$v" | grep -q FLATTEN; hasil "jual-semua: beli diblok" $?
 rhc lanjut --ya | tail -2; aktif; hasil "lanjut setelah jual-semua: bot jalan" $?
 sudo test ! -e $B/rust_live/exec/FLATTEN_ALL; hasil "lanjut menghapus FLATTEN_ALL" $?
 
 printf '\n=== kill switch dari sisi pemilik\n'
 echo "$(date -u +%FT%TZ) | uji pemilik" | sudo -u rhc tee $B/rust_live/KILL_SWITCH >/dev/null
-sudo systemctl restart rhc-trader; aktif; sleep 20
+sudo systemctl restart rhc-trader; aktif; segar $B/rust_live/status.json
 cek 'status menampilkan kill switch' 'KILL SWITCH AKTIF' status
 o=$(sudo bash /etc/profile.d/rhc-kill-switch.sh 2>&1); echo "$o" | head -3 | cut -c1-120; echo "$o" | grep -q 'KILL SWITCH AKTIF'; hasil "banner login menampilkan kill switch" $?
 sudo python3 -c "import json;print(json.load(open('$B/rust_live/status.json'))['kill_switch'])" | grep -q "'aktif': True"; hasil "status.json kill switch aktif" $?
@@ -58,8 +60,23 @@ out=$(printf 'n\n' | sudo bash -c "cd $R && ./rhc.sh bersih" 2>&1); echo "$out" 
 rhc mulai >/dev/null; aktif; sleep 30
 n=$(systemctl show -p NRestarts --value rhc-trader); [ "${n:-0}" -lt 3 ]; hasil "bot jalan setelah bersih (restart $n)" $?
 printf '\n=== rahasia tidak ada di log\n'
-kunci=$(sudo cat /opt/rhc/secrets/wallet.key)
-sudo grep -rlF "$kunci" /opt/rhc/bot /var/log /etc/systemd 2>/dev/null | grep -v '^/opt/rhc/secrets' ; [ -z "$(sudo grep -rlF "$kunci" /opt/rhc/bot /var/log /etc/systemd 2>/dev/null)" ]; hasil "private key tidak tertulis di log atau data bot" $?
+# the key is read inside the root script, never passed on a command line (sudo logs its arguments)
+sudo python3 - <<'PY'; hasil "private key tidak tertulis di log atau data bot" $?
+import os, sys
+k = open("/opt/rhc/secrets/wallet.key", "rb").read().strip()
+ada = []
+for top in ("/opt/rhc/bot", "/var/log", "/etc/systemd", "/etc/profile.d", "/root/live-trading-meme-coin/config"):
+    for d, _, fs in os.walk(top):
+        for f in fs:
+            p = os.path.join(d, f)
+            try:
+                if os.path.getsize(p) < 3_000_000_000 and k in open(p, "rb").read():
+                    ada.append(p)
+            except OSError:
+                pass
+print("berkas berisi kunci:", ada)
+sys.exit(1 if ada else 0)
+PY
 
 printf '\n=== ukuran terpasang\n'
 sudo du -sh /opt/rhc /opt/rhc/bin/* /root/live-trading-meme-coin /root/.cargo /root/.rustup 2>/dev/null

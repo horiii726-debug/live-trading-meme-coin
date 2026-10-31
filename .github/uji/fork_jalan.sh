@@ -56,7 +56,7 @@ python3 .github/uji/pilih_pool.py "$PUB" "$tip" > "$W/calon.txt"
 wc -l "$W/calon.txt"
 : > "$W/pool.txt"
 while read -r p; do
-    if timeout 120 "$BIN" exec selftest --env "$W/pub.env" --pool "$p" > "$W/st.txt" 2>&1 && grep -q "SELFTEST OK" "$W/st.txt"; then
+    if timeout 120 "$BIN" exec selftest --env "$W/pub.env" --pool "${p%@*}" --init-block "${p#*@}" > "$W/st.txt" 2>&1 && grep -q "SELFTEST OK" "$W/st.txt"; then
         echo "$p" >> "$W/pool.txt"; tail -3 "$W/st.txt"
     else
         echo "pool $p ditolak selftest: $(tail -1 "$W/st.txt")"

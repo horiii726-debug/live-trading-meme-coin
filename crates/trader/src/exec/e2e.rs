@@ -99,6 +99,14 @@ fn lulus(nama: &str, u: &Uji, token: Address, pool: &str) -> Result<(), String> 
     Ok(())
 }
 
+/// "pool@init_block" -> the pool key, as the bot gets it from the pool's birth
+fn kunci(rpc: &Rpc, p: &str) -> Result<(String, Key), String> {
+    let (pool, blk) = p.split_once('@').ok_or("pool@blok")?;
+    let pool = pool.to_lowercase();
+    let k = pools::fetch_key(rpc, &pool, Some(blk.parse().map_err(|_| "blok")?))?;
+    Ok((pool, k))
+}
+
 fn siapkan(env_file: Option<&str>, bot_dir: &str, cfg: &crate::cfg::Cfg) -> Result<Uji, String> {
     let ec = ExecConfig::load(env_file, bot_dir, &cfg.rpc_urls, cfg.doh, cfg.max_pos)?;
     let dir = ec.state_dir.clone();
@@ -117,8 +125,7 @@ fn siapkan(env_file: Option<&str>, bot_dir: &str, cfg: &crate::cfg::Cfg) -> Resu
 pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenario: &str, pool: &str, pool2: Option<&str>) -> Result<(), String> {
     let u = siapkan(env_file, bot_dir, cfg)?;
     let kunci_rpc = Rpc::new(&std::env::var("E2E_KEY_RPC").map_err(|_| "E2E_KEY_RPC")?, false)?;
-    let pool = pool.to_lowercase();
-    let key = pools::fetch_key(&kunci_rpc, &pool, None)?;
+    let (pool, key) = kunci(&kunci_rpc, pool)?;
     let token = key.token();
     println!("--- {skenario}: pool {pool} token {token:#x} fee {} hooks {:#x}, ETH ${:.0}, saldo {} wei", key.fee, key.hooks, u.eth_usd, u.saldo_eth()?);
     match skenario {
@@ -142,8 +149,7 @@ pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenari
         }
         // two positions at once: consecutive nonces (buy, approve, approve, buy, approve, approve)
         "banyak" => {
-            let p2 = pool2.ok_or("pool2")?.to_lowercase();
-            let k2 = pools::fetch_key(&kunci_rpc, &p2, None)?;
+            let (p2, k2) = kunci(&kunci_rpc, pool2.ok_or("pool2")?)?;
             u.beli(&pool, key, u.state(&pool)?);
             u.beli(&p2, k2, u.state(&p2)?);
             u.terbuka(&pool)?;
@@ -234,8 +240,7 @@ pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenari
             u.beli(&pool, key, u.state(&pool)?);
             u.terbuka(&pool)?;
             std::fs::write(u.dir.join("STOP_BUYING"), "").map_err(|e| e.to_string())?;
-            let p2 = pool2.ok_or("pool2")?.to_lowercase();
-            let k2 = pools::fetch_key(&kunci_rpc, &p2, None)?;
+            let (p2, k2) = kunci(&kunci_rpc, pool2.ok_or("pool2")?)?;
             let n = u.jurnal_n("buy_skipped");
             u.beli(&p2, k2, u.state(&p2)?);
             u.tunggu("beli ditolak karena STOP_BUYING", 10, |u| u.jurnal_n("buy_skipped") > n)?;
@@ -312,8 +317,7 @@ pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenari
             u.tunggu("transaksi hilang dikenali, beli gagal", 120, |u| u.ditutup(&pool).is_some())?;
             u.rpc.call("evm_setAutomine", json!([true]))?;
             println!("   catatan: {}", u.ditutup(&pool).unwrap_or(Value::Null));
-            let p2 = pool2.ok_or("pool2")?.to_lowercase();
-            let k2 = pools::fetch_key(&kunci_rpc, &p2, None)?;
+            let (p2, k2) = kunci(&kunci_rpc, pool2.ok_or("pool2")?)?;
             std::thread::sleep(Duration::from_secs(4));
             u.beli(&p2, k2, u.state(&p2)?);
             u.terbuka(&p2)?;
