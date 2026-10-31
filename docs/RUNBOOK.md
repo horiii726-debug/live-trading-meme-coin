@@ -43,14 +43,13 @@ stress test shows the edge disappears once execution is about 20% worse than mod
 
 ## 5. Live
 
-1. Fund the bot wallet with a small amount (e.g. $20–50 of ETH; keep at least 0.003 ETH for gas).
-2. In `.env`: `EXEC_MODE=live` and `EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK`; optionally `EXEC_MAX_ORDER_USD=5` for
-   the first weeks.
+1. Fund the bot wallet with a small amount (e.g. $100 of ETH; keep at least 0.003 ETH for gas).
+2. In `.env`: `EXEC_MODE=live` and `EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK`.
 3. `sudo systemctl restart rhc-trader`. `live.log` must show `EXEC: executor started: mode=live wallet=0x…`.
 4. From then on the bot buys and sells by itself. Watch it with:
    ```
-   sudo -u rhc /opt/rhc/bin/rhc-trader exec status --bot /opt/rhc/bot --env /opt/rhc/bot/.env
-   tail -f /opt/rhc/bot/rust_live/live.log
+   sudo ./rhc.sh status     # WALLET NYATA: real balance and results
+   sudo ./rhc.sh log        # EXEC: lines are real transactions, TUTUP lines are the simulated strategy account
    ```
    Telegram alerts (TELEGRAM_TOKEN / TELEGRAM_CHAT_ID) report starts, stuck positions, the daily loss stop and
    emergency stops.
@@ -75,7 +74,7 @@ Edit `RPC_URLS` (chain data) and `EXEC_RPC_URLS` (transactions) in `/opt/rhc/bot
 |---|---|
 | stop new buys, keep managing open positions | `sudo -u rhc touch /opt/rhc/bot/rust_live/exec/STOP_BUYING` (delete it to resume) |
 | sell everything now | `sudo -u rhc touch /opt/rhc/bot/rust_live/exec/FLATTEN_ALL` (delete it to trade again) |
-| stop the bot completely | `sudo systemctl stop rhc-trader` (open positions stay open: flatten first if needed) |
+| stop the bot completely | `sudo ./rhc.sh stop` (stays off after a reboot; open positions stay open: flatten first if needed) |
 
 Files in `/opt/rhc/bot/rust_live/exec/`: `positions.json` (open positions, rewritten before every broadcast),
 `closed.jsonl` (history with real and model returns), `journal.jsonl` (every order, transaction, receipt and skip),
@@ -88,8 +87,11 @@ Files in `/opt/rhc/bot/rust_live/exec/`: `positions.json` (open positions, rewri
   strategy no longer holds.
 - **`positions.json is corrupt`**: the executor refuses to start on purpose. Rebuild it from `journal.jsonl` before
   trading again; never delete it while positions are open.
-- **Position `stuck`**: the token reverted on approve or on repeated sells. The executor keeps retrying every 30 s;
-  check the token on the explorer.
+- **Position `stuck`**: the token reverted on approve or on repeated sells. The executor simulates again every 30 s
+  (free) and sends only when it would succeed; check the token on the explorer.
+- **Strategy stop (`STOP DARURAT`)**: the strategy account fell past KILL_DD and no longer buys, for good. Real positions
+  are still sold. To start a new account: `sudo ./rhc.sh stop`, `sudo ./rhc.sh bersih` (answer y), `sudo ./rhc.sh mulai`.
+- **Disk**: `rhc.sh status` shows free space. A full disk stops the ledger, which fires the kill switch and stops sells.
 
 ## 9. Retraining (automatic, inside the bot)
 

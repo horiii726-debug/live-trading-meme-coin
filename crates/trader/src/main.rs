@@ -1,7 +1,7 @@
 //! rhc-trader: Robinhood Chain memecoin strategy with an optional live execution layer (Uniswap v4).
 //!
-//! The decision engine (engine + features + account rules) is the backtested one, byte-for-byte; see
-//! `scripts/parity.sh`. Execution is off (paper) unless EXEC_MODE says otherwise.
+//! The decision engine (engine + features + account rules) is the backtested one. Execution is off (paper) unless
+//! EXEC_MODE says otherwise.
 //!
 //! Usage:
 //!   rhc-trader live   [--bot DIR] [--env FILE]                 run the strategy (paper / shadow / live per EXEC_MODE)

@@ -5,7 +5,7 @@
 > ⛔ **Repo ini PUBLIK.** Jangan pernah menulis private key atau URL RPC berbayar di GitHub (ikon pensil ✏️).
 > Isi hanya di VPS. Key yang masuk GitHub dikuras bot pencuri dalam hitungan menit.
 
-VPS: **Ubuntu 22.04/24.04**, RAM 4 GB disarankan (2 GB jalan: swap dibuat otomatis), disk kosong ≥ 10 GB.
+VPS: **Ubuntu 22.04/24.04**, **x86_64** (AMD/Intel, bukan ARM), RAM 4 GB disarankan (2 GB jalan: swap dibuat otomatis), disk kosong ≥ 10 GB.
 Lokasi bebas — kalau DNS VPS memblokir RPC (mis. Internet Positif), script mendeteksinya dan memakai DNS-over-HTTPS.
 
 Masuk VPS (`ssh root@IP-VPS`), lalu tempel **satu baris** ini:
@@ -36,21 +36,26 @@ kalau ada yang salah, pertanyaannya diulang.
 Selesai. Kirim ETH ke alamat wallet yang ditampilkan (Robinhood Chain 4663, sisakan 0,003 ETH untuk gas);
 bot mulai trading begitu saldonya masuk, tetap jalan walau SSH ditutup, dan menyala lagi sendiri setelah VPS restart.
 
+30 koin pertama (kira-kira 45 menit) bot hanya menilai, belum membeli. Sesudah itu bot bisa berjam-jam tidak membeli
+kalau skor koin sedang rendah; itu normal, bukan rusak.
+
 | Nanti | Perintah (di folder `live-trading-meme-coin`) |
 |---|---|
-| pantau (termasuk beli/jual sungguhan, baris `EXEC:`) | `sudo ./rhc.sh log` |
-| status | `sudo ./rhc.sh status` |
+| pantau (beli/jual sungguhan = baris `EXEC:`; baris `TUTUP` = akun simulasi strategi) | `sudo ./rhc.sh log` |
+| status: **saldo dan hasil nyata** ada di bagian `WALLET NYATA` | `sudo ./rhc.sh status` |
+| hentikan bot (tetap mati walau VPS restart) / nyalakan lagi | `sudo ./rhc.sh stop` / `sudo ./rhc.sh mulai` |
 | ganti RPC / wallet / mode | `sudo ./rhc.sh isi` — isi hanya yang mau diganti; baris kosong = yang lama tetap dipakai |
 | perbarui ke versi terbaru | jalankan lagi baris `curl ... mulai.sh` di atas (isian lama dipakai) |
 
-Rem darurat: `sudo touch /opt/rhc/bot/rust_live/exec/STOP_BUYING` (stop beli) atau `.../FLATTEN_ALL` (jual semua).
+Rem darurat: `sudo touch /opt/rhc/bot/rust_live/exec/STOP_BUYING` (stop beli) atau `sudo ./rhc.sh jual-semua` (jual semua).
+Saat kill switch aktif bot tidak mengirim apa pun, termasuk jual: buka dengan `sudo ./rhc.sh lanjut` atau `sudo ./rhc.sh jual-semua`.
 
 ---
 
 Fully automatic live trading for the RHC memecoin strategy on **Robinhood Chain (chainId 4663, Uniswap v4)**.
 
 The strategy decides everything (pool screening, minute-1 ML filter, quarter-Kelly sizing with compounding, exit
-models); it is the backtested one, unchanged and proven byte-for-byte identical to the published backtest. The
+models); it is the backtested one. The
 execution layer, written in Rust, turns each decision into real Uniswap v4 transactions: it buys when the strategy
 buys and sells when the strategy sells. There is no manual trading. Fund the wallet, switch `EXEC_MODE=live`, and the
 bot trades by itself.
