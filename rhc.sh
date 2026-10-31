@@ -185,9 +185,9 @@ BANNER
         if ! supervisorctl pid >/dev/null 2>&1; then
             supervisord -c /etc/supervisor/supervisord.conf
             for _ in 1 2 3 4 5; do supervisorctl pid >/dev/null 2>&1 && break; sleep 1; done
-            # and after the instance restarts: Vast.ai runs this file at every start
-            grep -qs 'supervisord -c' /root/onstart.sh || printf '%s\n' 'supervisorctl pid >/dev/null 2>&1 || supervisord -c /etc/supervisor/supervisord.conf' >> /root/onstart.sh
         fi
+        # after the instance restarts too: Vast.ai runs this file at every start
+        grep -qs 'supervisord -c' /root/onstart.sh || printf '%s\n' 'supervisorctl pid >/dev/null 2>&1 || supervisord -c /etc/supervisor/supervisord.conf' >> /root/onstart.sh
         supervisorctl reread >/dev/null 2>&1 || true
         supervisorctl update >/dev/null 2>&1 || true
         if command -v crontab >/dev/null && crontab -l 2>/dev/null | grep -q latih_ulang.py; then
