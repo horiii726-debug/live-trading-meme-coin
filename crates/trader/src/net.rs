@@ -1,6 +1,5 @@
 //! Jaringan bot: HTTPS (TLS bawaan Windows lewat native-tls/Schannel) dengan sambungan DIPAKAI ULANG
-//! (keep-alive) + DoH (DNS lewat HTTPS ke 1.1.1.1, karena DNS ISP dibajak). Hanya panggilan BACA:
-//! bot ini tidak punya kode untuk mengirim transaksi.
+//! (keep-alive) + DoH (DNS lewat HTTPS ke 1.1.1.1, karena DNS ISP dibajak).
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
