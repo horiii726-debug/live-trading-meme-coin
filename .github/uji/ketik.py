@@ -21,6 +21,9 @@ key = secrets.token_hex(32)
 # UJI_RPC: what the owner types as their own (paid) RPC; empty = the public one
 answers = [(b"     RPC: ", os.environ.get("UJI_RPC", "").encode()), (b"     Private key: ", key.encode()), (b"100 atau 1000 [100]: ", b"1.000"), (b"Benar? (y/n) [y]: ", b"y")]
 
+if os.environ.get("UJI_RPC_BAWAAN"):  # the repo's own RPC: that question is not asked
+    answers = answers[1:]
+
 pid, fd = pty.fork()
 if pid == 0:
     os.execvp("bash", ["bash", "-c", cmd])

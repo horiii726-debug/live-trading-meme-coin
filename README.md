@@ -2,8 +2,11 @@
 
 ## 👉 MULAI DI SINI — isi RPC + wallet, lalu live
 
-> ⛔ **Repo ini PUBLIK.** Jangan pernah menulis private key atau URL RPC berbayar di GitHub (ikon pensil ✏️).
-> Isi hanya di VPS. Key yang masuk GitHub dikuras bot pencuri dalam hitungan menit.
+> ⛔ **Repo ini PUBLIK.** Jangan pernah menulis private key di GitHub (ikon pensil ✏️). Isi hanya di VPS.
+> Key yang masuk GitHub dikuras bot pencuri dalam hitungan menit.
+> Link RPC Goldsky sengaja disimpan di `config/rpc-bawaan.txt` atas permintaan pemilik. Siapa pun bisa memakainya sampai
+> kreditnya habis; itu tidak menyentuh dana wallet. Kalau kreditnya habis atau kuncinya diganti, perbarui berkas itu atau
+> pakai `sudo ./rhc.sh isi`.
 
 VPS: **Ubuntu 22.04/24.04**, RAM 4 GB disarankan (2 GB jalan: swap dibuat otomatis), disk kosong ≥ 10 GB.
 Lokasi bebas — kalau DNS VPS memblokir RPC (mis. Internet Positif), script mendeteksinya dan memakai DNS-over-HTTPS.
@@ -15,11 +18,9 @@ curl -sSL https://raw.githubusercontent.com/horiii726-debug/live-trading-meme-co
 ```
 
 Semuanya otomatis: unduh kode, instal, build (5–15 menit), self-test, bot dijalankan, alamat wallet
-ditampilkan. Di tengah jalan Anda ditanya **sekali** — tiap pertanyaan cukup **tempel (klik kanan) lalu Enter**:
+ditampilkan. RPC sudah terisi otomatis. Di tengah jalan Anda ditanya **sekali** — cukup **tempel (klik kanan) lalu Enter**:
 
 ```
-  1) Tempel URL RPC berbayar, lalu Enter.
-     RPC: https://url-rpc-berbayar-lengkap-dengan-api-key/
   2) Tempel PRIVATE KEY MetaMask (64 karakter, BUKAN 12 kata), lalu Enter.
      Private key:            <- memang tidak terlihat
   3) Berapa USD yang Anda kirim ke wallet bot? [100]: 100
@@ -27,7 +28,6 @@ ditampilkan. Di tengah jalan Anda ditanya **sekali** — tiap pertanyaan cukup *
 
 | Pertanyaan | Ambil dari |
 |---|---|
-| RPC | dasbor QuickNode / Alchemy / Dwellir / ArrowRPC / Goldsky → endpoint **Robinhood Chain (4663)** → salin URL HTTPS utuh (kosong = RPC publik) |
 | Private key | MetaMask → ⋮ → Account details → **Show private key** (64 karakter). **Bukan** seed phrase 12 kata. Pakai akun khusus bot. |
 
 Mode langsung **live**. Script menguji RPC dan menyimpan key di `/opt/rhc/secrets/wallet.key` (izin 600);

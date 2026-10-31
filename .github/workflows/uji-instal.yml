@@ -43,6 +43,11 @@ jobs:
             dns_blok: false
             rpc: https://rpc.mainnet.chain.robinhood.com
             bersih: true
+          # the repo's own Goldsky URL, exactly the owner's install: only the wallet is asked
+          - nama: login root, RPC bawaan repo (Goldsky)
+            sebagai: root
+            dns_blok: false
+            bawaan: true
     env:
       PATH_VPS: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
@@ -68,19 +73,21 @@ jobs:
       - name: install — the README's one line
         run: |
           url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/mulai.sh"
+          tanpa="RHC_TANPA_RPC_BAWAAN=1"; [ "${{ matrix.bawaan }}" = true ] && tanpa=""
           if [ "${{ matrix.sebagai }}" = root ]; then
-            cmd="curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=$PATH_VPS bash"
+            cmd="curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID $tanpa HOME=/root PATH=$PATH_VPS bash"
           else
-            cmd="curl -sSL $url | sudo bash"
+            cmd="curl -sSL $url | sudo env $tanpa bash"
           fi
           echo "$cmd" > /tmp/cmd
-          UJI_RPC="${{ matrix.rpc }}" python3 .github/uji/ketik.py "$cmd"
+          UJI_RPC="${{ matrix.rpc }}" UJI_RPC_BAWAAN="${{ matrix.bawaan }}" python3 .github/uji/ketik.py "$cmd"
 
       - name: check the result
         run: |
           home=/home/runner; [ "${{ matrix.sebagai }}" = root ] && home=/root
           doh=""; [ "${{ matrix.dns_blok }}" = true ] && doh=https://1.1.1.1/dns-query
           [ -z "${{ matrix.rpc }}" ] || export UJI_RPC_URLS="${{ matrix.rpc }},https://rpc.mainnet.chain.robinhood.com"
+          [ "${{ matrix.bawaan }}" != true ] || export UJI_RPC_URLS="$(tr -d '[:space:]' < config/rpc-bawaan.txt),https://rpc.mainnet.chain.robinhood.com"
           bash .github/uji/periksa.sh "$doh" "$home"
 
       - name: run the same line again (update) — must ask nothing and keep the bot up
@@ -91,6 +98,7 @@ jobs:
           home=/home/runner; [ "${{ matrix.sebagai }}" = root ] && home=/root
           doh=""; [ "${{ matrix.dns_blok }}" = true ] && doh=https://1.1.1.1/dns-query
           [ -z "${{ matrix.rpc }}" ] || export UJI_RPC_URLS="${{ matrix.rpc }},https://rpc.mainnet.chain.robinhood.com"
+          [ "${{ matrix.bawaan }}" != true ] || export UJI_RPC_URLS="$(tr -d '[:space:]' < config/rpc-bawaan.txt),https://rpc.mainnet.chain.robinhood.com"
           bash .github/uji/periksa.sh "$doh" "$home"
           timeout 5 sudo "$home/live-trading-meme-coin/rhc.sh" log || true
 

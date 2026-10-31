@@ -87,13 +87,16 @@ main(){
     else
         # Plain questions instead of an editor: paste + Enter. Each answer is checked before the next question, then
         # all go into the form deploy/pasang.sh validates against the network; it blanks the secrets on success.
-        local n=0 rpc pk usd ok spasi
+        local n=0 rpc pk usd ok spasi rpc_bawaan=""
+        # the owner's RPC ships with the repo, at the owner's request; RHC_TANPA_RPC_BAWAAN=1 asks for one instead (tests)
+        if [ -z "${RHC_TANPA_RPC_BAWAAN:-}" ] && [ -s config/rpc-bawaan.txt ]; then rpc_bawaan=$(tr -d '[:space:]' < config/rpc-bawaan.txt); fi
         # drop what was typed while the build ran, and the extra newline some copies carry: a stray Enter would
         # otherwise answer the next question (an empty key prompt, then the key pasted visibly at question 3)
         flush(){ while read -r -t 0.2 -n 10000 _ </dev/tty; do :; done; }
         echo "    Menempel di PowerShell/terminal: klik kanan."
         while :; do
             while :; do
+                if [ -n "$rpc_bawaan" ]; then rpc=$rpc_bawaan; echo "  1) RPC: memakai Goldsky bawaan repo."; break; fi
                 flush; echo ""
                 echo "  1) Tempel URL RPC berbayar, lalu Enter."
                 echo "     (kosongkan lalu Enter = pakai RPC publik gratis)"
