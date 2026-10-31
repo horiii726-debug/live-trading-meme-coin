@@ -370,6 +370,30 @@ pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenari
             u.habis(&pool)?;
             lulus(skenario, &u, token, &pool)
         }
+        // the real chain, a wallet with no ETH: the exact signed buy reaches the sequencer, which can only refuse it for
+        // lack of funds. That refusal proves the signature, chain id, transaction type and fee fields are accepted.
+        "kirim_nyata" => {
+            let signer = wallet::load_signer(Path::new(&std::env::var("E2E_KEY_FILE").map_err(|_| "E2E_KEY_FILE")?))?;
+            let urls: Vec<String> = cfg.rpc_urls.split(',').map(|s| s.trim().to_string()).collect();
+            let mut s = Sender::new(signer, &urls, cfg.doh)?;
+            s.refresh_base_fee()?;
+            s.sync_nonce()?;
+            let st = u.state(&pool)?;
+            let masuk: u128 = 6_000_000_000_000_000;
+            let min = super::amm::min_out(super::amm::buy_out(&st, masuk as f64).ok_or("kuotasi")?, 1000);
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+            let data = super::uniswap::buy_calldata(&key, masuk, min, U256::from(now + 60))?;
+            let t = s.sign_next(super::chain::UNIVERSAL_ROUTER, U256::from(masuk), data, 600_000)?;
+            println!("   tx {:#x}, tipe {:#x}, {} byte, base fee {} wei", t.hash, t.raw[0], t.raw.len(), s.base_fee);
+            for ep in urls.iter() {
+                let rpc = Rpc::new(ep, cfg.doh)?;
+                let host = ep.split('/').nth(2).unwrap_or("?");
+                let r = rpc.call_once("eth_sendRawTransaction", json!([format!("0x{}", alloy_primitives::hex::encode(&t.raw))]), Duration::from_secs(8));
+                println!("   {host}: {r:?}");
+            }
+            println!("SKENARIO {skenario}: selesai");
+            Ok(())
+        }
         _ => Err(format!("skenario tidak dikenal: {skenario}")),
     }
 }
