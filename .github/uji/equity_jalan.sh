@@ -27,10 +27,17 @@ bangun(){
     (cd "/tmp/b_$1" && cargo build --release --locked -p rhc-trader 2>&1 | tail -1)
     git -C "/tmp/b_$1" log --oneline -1
 }
-bangun main origin/main
-jalan(){
-    say "backtest: $1"
-    env -i PATH="$PATH" HOME="$HOME" START_USD=100 BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost LAT_BLOCKS=3 $SYS_A         "/tmp/b_$2/target/release/rhc-trader" sim "$W/all" 65779486 90197095 "$O/trades_$1.jsonl" --bot "/tmp/b_$2/models" 2>&1         | grep -E "^SIM" | sed "s/^/$1 | /" | tee -a "$O/equity.txt"
-}
-jalan main main
-python3 .github/uji/hook_stat.py "$W/all/pools.csv" "$O/trades_main.jsonl" | tee -a "$O/equity.txt"
+git worktree add -q /tmp/b_main origin/main
+python3 - <<'PY'
+p = '/tmp/b_main/crates/trader/src/bot.rs'
+s = open(p, encoding='utf-8').read()
+a = '        if self.killed {\n            return self.tolak("stop darurat");'
+a = a if a in s else a.replace('\n', '\r\n')
+assert s.count(a) == 1
+b = '        if sim.m.hooks.trim_start_matches("0x").chars().any(|c| c != \'0\') {\n            return self.tolak("hook");\n        }\n'
+open(p, 'w', encoding='utf-8').write(s.replace(a, b + a))
+PY
+(cd /tmp/b_main && git log --oneline -1 && cargo build --release --locked -p rhc-trader 2>&1 | tail -1)
+env -i PATH="$PATH" HOME="$HOME" START_USD=100 BELAJAR=1 CATBOOST_BIN=/opt/rhc/bin/catboost LAT_BLOCKS=3 $SYS_A \
+    /tmp/b_main/target/release/rhc-trader sim "$W/all" 65779486 90197095 "$O/trades_tanpa_hook.jsonl" --bot /tmp/b_main/models 2>&1 \
+    | grep -E "^SIM|cek kausal" | tee -a "$O/equity.txt"
