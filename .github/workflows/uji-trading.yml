@@ -32,7 +32,7 @@ jobs:
           if [ "$GITHUB_REF_NAME" != main ]; then
             sudo git clone -q -b "$GITHUB_REF_NAME" "https://github.com/$GITHUB_REPOSITORY.git" /root/live-trading-meme-coin
           fi
-          python3 .github/uji/ketik.py "curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash"
+          python3 .github/uji/ketik.py "curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID RHC_TANPA_RPC_BAWAAN=1 HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash"
 
       - name: switch to shadow (build + sign every order, never broadcast)
         run: |

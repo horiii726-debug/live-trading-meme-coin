@@ -396,6 +396,13 @@ impl Executor {
             Ok(d) => d,
             Err(e) => return self.skip(&pool, &format!("calldata: {e}")),
         };
+        // can it be sold at all, through the router the bot uses? Some hooks refuse it: such a coin is a honeypot for
+        // this bot even when other routers sell it. No answer = not bought, like a dev that could not be looked up.
+        if self.cfg.cek_jual {
+            if let Err(e) = self.cek_bisa_dijual(&key, amount_in, min_out, &data) {
+                return self.skip(&pool, &e);
+            }
+        }
         let mut pos = Position {
             pool: pool.clone(),
             key,
@@ -616,6 +623,21 @@ impl Executor {
                 return;
             }
         }
+    }
+
+    /// Buy, both approvals and a sell of half the tokens, simulated from the wallet (funded by a state override).
+    fn cek_bisa_dijual(&self, key: &Key, amount_in: u128, min_out: u128, data: &Bytes) -> Result<(), String> {
+        let me = self.sender.address;
+        let now = unix_now();
+        let approve = uniswap::erc20_approve_permit2_calldata();
+        let p2 = uniswap::permit2_approve_router_calldata(key.token(), now + 86_400)?;
+        let sell = uniswap::sell_calldata(key, U256::from(min_out / 2), 1, U256::from(now + 300))?;
+        let call = |to: Address, value: U256, d: &Bytes| json!({"from": format!("{me:#x}"), "to": format!("{to:#x}"), "value": hx(value), "data": format!("0x{}", hex::encode(d)), "gas": "0x16e360"});
+        let calls = vec![call(UNIVERSAL_ROUTER, U256::from(amount_in), data), call(key.token(), U256::ZERO, &approve), call(chain::PERMIT2, U256::ZERO, &p2), call(UNIVERSAL_ROUTER, U256::ZERO, &sell)];
+        let saldo = hx(U256::from(amount_in).saturating_add(U256::from(10u128.pow(18))));
+        let req = json!({"blockStateCalls": [{"stateOverrides": {format!("{me:#x}"): {"balance": saldo}}, "calls": calls}], "validation": false});
+        let v = self.sender.simulate(&req, Duration::from_millis(1500)).map_err(|_| "cek jual: simulasi tidak terjawab".to_string())?;
+        jual_lolos(&v)
     }
 
     fn simulate_buy(&self, key: &Key, pool: &str, amount_in: u128, data: &Bytes) -> Result<(U256, U256), String> {
@@ -1224,6 +1246,19 @@ impl Executor {
     }
 }
 
+/// Every simulated step of the sell check succeeded.
+fn jual_lolos(v: &Value) -> Result<(), String> {
+    let hasil = v[0]["calls"].as_array().ok_or("cek jual: jawaban simulasi rusak")?;
+    let nama = ["beli", "approve token", "approve Permit2", "jual"];
+    if hasil.len() != nama.len() {
+        return Err("cek jual: jawaban simulasi rusak".into());
+    }
+    match nama.iter().zip(hasil).find(|(_, r)| r["status"].as_str() != Some("0x1")) {
+        Some((n, _)) => Err(format!("cek jual: {n} gagal di simulasi, koin dilewati")),
+        None => Ok(()),
+    }
+}
+
 /// Flatten callTracer logs (nested calls) into receipt-shaped logs.
 fn collect_logs(n: &Value, out: &mut Vec<Value>) {
     if let Some(ls) = n.get("logs").and_then(|l| l.as_array()) {
@@ -1250,6 +1285,17 @@ mod tests {
         for r in ["model bahaya", "tanda pucuk", "trailing 40%", "stop -40%", "akhir data", "take profit"] {
             assert!(!is_emergency(r), "{r}");
         }
+    }
+
+    #[test]
+    fn sell_check_needs_every_step() {
+        let ok = json!({"status": "0x1"});
+        let gagal = json!({"status": "0x0"});
+        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, ok]}])).is_ok());
+        assert!(jual_lolos(&json!([{"calls": [ok, ok, ok, gagal]}])).unwrap_err().contains("jual gagal"));
+        assert!(jual_lolos(&json!([{"calls": [gagal, ok, ok, ok]}])).unwrap_err().contains("beli gagal"));
+        assert!(jual_lolos(&json!([{"calls": [ok]}])).is_err(), "a short answer is not a pass");
+        assert!(jual_lolos(&json!({"error": "x"})).is_err());
     }
 
     #[test]

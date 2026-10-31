@@ -394,6 +394,18 @@ pub fn run(cfg: &crate::cfg::Cfg, env_file: Option<&str>, bot_dir: &str, skenari
             println!("SKENARIO {skenario}: selesai");
             Ok(())
         }
+        // the real chain in shadow mode: a coin the router cannot sell is skipped, a sellable one goes on
+        "cek_jual" => {
+            let t0 = Instant::now();
+            u.beli(&pool, key, u.state(&pool)?);
+            u.tunggu("keputusan cek jual", 10, |u| u.jurnal_n("buy_skipped") + u.jurnal_n("shadow_buy") > 0)?;
+            println!("   lama {} ms | dilewati {} | lolos {}", t0.elapsed().as_millis(), u.jurnal_n("buy_skipped"), u.jurnal_n("shadow_buy"));
+            for j in u.jurnal().iter().filter(|j| j["event"] == "buy_skipped") {
+                println!("   alasan: {}", j["data"]["why"]);
+            }
+            println!("SKENARIO {skenario}: selesai");
+            Ok(())
+        }
         _ => Err(format!("skenario tidak dikenal: {skenario}")),
     }
 }

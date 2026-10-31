@@ -64,6 +64,8 @@ pub struct ExecConfig {
     /// Drop a buy that waited this many ms in the executor's queue. This measures queue time only: how old the block
     /// behind the order may be is the strategy's own limit (FRESH_BLOCKS).
     pub max_buy_delay_ms: u64,
+    /// Before a buy, simulate buy + approvals + sell through the bot's router; a coin that fails is not bought.
+    pub cek_jual: bool,
     /// Refuse new buys while the base fee is above this.
     pub max_base_fee_gwei: f64,
     pub gas_limit_buy: u64,
@@ -139,6 +141,7 @@ impl ExecConfig {
             buy_slippage_bps: int("EXEC_BUY_SLIPPAGE_BPS", 1000)? as u32,
             sell_slippage_bps,
             max_buy_delay_ms: int("EXEC_MAX_BUY_DELAY_MS", 1500)?,
+            cek_jual: int("EXEC_CEK_JUAL", 1)? != 0,
             max_base_fee_gwei: num("EXEC_MAX_BASE_FEE_GWEI", 1.0)?,
             gas_limit_buy: int("EXEC_GAS_LIMIT_BUY", 600_000)?,
             gas_limit_sell: int("EXEC_GAS_LIMIT_SELL", 600_000)?,
