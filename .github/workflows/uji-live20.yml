@@ -1,0 +1,98 @@
+name: uji-live20
+# A shadow run of the owner's own system with a $20 strategy account, on the live chain, through the paid RPC that
+# ships in the repo — the same code path a real run takes: pools found by the radar, the minute-1 decision, the
+# adaptive ML+DL filter, quarter-Kelly sizing on the compounding account, the sell check, and a real order BUILT AND
+# SIGNED for every buy. The only difference from real money: the signed transaction is never broadcast, and the
+# wallet is a fresh random key with no ETH. Nothing about the strategy is changed.
+#
+# The observation step streams what the bot does as it happens: BUY with its size, SELL with profit or loss and the
+# new equity, SKIP with the gate that refused the coin, SCORE for every coin graded, and a HEARTBEAT every 60 s.
+on:
+  workflow_dispatch:
+    inputs:
+      menit:
+        description: berapa menit bot diamati
+        default: "280"
+      modal:
+        description: modal awal akun strategi (USD)
+        default: "20"
+  push:
+    branches: [live20]
+permissions:
+  contents: read
+# a new run replaces the one already going, so two bots never load the same RPC at once
+concurrency:
+  group: uji-live20
+  cancel-in-progress: true
+
+jobs:
+  live20:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install — the README's one line, with the repo's own RPC
+        run: |
+          url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/mulai.sh"
+          if [ "$GITHUB_REF_NAME" != main ]; then
+            sudo git clone -q -b "$GITHUB_REF_NAME" "https://github.com/$GITHUB_REPOSITORY.git" /root/live-trading-meme-coin
+          fi
+          UJI_RPC_BAWAAN=1 python3 .github/uji/ketik.py "curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash"
+          sudo sh -c 'grep -o "^RPC_URLS=https://[a-z.]*" /opt/rhc/bot/.env' || true
+
+      - name: shadow mode, $20 account
+        run: |
+          MODAL=${{ github.event.inputs.modal || '20' }}
+          sudo sed -i 's/^EXEC_MODE=.*/EXEC_MODE=shadow/' /opt/rhc/bot/.env
+          sudo sed -i "s/^START_USD=.*/START_USD=$MODAL/" /opt/rhc/bot/.env
+          echo "--- settings the run uses (strategy untouched):"
+          sudo grep -E '^(EXEC_MODE|START_USD|LAT_BLOCKS|EXEC_CEK_JUAL|MAX_POS|MAX_POS_AWAL|BELAJAR|BELAJAR_LABEL_BARU|QTHR|KILL_DD|LP_CAP|KELLY_MAKS|KELLY_MIN|MIN_POS|GAS_USD)=' /opt/rhc/bot/.env | tee /tmp/setelan.txt
+          sudo systemctl stop rhc-trader
+          sudo deploy/bersihkan-live.sh --reset-akun
+          sudo systemctl start rhc-trader
+          for i in $(seq 1 60); do sleep 5; [ "$(systemctl is-active rhc-trader)" = active ] && break; done
+          systemctl is-active rhc-trader
+          sleep 60
+          r=$(systemctl show -p NRestarts --value rhc-trader); echo "restarts after reset: $r"
+          if [ "${r:-0}" -gt 0 ]; then sudo journalctl -u rhc-trader -n 80 --no-pager; exit 1; fi
+
+      - name: sample the balance once a minute
+        run: |
+          cp .github/uji/sampel_saldo.py /tmp/sampel_saldo.py
+          sudo nohup bash -c 'while :; do python3 /tmp/sampel_saldo.py /opt/rhc/bot; sleep 60; done >> /tmp/jam.txt' >/dev/null 2>&1 &
+          sudo nohup bash -c 'while :; do python3 -c "import json,time;d=json.load(open(\"/opt/rhc/bot/rust_live/status.json\"));print(int(time.time()*1000),d[\"last_block\"],d[\"lag_blocks\"])" 2>/dev/null; sleep 1; done >> /tmp/sampler.txt' >/dev/null 2>&1 &
+          sleep 70
+          echo "first sample:"; cat /tmp/jam.txt
+
+      - name: watch — live stream of every buy, sell and score
+        run: |
+          sudo python3 -u .github/uji/aliran.py /opt/rhc/bot ${{ github.event.inputs.menit || '280' }}
+          echo "service: $(systemctl is-active rhc-trader) | restarts: $(systemctl show -p NRestarts --value rhc-trader)"
+
+      - name: report — balance every 20 minutes, every buy, sell and hold
+        if: always()
+        run: |
+          echo "--- settings used"; cat /tmp/setelan.txt || true
+          sudo python3 .github/uji/laporan20.py /opt/rhc/bot /tmp/jam.txt | tee laporan20.txt
+          echo
+          echo "--------------------------------------------------------- component report"
+          sudo python3 .github/uji/laporan.py /opt/rhc/bot || true
+          sudo python3 .github/uji/cek_komponen.py /opt/rhc/bot 1 || true
+
+      - name: realita — would the orders have filled against the other bots?
+        if: always()
+        continue-on-error: true
+        run: |
+          sudo python3 .github/uji/realita.py /opt/rhc/bot /tmp/sampler.txt | tee realita.json
+          mkdir -p hasil
+          cp realita.json laporan20.txt /tmp/jam.txt /tmp/sampler.txt /tmp/setelan.txt hasil/ 2>/dev/null || true
+          sudo tar -czf hasil/rust_live.tar.gz --warning=no-file-changed -C /opt/rhc/bot --exclude='rust_live/rust_live_backup_*' rust_live || [ $? -eq 1 ]
+          sudo chown -R "$USER" hasil
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live20
+          path: hasil/
+          retention-days: 30
