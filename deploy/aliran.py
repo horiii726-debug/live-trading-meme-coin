@@ -222,11 +222,15 @@ def main():
             if m:
                 t, pool, pct, dari, ke, pnl, mnt, alasan = m.groups()
                 v = float(pnl)
-                u = ukuran.get(p10(pool))
-                print("%s CLOSE     %s  %+d%%  %s %+.2f  size %s  EQUITY $%s -> $%s  held %.0f min  %s"
-                      % (jam(t), p10(pool), int(pct), "PROFIT" if v > 0 else "LOSS", v,
-                         ("$%.2f" % u) if u else "(before this view opened)", dari, ke, float(mnt),
-                         REASON.get(alasan.strip(), alasan.strip())), flush=True)
+                # the bot's own line labels these two "akun", but they are the POSITION: what went in and what
+                # came back. The account total is on the BALANCE line, not here.
+                d = muat(ST)
+                eq = d["akun"]["equity_harga_pasar"] if d else None
+                kas = d["akun"]["kas"] if d else None
+                print("%s CLOSE     %s  %+d%%  %s %+.2f  position $%s -> $%s%s  held %.0f min  %s"
+                      % (jam(t), p10(pool), int(pct), "PROFIT" if v > 0 else "LOSS", v, dari, ke,
+                         ("  | ACCOUNT equity $%.2f cash $%.2f" % (eq, kas)) if eq is not None else "",
+                         float(mnt), REASON.get(alasan.strip(), alasan.strip())), flush=True)
                 continue
             m = BELI_GAGAL.search(l)
             if m:
