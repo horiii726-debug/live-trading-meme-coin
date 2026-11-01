@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
   push:
     branches: [uji-siap]
-    paths: ['crates/**', '.github/uji/fork_jalan.sh', '.github/uji/pilih_pool.py']
 permissions:
   contents: read
 

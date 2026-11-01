@@ -4,7 +4,7 @@ name: uji-kontainer
 on:
   workflow_dispatch:
   push:
-    branches: [vast]
+    branches: [vast, uji-siap]
 permissions:
   contents: read
 
