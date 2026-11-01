@@ -382,6 +382,13 @@ cmd_stop(){
         *) die "tidak ada systemd/supervisor.";;
     esac
 }
+cmd_aliran(){
+    # a read-only English view of the same live.log cmd_log tails, with the balance after each buy and sell
+    [ -f "$BOT/rust_live/live.log" ] || die "belum ada log. Jalankan dulu: sudo ./rhc.sh mulai"
+    command -v python3 >/dev/null || die "python3 belum ada. Jalankan ulang pemasang: sudo ./rhc.sh pasang"
+    say "(Ctrl+C untuk keluar — bot tetap jalan)"
+    python3 "$ROOT/deploy/aliran.py" "$BOT"
+}
 cmd_log(){
     # live.log holds the strategy lines AND the executor's real buys/sells ("EXEC: ..."), which only go there;
     # the journal has the strategy lines and crash messages only
@@ -527,6 +534,7 @@ menu(){
         say "  3) cek      — self-test on-chain (tidak mengirim apa pun)"
         say "  4) dompet   — alamat wallet dan saldo"
         say "  5) mulai    6) stop    7) log"
+        say "  a) aliran   — tampilan Inggris: tiap beli, tiap jual, saldo sesudahnya"
         say "  8) bersih   — kosongkan catatan sebelum live"
         say "  l) lanjut   — buka kill switch setelah dicek     j) jual-semua"
         say "  0) keluar"
@@ -534,7 +542,7 @@ menu(){
         case "$(ask 'Pilih')" in
             1) cmd_pasang;; 2) cmd_atur;; 3) cmd_cek || true;; 4) cmd_dompet || true;;
             5) cmd_mulai;;  6) cmd_stop;; 7) cmd_log;; 8) cmd_bersih;; 9) cmd_isi;;
-            l) cmd_lanjut;; j) cmd_jual_semua;;
+            a) cmd_aliran;; l) cmd_lanjut;; j) cmd_jual_semua;;
             0|q|keluar) exit 0;;
             *) say "pilihan tidak dikenal";;
         esac
@@ -550,10 +558,11 @@ case "${1:-menu}" in
     mulai)   cmd_mulai;;
     stop)    cmd_stop;;
     log)     cmd_log;;
+    aliran)  cmd_aliran;;
     status)  cmd_status;;
     bersih)  cmd_bersih;;
     lanjut)  cmd_lanjut "${2:-}";;
     jual-semua) cmd_jual_semua "${2:-}";;
     menu)    menu;;
-    *) say "pakai: sudo ./rhc.sh [pasang|atur|isi|cek|dompet|mulai|stop|log|status|bersih|lanjut|jual-semua]"; exit 1;;
+    *) say "pakai: sudo ./rhc.sh [pasang|atur|isi|cek|dompet|mulai|stop|log|aliran|status|bersih|lanjut|jual-semua]"; exit 1;;
 esac
