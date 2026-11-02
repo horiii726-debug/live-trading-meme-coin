@@ -18,6 +18,6 @@ jobs:
         run: |
           sudo git clone -q -b "$GITHUB_REF_NAME" "https://github.com/$GITHUB_REPOSITORY.git" /root/live-trading-meme-coin
           url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/mulai.sh"
-          python3 .github/uji/ketik.py "curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash"
+          UJI_RPC_BAWAAN=1 python3 .github/uji/ketik.py "curl -sSL $url | sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash"
       - name: every command, one by one
         run: bash .github/uji/menu_jalan.sh
