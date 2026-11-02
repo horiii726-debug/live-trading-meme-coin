@@ -95,7 +95,7 @@ def main():
     hold = [b for b in beli if b[1] not in ditutup]
 
     print("=" * 96)
-    print("SHADOW RUN REPORT — start $20, EXEC_MODE=shadow (every order built and signed, none broadcast)")
+    print("SHADOW RUN REPORT — start $40, EXEC_MODE=shadow (every order built and signed, none broadcast)")
     print("=" * 96)
 
     rows = tabel_saldo()

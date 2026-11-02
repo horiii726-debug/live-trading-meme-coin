@@ -1,5 +1,5 @@
 name: uji-live20
-# A shadow run of the owner's own system with a $20 strategy account, on the live chain, through the paid RPC that
+# A shadow run of the owner's own system with a $40 strategy account, on the live chain, through the paid RPC that
 # ships in the repo — the same code path a real run takes: pools found by the radar, the minute-1 decision, the
 # adaptive ML+DL filter, quarter-Kelly sizing on the compounding account, the sell check, and a real order BUILT AND
 # SIGNED for every buy. The only difference from real money: the signed transaction is never broadcast, and the
@@ -15,7 +15,7 @@ on:
         default: "280"
       modal:
         description: modal awal akun strategi (USD)
-        default: "20"
+        default: "40"
   push:
     branches: [live20]
 permissions:
@@ -43,7 +43,7 @@ jobs:
 
       - name: shadow mode, $20 account
         run: |
-          MODAL=${{ github.event.inputs.modal || '20' }}
+          MODAL=${{ github.event.inputs.modal || '40' }}
           sudo sed -i 's/^EXEC_MODE=.*/EXEC_MODE=shadow/' /opt/rhc/bot/.env
           sudo sed -i "s/^START_USD=.*/START_USD=$MODAL/" /opt/rhc/bot/.env
           echo "--- settings the run uses (strategy untouched):"
