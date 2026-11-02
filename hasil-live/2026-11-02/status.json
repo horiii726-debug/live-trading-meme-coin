@@ -1,0 +1,81 @@
+{
+  "akun": {
+    "drawdown_maks_pct": 34.00436732821078,
+    "equity_harga_beli": 31.190942395893295,
+    "equity_harga_pasar": 31.190942395893295,
+    "kas": 31.190942395893295,
+    "kelly": 0.10125000000000006,
+    "menang": 15,
+    "modal_awal": 40.0,
+    "posisi_terbuka": 0,
+    "stop_darurat": false,
+    "trade_dibeli": 31,
+    "trade_selesai": 31
+  },
+  "checkpoint_blok": 104361092.0,
+  "eth_usd": 2244.552501225756,
+  "filter": {
+    "akurasi_data_belum_dilihat_500": null,
+    "dl_aktif": true,
+    "dl_dimatikan_pengaman": 0,
+    "hasil_koin_dipelajari": 29,
+    "koin_dinilai": 414,
+    "ml_dilatih_ulang": 1,
+    "mode": "adaptif: ML CatBoost (latih ulang C++) + DL Rust",
+    "sedang_melatih_ml": false
+  },
+  "kill_switch": {
+    "aktif": false,
+    "alasan": null
+  },
+  "label_latihan_ditulis": 28,
+  "lag_blocks": 0.0,
+  "last_block": 104516323.0,
+  "last_error": "",
+  "log_gate": {
+    "duplicate_dropped": 0,
+    "late_delivered": 0,
+    "outside_range_dropped": 0,
+    "range_cap_blocks": 1000,
+    "removed_dropped": 0,
+    "reread_ok": 1354329
+  },
+  "mode": "SHADOW (simulated execution, no transactions) — Rust engine",
+  "mode_aman": false,
+  "pools_dipantau": 9,
+  "radar": {
+    "label_radar": 0,
+    "pool_dikenal": 12060,
+    "swap_tercatat": 5651,
+    "token_terklasifikasi": 476
+  },
+  "rpc_diam_dtk": 0,
+  "saringan": {
+    "ambang_awal": 0.7474632644259495,
+    "cek_gagal": 3,
+    "data_basi": 8,
+    "skor_tersimpan": 100,
+    "tolak": {
+      "cek telat >10 dtk": 45,
+      "data basi": 10,
+      "dev tidak diketahui": 1,
+      "honeypot (belum ada penjual)": 8,
+      "ml": 303
+    }
+  },
+  "setelan": {
+    "DUMP_FRAC": 0.05,
+    "EXP_MAX": 0.5,
+    "KELLY_MAKS": 0.15,
+    "KILL_DD": 0.6,
+    "LP_CAP": 0.01,
+    "MAX_POS": 6,
+    "QTHR": 0.8,
+    "TRAIL_PUNCAK": 0.4,
+    "TUTUP_SAAT_RUG": true
+  },
+  "tip": 104516323.0,
+  "updated": "2026-11-02T20:57:43Z",
+  "uptime_menit": 298,
+  "versi": "rhc-live 1.0"
+}

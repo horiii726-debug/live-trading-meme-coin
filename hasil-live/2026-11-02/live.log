@@ -1,0 +1,1255 @@
+[2026-11-02T14:33:44] EXEC: executor started: mode=live wallet=0x449f4c025c568d18d194d7f59890e56b9d543801 balance=0.018076 ETH open_positions=0
+[2026-11-02T14:33:44] aturan dev AKTIF: 677 dev dari dev_history.json, 83 dev tercatat pernah rug (tidak akan dibeli)
+[2026-11-02T14:33:46] MULAI paper trading (rhc-live 1.0) dari blok 104289079 (tip 104289079). Mode LIVE: transaksi nyata dengan dompet EXEC_KEY_FILE.
+[2026-11-02T14:33:46] putar ulang 1 event sejak blok 0 -> 0 trade tutup total, 0 posisi terbuka, kas $40.00. Lanjut dari blok 104289079.
+[2026-11-02T14:33:46] filter adaptif AKTIF: ML CatBoost + DL | 0 hasil koin sudah dipelajari (0 dikejar sekarang), ML sudah dilatih ulang 0x | program CatBoost /opt/rhc/bin/catboost: ada
+[2026-11-02T14:33:46] log gate: 17 log(s) from block 104289067 on that a lagging RPC node had not returned are delivered at block 104289092
+[2026-11-02T14:34:16] radar: 68407 meta pool v4 dimuat sekaligus
+[2026-11-02T14:34:39] log gate: 4 log(s) from block 104289619 on that a lagging RPC node had not returned are delivered at block 104289621
+[2026-11-02T14:34:42] error: rpc.mainnet.chain.robinhood.com: net: http 429 {"jsonrpc":"2.0","error":{"code":429,"message":"Too Many Requests"}}
+
+[2026-11-02T14:34:48] SARING 0x33b14e42 | skor 0.031 tolak(ml) | dev 0x5e2265 | penjual menit-1 0 | LP $NaN | skor ke-1
+[2026-11-02T14:35:28] radar: 630 meta pabrik 0xe0c4ceb9 dimuat sekaligus
+[2026-11-02T14:35:37] SARING 0x379fd41b | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6111 | skor ke-2
+[2026-11-02T14:35:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:36:07] SARING 0xd5e619fa | skor 0.447 tolak(ml) | dev 0x3386ca | penjual menit-1 19 | LP $19067 | skor ke-3
+[2026-11-02T14:36:19] radar: 301 meta pabrik 0xece6ecd6 dimuat sekaligus
+[2026-11-02T14:36:46] error: rpc.mainnet.chain.robinhood.com: net: http 429 {"jsonrpc":"2.0","error":{"code":429,"message":"Too Many Requests"}}
+
+[2026-11-02T14:37:38] EXEC: executor started: mode=live wallet=0x449f4c025c568d18d194d7f59890e56b9d543801 balance=0.018076 ETH open_positions=0
+[2026-11-02T14:37:38] aturan dev AKTIF: 677 dev dari dev_history.json, 83 dev tercatat pernah rug (tidak akan dibeli)
+[2026-11-02T14:37:38] putar ulang 254 event sejak blok 104289091 -> 0 trade tutup total, 0 posisi terbuka, kas $40.00. Lanjut dari blok 104291387.
+[2026-11-02T14:37:38] filter adaptif AKTIF: ML CatBoost + DL | 0 hasil koin sudah dipelajari (0 dikejar sekarang), ML sudah dilatih ulang 0x | program CatBoost /opt/rhc/bin/catboost: ada
+[2026-11-02T14:37:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:38:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:38:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:39:08] SARING 0x14588c49 | skor 0.465 tolak(ml) | dev 0x94a3d4 | penjual menit-1 20 | LP $20149 | skor ke-4
+[2026-11-02T14:39:11] SARING 0x98ab264d | skor 0.453 tolak(ml) | dev 0x52c6e9 | penjual menit-1 21 | LP $19365 | skor ke-5
+[2026-11-02T14:39:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:40:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:41:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:42:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:43:40] SARING 0xb7e45773 | skor 0.119 tolak(ml) | dev 0x5e2265 | penjual menit-1 0 | LP $3758 | skor ke-6
+[2026-11-02T14:43:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:43:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:44:14] SARING 0xbe672253 | skor 0.437 tolak(ml) | dev 0xe02453 | penjual menit-1 0 | LP $42723 | skor ke-7
+[2026-11-02T14:44:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:44:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:45:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:45:53] SARING 0xb0949b7d | skor 0.017 DIKECUALIKAN | dev ? | penjual menit-1 0 | LP $6105 | skor ke-8 | dev tidak diketahui (net: http 429 )
+[2026-11-02T14:45:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:46:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:47:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:47:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:48:18] SARING 0x74999ee0 | skor 0.058 tolak(ml) | dev 0x5aef64 | penjual menit-1 0 | LP $16898 | skor ke-9
+[2026-11-02T14:48:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:48:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:49:05] SARING 0x8b177703 | skor 0.437 tolak(ml) | dev 0xc18ebf | penjual menit-1 20 | LP $19198 | skor ke-10
+[2026-11-02T14:49:06] SARING 0x9aeb50e8 | skor 0.449 tolak(ml) | dev 0xd36011 | penjual menit-1 22 | LP $19645 | skor ke-11
+[2026-11-02T14:49:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:49:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:50:09] SARING 0xe7069017 | skor 0.137 tolak(ml) | dev 0xc7ccd4 | penjual menit-1 0 | LP $9 | skor ke-12
+[2026-11-02T14:50:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:50:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:51:19] SARING 0x4dfa7a56 | skor 0.020 tolak(ml) | dev 0xb92447 | penjual menit-1 0 | LP $7296 | skor ke-13
+[2026-11-02T14:51:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:51:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:52:39] SARING 0x284c82ef | skor 0.024 tolak(ml) | dev 0x69ad94 | penjual menit-1 0 | LP $NaN | skor ke-14
+[2026-11-02T14:52:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:52:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:53:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:54:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:54:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:55:38] SARING 0xa758722d | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6101 | skor ke-15
+[2026-11-02T14:55:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:55:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:56:10] SARING 0xffce4a33 | skor 0.390 tolak(ml) | dev 0xc8a0d3 | penjual menit-1 4 | LP $23975 | skor ke-16
+[2026-11-02T14:56:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:57:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:58:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:58:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T14:59:02] SARING 0x8c35a2e2 | skor 0.473 tolak(ml) | dev 0xddaacd | penjual menit-1 20 | LP $20039 | skor ke-17
+[2026-11-02T14:59:06] SARING 0x4ed73d19 | skor 0.418 tolak(ml) | dev 0x5c7263 | penjual menit-1 21 | LP $18569 | skor ke-18
+[2026-11-02T14:59:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:00:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:01:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:01:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:02:03] SARING 0x8903107d | skor 0.465 tolak(ml) | dev 0x5c070e | penjual menit-1 1 | LP $31812 | skor ke-19
+[2026-11-02T15:02:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:03:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:04:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:04:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:05:03] SARING 0x5572c72c | skor 0.161 tolak(ml) | dev 0xa823cc | penjual menit-1 0 | LP $4569 | skor ke-20
+[2026-11-02T15:05:41] SARING 0xf6fd912e | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6101 | skor ke-21
+[2026-11-02T15:05:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:05:45] SARING 0xf12458e6 | skor 0.252 tolak(ml) | dev 0x86cc85 | penjual menit-1 6 | LP $30162 | skor ke-22
+[2026-11-02T15:05:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:06:44] SARING 0x2db5f012 | skor 0.076 tolak(ml) | dev 0x4be423 | penjual menit-1 0 | LP $15243 | skor ke-23
+[2026-11-02T15:06:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:07:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:08:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:08:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:09:03] SARING 0x79921361 | skor 0.442 tolak(ml) | dev 0x371971 | penjual menit-1 20 | LP $19019 | skor ke-24
+[2026-11-02T15:09:03] SARING 0x2b2afefc | skor 0.492 tolak(ml) | dev 0x08238d | penjual menit-1 19 | LP $21142 | skor ke-25
+[2026-11-02T15:09:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:10:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:11:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:12:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:12:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:13:17] SARING 0x78e97a0e | skor 0.031 tolak(ml) | dev 0x5e2265 | penjual menit-1 0 | LP $NaN | skor ke-26
+[2026-11-02T15:13:20] SARING 0x22d09ab8 | skor 0.078 tolak(ml) | dev 0xd937ef | penjual menit-1 0 | LP $34426 | skor ke-27
+[2026-11-02T15:13:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:14:04] SARING 0xf413b759 | skor 0.329 tolak(ml) | dev 0xa36c49 | penjual menit-1 11 | LP $18346 | skor ke-28
+[2026-11-02T15:14:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:15:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:15:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:16:14] SARING 0x28e4391b | skor 0.556 tolak(ml) | dev 0x21d1d2 | penjual menit-1 129 | LP $60912 | skor ke-29
+[2026-11-02T15:16:15] SARING 0x5ef05f58 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6115 | skor ke-30
+[2026-11-02T15:16:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:16:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:17:03] SARING 0x101083fe | skor 0.385 tolak(ml) | dev 0x20bfcb | penjual menit-1 0 | LP $7119 | skor ke-31
+[2026-11-02T15:17:38] SARING 0x5d47d8ec | skor 0.350 tolak(ml) | dev 0x89a794 | penjual menit-1 1 | LP $19695 | skor ke-32
+[2026-11-02T15:17:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:17:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:18:04] SARING 0xa7e74e0d | skor 0.322 tolak(ml) | dev 0x8b2f26 | penjual menit-1 19 | LP $46893 | skor ke-33
+[2026-11-02T15:18:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:18:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:19:12] SARING 0x62be34f6 | skor 0.491 LOLOS | dev 0x31a253 | penjual menit-1 16 | LP $20095 | skor ke-34
+[2026-11-02T15:19:13] EXEC: BELI OK 0x62be34f6: 0.002372 ETH ($5.43)
+[2026-11-02T15:19:13] SARING 0xf02cde41 | skor 0.413 tolak(ml) | dev 0x3c2e37 | penjual menit-1 18 | LP $18428 | skor ke-35
+[2026-11-02T15:19:14] TUTUP 0x62be34f6 -103% | akun $5.25 -> $0.00 (-5.25) | 0 mnt | rug terdeteksi
+[2026-11-02T15:19:14] EXEC: JUAL REVERT 0x62be34f6 (percobaan 1): dicoba lagi
+[2026-11-02T15:19:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:19:50] CEK GAGAL 0x3c3afbd4 dilewati (net: http 429 )
+[2026-11-02T15:19:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:20:34] SARING 0xbbd0e7e0 | skor 0.486 LOLOS | dev 0x8a9d4a | penjual menit-1 20 | LP $20820 | skor ke-36
+[2026-11-02T15:20:35] EXEC: BELI OK 0xbbd0e7e0: 0.001694 ETH ($3.87)
+[2026-11-02T15:20:37] TUTUP 0xbbd0e7e0 -105% | akun $3.26 -> $0.00 (-3.26) | 0 mnt | rug terdeteksi
+[2026-11-02T15:20:37] EXEC: JUAL REVERT 0xbbd0e7e0 (percobaan 1): dicoba lagi
+[2026-11-02T15:20:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:20:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:21:11] SARING 0xe74efe31 | skor 0.504 LOLOS | dev 0x20bfcb | penjual menit-1 0 | LP $8031 | skor ke-37
+[2026-11-02T15:21:38] EXEC: 0x62be34f64ba819136301890bd807987bbc8ab01da5f1669a82f148622215868c cannot be sold (simulated sells revert): re-checked every 30 s, sold as soon as it can be; no gas spent meanwhile
+[2026-11-02T15:21:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:21:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:22:02] SARING 0x9478e908 | skor 0.387 tolak(ml) | dev 0x01c277 | penjual menit-1 21 | LP $18300 | skor ke-38
+[2026-11-02T15:22:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:22:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:23:05] EXEC: 0xbbd0e7e0b07d77d9ae58b3ebd104c69e08b7495638f7c342109d73f780e9a2b3 cannot be sold (simulated sells revert): re-checked every 30 s, sold as soon as it can be; no gas spent meanwhile
+[2026-11-02T15:23:29] SARING 0x764852b7 | skor 0.031 tolak(ml) | dev 0x5e2265 | penjual menit-1 0 | LP $NaN | skor ke-39
+[2026-11-02T15:23:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:23:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:24:03] SARING 0x37c65a45 | skor 0.138 tolak(ml) | dev 0x7d892d | penjual menit-1 1 | LP $45809 | skor ke-40
+[2026-11-02T15:24:25] SARING 0xd78c0703 | skor 0.064 tolak(ml) | dev 0x987d40 | penjual menit-1 0 | LP $14734 | skor ke-41
+[2026-11-02T15:24:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:24:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:25:22] SARING 0x18c6cea8 | skor 0.525 LOLOS | dev 0x20bfcb | penjual menit-1 0 | LP $11251 | skor ke-42
+[2026-11-02T15:25:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:25:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:26:03] SARING 0x6185dd8f | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6113 | skor ke-43
+[2026-11-02T15:26:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:26:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:27:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:27:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:28:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:28:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:29:17] SARING 0x2f34eca7 | skor 0.438 tolak(ml) | dev 0xbed8b4 | penjual menit-1 21 | LP $19821 | skor ke-44
+[2026-11-02T15:29:17] SARING 0x44e40d4e | skor 0.453 tolak(ml) | dev 0xeb54a3 | penjual menit-1 21 | LP $19476 | skor ke-45
+[2026-11-02T15:29:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:29:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:30:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:30:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:31:02] SARING 0x3078acb4 | skor 0.122 tolak(ml) | dev 0x5cd6dd | penjual menit-1 0 | LP $29618 | skor ke-46
+[2026-11-02T15:31:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:31:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:32:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:32:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:33:16] SARING 0x00fac7bc | skor 0.352 tolak(ml) | dev 0x20bfcb | penjual menit-1 0 | LP $8484 | skor ke-47
+[2026-11-02T15:33:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:33:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:34:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:34:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:35:36] SARING 0x4c2ab53b | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6096 | skor ke-48
+[2026-11-02T15:35:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:35:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:36:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:36:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:37:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:37:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:38:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:38:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:39:00] SARING 0xab4b6cad | skor 0.095 tolak(ml) | dev 0x02b27a | penjual menit-1 0 | LP $13692 | skor ke-49
+[2026-11-02T15:39:00] SARING 0x11a1f2c2 | skor 0.428 tolak(ml) | dev 0x8c560f | penjual menit-1 21 | LP $18105 | skor ke-50
+[2026-11-02T15:39:25] SARING 0x701675ba | skor 0.463 LOLOS | dev 0x6d755d | penjual menit-1 19 | LP $19567 | skor ke-51
+[2026-11-02T15:39:26] EXEC: BELI OK 0x701675ba: 0.001072 ETH ($2.45)
+[2026-11-02T15:39:27] EXEC: JUAL REVERT 0x701675ba (percobaan 1): dicoba lagi
+[2026-11-02T15:39:27] TUTUP 0x701675ba -108% | akun $1.87 -> $0.00 (-1.87) | 0 mnt | rug terdeteksi
+[2026-11-02T15:39:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:39:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:39:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:40:03] SARING 0xc0a154a5 | skor 0.381 tolak(ml) | dev 0x51be27 | penjual menit-1 2 | LP $22860 | skor ke-52
+[2026-11-02T15:40:06] SARING 0xdf89d482 | skor 0.408 tolak(ml) | dev 0xbdb53b | penjual menit-1 4 | LP $23881 | skor ke-53
+[2026-11-02T15:40:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:40:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:40:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:41:00] SARING 0x9ec2c011 | skor 0.459 LOLOS | dev 0xf4fb71 | penjual menit-1 6 | LP $16555 | skor ke-54
+[2026-11-02T15:41:00] SARING 0x0907818c | skor 0.582 LOLOS | dev 0x362bd0 | penjual menit-1 1 | LP $23392 | skor ke-55
+[2026-11-02T15:41:10] SARING 0xfe082d81 | skor 0.450 tolak(ml) | dev 0x854d2a | penjual menit-1 10 | LP $26299 | skor ke-56
+[2026-11-02T15:41:25] SARING 0x1b959912 | skor 0.455 tolak(ml) | dev 0x6bccca | penjual menit-1 15 | LP $18850 | skor ke-57
+[2026-11-02T15:41:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:41:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:41:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:42:05] SARING 0xd474e4cf | skor 0.426 tolak(ml) | dev 0x36bb16 | penjual menit-1 4 | LP $23623 | skor ke-58
+[2026-11-02T15:42:06] EXEC: 0x701675bac40e5888b7755f17f5e6f6e516215d883dc7e56514ede70c2568f3b7 cannot be sold (simulated sells revert): re-checked every 30 s, sold as soon as it can be; no gas spent meanwhile
+[2026-11-02T15:42:36] SARING 0x52d58de4 | skor 0.486 LOLOS | dev 0x6c09af | penjual menit-1 19 | LP $20917 | skor ke-59
+[2026-11-02T15:42:37] EXEC: BELI DILEWATI 0x52d58de4: cek jual: simulasi tidak terjawab
+[2026-11-02T15:42:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:42:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:42:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:43:03] TUTUP 0x52d58de4 -41% | akun $1.67 -> $0.99 (-0.68) | 0 mnt | rug terdeteksi
+[2026-11-02T15:43:03] SARING 0x7ed16e94 | skor 0.335 tolak(ml) | dev 0xc77741 | penjual menit-1 21 | LP $27631 | skor ke-60
+[2026-11-02T15:43:14] SARING 0x41d7f22b | skor 0.066 tolak(ml) | dev 0x753411 | penjual menit-1 0 | LP $12629 | skor ke-61
+[2026-11-02T15:43:35] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:43:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:43:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:44:12] SARING 0x44984929 | skor 0.306 tolak(ml) | dev 0x798827 | penjual menit-1 19 | LP $20456 | skor ke-62
+[2026-11-02T15:51:03] EXEC: executor started: mode=live wallet=0x449f4c025c568d18d194d7f59890e56b9d543801 balance=0.012913 ETH open_positions=3
+[2026-11-02T15:51:03] aturan dev AKTIF: 677 dev dari dev_history.json, 85 dev tercatat pernah rug (tidak akan dibeli)
+[2026-11-02T15:51:03] putar ulang 637 event sejak blok 104325091 -> 2 trade tutup total, 0 posisi terbuka, kas $31.49. Lanjut dari blok 104330983.
+[2026-11-02T15:51:03] filter adaptif AKTIF: ML CatBoost + DL | 1 hasil koin sudah dipelajari (1 dikejar sekarang), ML sudah dilatih ulang 0x | program CatBoost /opt/rhc/bin/catboost: ada
+[2026-11-02T15:51:07] SARING 0xf8377df8 | skor 0.147 tolak(ml) | dev 0x27bcef | penjual menit-1 61 | LP $11384 | skor ke-63
+[2026-11-02T15:51:14] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:51:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:51:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:51:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:51:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:52:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:52:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:52:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:53:24] SARING 0x28a48fc7 | skor 0.049 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7286 | skor ke-64
+[2026-11-02T15:53:33] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:53:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:53:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:54:03] SARING 0x201a76a3 | skor 0.058 tolak(ml) | dev 0xc02626 | penjual menit-1 0 | LP $3674 | skor ke-65
+[2026-11-02T15:54:05] SARING 0xcadae745 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6305 | skor ke-66
+[2026-11-02T15:54:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:54:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:55:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:55:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:55:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:56:03] SARING 0xf7aaef2d | skor 0.129 tolak(ml) | dev 0xfdb41d | penjual menit-1 37 | LP $9968 | skor ke-67
+[2026-11-02T15:56:03] SARING 0xca26969d | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6079 | skor ke-68
+[2026-11-02T15:56:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:56:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:57:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:57:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:57:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:58:03] SARING 0x954c3c73 | skor 0.137 tolak(ml) | dev 0xf8e9c4 | penjual menit-1 35 | LP $8599 | skor ke-69
+[2026-11-02T15:58:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:59:16] EXEC: executor started: mode=shadow wallet=0x449f4c025c568d18d194d7f59890e56b9d543801 balance=0.000000 ETH open_positions=3
+[2026-11-02T15:59:16] aturan dev AKTIF: 677 dev dari dev_history.json, 85 dev tercatat pernah rug (tidak akan dibeli)
+[2026-11-02T15:59:16] putar ulang 1625 event sejak blok 104325091 -> 4 trade tutup total, 0 posisi terbuka, kas $28.95. Lanjut dari blok 104339397.
+[2026-11-02T15:59:16] filter adaptif AKTIF: ML CatBoost + DL | 1 hasil koin sudah dipelajari (0 dikejar sekarang), ML sudah dilatih ulang 0x | program CatBoost /opt/rhc/bin/catboost: ada
+[2026-11-02T15:59:17] SARING 0x8c91b077 | skor 0.031 tolak(ml) | dev 0xc02626 | penjual menit-1 0 | LP $NaN | skor ke-70
+[2026-11-02T15:59:18] SARING 0xbdfd1b7a | skor 0.296 tolak(ml) | dev 0xae2929 | penjual menit-1 16 | LP $18892 | skor ke-71
+[2026-11-02T15:59:19] SARING 0x59d09ac8 | skor 0.315 tolak(ml) | dev 0x71251c | penjual menit-1 15 | LP $18983 | skor ke-72
+[2026-11-02T15:59:23] SARING 0x89feda9f | skor 0.320 tolak(ml) | dev 0xb63e57 | penjual menit-1 0 | LP $10628 | skor ke-73
+[2026-11-02T15:59:28] SARING 0x507eaa18 | skor 0.153 tolak(ml) | dev 0x1ba6ff | penjual menit-1 27 | LP $8463 | skor ke-74
+[2026-11-02T15:59:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:59:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T15:59:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:00:02] SARING 0x30c5544e | skor 0.385 tolak(ml) | dev 0x81bb36 | penjual menit-1 3 | LP $23379 | skor ke-75
+[2026-11-02T16:00:15] SARING 0xedee8755 | skor 0.061 tolak(ml) | dev 0xfa6b9e | penjual menit-1 0 | LP $15687 | skor ke-76
+[2026-11-02T16:00:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:00:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:01:03] SARING 0x60aa2ab5 | skor 0.374 tolak(ml) | dev 0xfff2e0 | penjual menit-1 17 | LP $28011 | skor ke-77
+[2026-11-02T16:01:18] SARING 0x471a4088 | skor 0.193 tolak(ml) | dev 0x435b81 | penjual menit-1 7 | LP $7037 | skor ke-78
+[2026-11-02T16:01:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:02:17] SARING 0x8ac9d0fd | skor 0.271 tolak(ml) | dev 0xdf2b56 | penjual menit-1 4 | LP $53890 | skor ke-79
+[2026-11-02T16:02:34] SARING 0x3a320988 | skor 0.203 tolak(ml) | dev 0x1c19be | penjual menit-1 9 | LP $7212 | skor ke-80
+[2026-11-02T16:02:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:02:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:03:33] SARING 0x5974359a | skor 0.078 tolak(ml) | dev 0xaa7f03 | penjual menit-1 0 | LP $864233 | skor ke-81
+[2026-11-02T16:03:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:03:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:04:03] SARING 0x2cad8e9e | skor 0.140 tolak(ml) | dev 0x628b68 | penjual menit-1 56 | LP $9976 | skor ke-82
+[2026-11-02T16:04:05] SARING 0x097c13bc | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6287 | skor ke-83
+[2026-11-02T16:04:16] SARING 0x3e0efd1e | skor 0.058 tolak(ml) | dev 0xc02626 | penjual menit-1 0 | LP $3662 | skor ke-84
+[2026-11-02T16:04:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:05:39] SARING 0x17229d0a | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6070 | skor ke-85
+[2026-11-02T16:05:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:05:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:06:22] SARING 0x81c53952 | skor 0.121 tolak(ml) | dev ? | penjual menit-1 0 | LP $77565 | skor ke-86
+[2026-11-02T16:06:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:07:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:07:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:08:15] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:08:32] SARING 0x9a0c146e | skor 0.122 tolak(ml) | dev 0x6dc691 | penjual menit-1 53 | LP $10742 | skor ke-87
+[2026-11-02T16:08:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:08:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:09:02] SARING 0xfc3cf436 | skor 0.020 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7265 | skor ke-88
+[2026-11-02T16:09:10] SARING 0x9c0dbb0f | skor 0.286 tolak(ml) | dev 0x66f192 | penjual menit-1 20 | LP $18300 | skor ke-89
+[2026-11-02T16:09:11] SARING 0x495a5ff5 | skor 0.278 tolak(ml) | dev 0xb1f2b8 | penjual menit-1 20 | LP $18130 | skor ke-90
+[2026-11-02T16:09:14] SARING 0x7c8f3fb2 | skor 0.324 tolak(ml) | dev 0x0a9db7 | penjual menit-1 14 | LP $25276 | skor ke-91
+[2026-11-02T16:09:21] SARING 0x7a7a5a66 | skor 0.035 tolak(ml) | dev 0x082acd | penjual menit-1 0 | LP $NaN | skor ke-92
+[2026-11-02T16:09:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:09:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:10:14] SARING 0xb036563d | skor 0.324 tolak(ml) | dev 0x22ae99 | penjual menit-1 15 | LP $25171 | skor ke-93
+[2026-11-02T16:10:32] SARING 0x97469c66 | skor 0.146 tolak(ml) | dev 0xf62c1c | penjual menit-1 60 | LP $11633 | skor ke-94
+[2026-11-02T16:10:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:10:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:11:01] SARING 0xa27e2ab1 | skor 0.239 tolak(ml) | dev 0xbfd174 | penjual menit-1 20 | LP $16575 | skor ke-95
+[2026-11-02T16:11:18] SARING 0x82055892 | skor 0.200 tolak(ml) | dev 0x5ef694 | penjual menit-1 0 | LP $56383 | skor ke-96
+[2026-11-02T16:11:21] SARING 0xc48eb8b8 | skor 0.327 tolak(ml) | dev 0x0d76a1 | penjual menit-1 17 | LP $27036 | skor ke-97
+[2026-11-02T16:11:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:11:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:12:03] SARING 0xd15ce166 | skor 0.147 tolak(ml) | dev 0x86dc2d | penjual menit-1 0 | LP $50570 | skor ke-98
+[2026-11-02T16:12:20] SARING 0x67e9b2d8 | skor 0.207 tolak(ml) | dev 0xc216d7 | penjual menit-1 2 | LP $29742 | skor ke-99
+[2026-11-02T16:12:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:13:46] SARING 0x4569af23 | skor 0.205 tolak(ml) | dev 0x163c3f | penjual menit-1 0 | LP $11508 | skor ke-100
+[2026-11-02T16:13:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:14:08] SARING 0x938a3723 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6262 | skor ke-100
+[2026-11-02T16:14:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:14:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:15:06] SARING 0x07c429d2 | skor 0.120 tolak(ml) | dev 0xc538d4 | penjual menit-1 0 | LP $6143 | skor ke-100
+[2026-11-02T16:15:24] SARING 0xa09fe6cd | skor 0.127 tolak(ml) | dev 0x0523b3 | penjual menit-1 59 | LP $10848 | skor ke-100
+[2026-11-02T16:15:34] SARING 0x34414ec6 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6053 | skor ke-100
+[2026-11-02T16:15:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:16:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:17:27] SARING 0x338a9681 | skor 0.211 tolak(ml) | dev 0xc538d4 | penjual menit-1 0 | LP $7049 | skor ke-100
+[2026-11-02T16:17:46] SARING 0x7a4a291b | skor 0.322 tolak(ml) | dev 0xea824e | penjual menit-1 3 | LP $21338 | skor ke-100
+[2026-11-02T16:17:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:18:10] SARING 0xd79f8ea5 | skor 0.216 tolak(ml) | dev 0x1272a7 | penjual menit-1 7 | LP $25329 | skor ke-100
+[2026-11-02T16:18:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:18:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:19:03] SARING 0x05266c53 | skor 0.399 tolak(ml) | dev 0x3d2ebe | penjual menit-1 4 | LP $22894 | skor ke-100
+[2026-11-02T16:19:03] SARING 0x0ba66a44 | skor 0.081 tolak(ml) | dev 0x426333 | penjual menit-1 0 | LP $11903 | skor ke-100
+[2026-11-02T16:19:09] SARING 0xb8a7c4d8 | skor 0.227 tolak(ml) | dev 0x62367a | penjual menit-1 7 | LP $16098 | skor ke-100
+[2026-11-02T16:19:09] SARING 0x77f34f31 | skor 0.204 tolak(ml) | dev 0x32c8c9 | penjual menit-1 20 | LP $18858 | skor ke-100
+[2026-11-02T16:19:27] SARING 0x74ee3f22 | skor 0.190 tolak(ml) | dev 0x01b94c | penjual menit-1 11 | LP $25391 | skor ke-100
+[2026-11-02T16:19:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:19:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:20:02] SARING 0x8e29ecc8 | skor 0.208 tolak(ml) | dev 0x5f738e | penjual menit-1 23 | LP $18394 | skor ke-100
+[2026-11-02T16:20:11] SARING 0x69fce95d | skor 0.123 tolak(ml) | dev 0x32b831 | penjual menit-1 59 | LP $11405 | skor ke-100
+[2026-11-02T16:20:22] SARING 0xe1a679a5 | skor 0.234 tolak(ml) | dev 0x59e443 | penjual menit-1 9 | LP $24906 | skor ke-100
+[2026-11-02T16:21:13] SARING 0x0fb4149e | skor 0.226 tolak(ml) | dev 0x566233 | penjual menit-1 11 | LP $25746 | skor ke-100
+[2026-11-02T16:21:46] SARING 0xb0377880 | skor 0.065 tolak(ml) | dev 0x775f0a | penjual menit-1 0 | LP $15355 | skor ke-100
+[2026-11-02T16:21:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:22:07] SARING 0xc886e7f5 | skor 0.214 tolak(ml) | dev 0x2f793c | penjual menit-1 7 | LP $25632 | skor ke-100
+[2026-11-02T16:22:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:23:03] SARING 0x2418e178 | skor 0.276 tolak(ml) | dev 0xfdd2c7 | penjual menit-1 3 | LP $22939 | skor ke-100
+[2026-11-02T16:23:24] SARING 0x2846ef9c | skor 0.187 tolak(ml) | dev 0x57b27e | penjual menit-1 19 | LP $27542 | skor ke-100
+[2026-11-02T16:23:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:23:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:24:05] SARING 0x4cdea9a7 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6271 | skor ke-100
+[2026-11-02T16:24:36] SARING 0x91617fa5 | skor 0.088 tolak(ml) | dev 0xc2c76b | penjual menit-1 0 | LP $11074 | skor ke-100
+[2026-11-02T16:24:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:24:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:25:04] SARING 0x45cbbc0c | skor 0.123 tolak(ml) | dev 0x289bfe | penjual menit-1 61 | LP $9983 | skor ke-100
+[2026-11-02T16:25:37] SARING 0xe12071c2 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6061 | skor ke-100
+[2026-11-02T16:25:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:25:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:26:08] SARING 0xf8c6321d | skor 0.020 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7255 | skor ke-100
+[2026-11-02T16:26:28] SARING 0xf3340d64 | skor 0.071 tolak(ml) | dev 0x3182b5 | penjual menit-1 0 | LP $10085 | skor ke-100
+[2026-11-02T16:26:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:26:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:27:14] SARING 0xe2fa1e72 | skor 0.107 tolak(ml) | dev 0x1673d2 | penjual menit-1 0 | LP $2244396 | skor ke-100
+[2026-11-02T16:27:26] SARING 0xa2f48376 | skor 0.492 LOLOS | dev 0x1d955e | penjual menit-1 0 | LP $65637 | skor ke-100
+[2026-11-02T16:27:40] SARING 0x481300f7 | skor 0.172 tolak(ml) | dev 0xe40198 | penjual menit-1 2 | LP $53742 | skor ke-100
+[2026-11-02T16:27:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:28:08] SARING 0x58a17980 | skor 0.117 tolak(ml) | dev 0x6a76e6 | penjual menit-1 0 | LP $11796 | skor ke-100
+[2026-11-02T16:28:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:28:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:29:03] SARING 0x52a00909 | skor 0.267 tolak(ml) | dev 0x7b24f8 | penjual menit-1 1 | LP $7722 | skor ke-100
+[2026-11-02T16:29:04] SARING 0xa5b79a5a | skor 0.219 tolak(ml) | dev 0xb7d7e1 | penjual menit-1 8 | LP $16572 | skor ke-100
+[2026-11-02T16:29:06] SARING 0x17b9a304 | skor 0.239 tolak(ml) | dev 0xaf1c23 | penjual menit-1 13 | LP $15890 | skor ke-100
+[2026-11-02T16:29:16] SARING 0xcc2164e0 | skor 0.190 tolak(ml) | dev 0x7c86f6 | penjual menit-1 18 | LP $25976 | skor ke-100
+[2026-11-02T16:29:26] SARING 0xc6f129bd | skor 0.364 tolak(ml) | dev 0xc538d4 | penjual menit-1 0 | LP $7949 | skor ke-100
+[2026-11-02T16:29:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:30:02] SARING 0x0f07421c | skor 0.206 tolak(ml) | dev 0x434ddc | penjual menit-1 19 | LP $19452 | skor ke-100
+[2026-11-02T16:30:02] SARING 0x9f745559 | skor 0.230 tolak(ml) | dev 0x548971 | penjual menit-1 20 | LP $17375 | skor ke-100
+[2026-11-02T16:30:03] SARING 0xd366948a | skor 0.123 tolak(ml) | dev 0x643c79 | penjual menit-1 33 | LP $8788 | skor ke-100
+[2026-11-02T16:30:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:30:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:31:18] SARING 0xcdc630d8 | skor 0.123 tolak(ml) | dev 0x3330ad | penjual menit-1 60 | LP $10337 | skor ke-100
+[2026-11-02T16:31:26] SARING 0xc29ae2d1 | skor 0.173 tolak(ml) | dev 0xddbc7b | penjual menit-1 3 | LP $53677 | skor ke-100
+[2026-11-02T16:31:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:32:14] SARING 0x5206ff42 | skor 0.086 tolak(ml) | dev 0x94f1bb | penjual menit-1 0 | LP $11823 | skor ke-100
+[2026-11-02T16:32:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:33:13] SARING 0x54fd3fe1 | skor 0.185 tolak(ml) | dev 0xdcc36e | penjual menit-1 19 | LP $26306 | skor ke-100
+[2026-11-02T16:33:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:34:06] SARING 0x2767b7be | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6278 | skor ke-100
+[2026-11-02T16:34:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:35:13] SARING 0x67fee92d | skor 0.283 tolak(ml) | dev 0x445121 | penjual menit-1 2 | LP $23062 | skor ke-100
+[2026-11-02T16:35:39] SARING 0x9ab9abed | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6066 | skor ke-100
+[2026-11-02T16:35:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:35:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:36:03] SARING 0x00617661 | skor 0.207 tolak(ml) | dev 0x2ec3b1 | penjual menit-1 21 | LP $28114 | skor ke-100
+[2026-11-02T16:36:04] SARING 0xe183f3fc | skor 0.109 tolak(ml) | dev 0xc4f5b8 | penjual menit-1 29 | LP $8181 | skor ke-100
+[2026-11-02T16:36:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:37:29] SARING 0xcb91bc72 | skor 0.124 tolak(ml) | dev 0xab7132 | penjual menit-1 34 | LP $9068 | skor ke-100
+[2026-11-02T16:37:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:38:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:38:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:39:03] SARING 0x286955d2 | skor 0.239 tolak(ml) | dev 0xadd9bb | penjual menit-1 2 | LP $18766 | skor ke-100
+[2026-11-02T16:39:10] SARING 0xde744427 | skor 0.245 tolak(ml) | dev 0xbb8749 | penjual menit-1 8 | LP $16735 | skor ke-100
+[2026-11-02T16:39:10] SARING 0x730af35a | skor 0.207 tolak(ml) | dev 0x2b27df | penjual menit-1 21 | LP $18655 | skor ke-100
+[2026-11-02T16:39:14] SARING 0xcf26623d | skor 0.186 tolak(ml) | dev 0xa1423b | penjual menit-1 22 | LP $26865 | skor ke-100
+[2026-11-02T16:39:20] SARING 0x384a63a3 | skor 0.178 tolak(ml) | dev 0x96e429 | penjual menit-1 11 | LP $7046 | skor ke-100
+[2026-11-02T16:39:34] SARING 0x900b8b9d | skor 0.120 tolak(ml) | dev 0xe15f43 | penjual menit-1 0 | LP $54196 | skor ke-100
+[2026-11-02T16:39:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:39:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:40:02] SARING 0x04390eca | skor 0.208 tolak(ml) | dev 0xf764af | penjual menit-1 20 | LP $20231 | skor ke-100
+[2026-11-02T16:40:32] SARING 0xc0a0f111 | skor 0.178 tolak(ml) | dev 0xe481da | penjual menit-1 4 | LP $5739 | skor ke-100
+[2026-11-02T16:40:36] SARING 0xfbd738b8 | skor 0.085 tolak(ml) | dev 0x97224d | penjual menit-1 0 | LP $11772 | skor ke-100
+[2026-11-02T16:40:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:40:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:41:42] SARING 0x218259e7 | skor 0.123 tolak(ml) | dev 0x8880c9 | penjual menit-1 61 | LP $11410 | skor ke-100
+[2026-11-02T16:41:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:42:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:43:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:43:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:44:05] SARING 0x064c1619 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6273 | skor ke-100
+[2026-11-02T16:44:07] SARING 0xeb80d8f2 | skor 0.126 tolak(ml) | dev 0x994660 | penjual menit-1 0 | LP $10799 | skor ke-100
+[2026-11-02T16:44:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:44:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:44:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:45:03] SARING 0x8569d8b5 | skor 0.020 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7251 | skor ke-100
+[2026-11-02T16:45:38] SARING 0x9bc26614 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6061 | skor ke-100
+[2026-11-02T16:45:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:45:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:46:25] SARING 0x26e6bf7f | skor 0.245 LOLOS | dev 0x59e8f7 | penjual menit-1 1 | LP $30376 | skor ke-100
+[2026-11-02T16:46:37] SARING 0x9fed267b | skor 0.123 tolak(ml) | dev 0xaf0fe3 | penjual menit-1 61 | LP $10630 | skor ke-100
+[2026-11-02T16:46:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:47:00] TUTUP 0x26e6bf7f -16% | akun $1.61 -> $1.35 (-0.26) | 0 mnt | dump >=5% LP
+[2026-11-02T16:47:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:48:14] SARING 0xafd6c6b3 | skor 0.088 tolak(ml) | dev 0x40d619 | penjual menit-1 0 | LP $11381 | skor ke-100
+[2026-11-02T16:48:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:48:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:49:24] SARING 0xd61e4940 | skor 0.172 tolak(ml) | dev 0x697836 | penjual menit-1 20 | LP $26548 | skor ke-100
+[2026-11-02T16:49:25] SARING 0xcc8f9a5f | skor 0.208 tolak(ml) | dev 0xeeafa4 | penjual menit-1 20 | LP $20063 | skor ke-100
+[2026-11-02T16:49:26] SARING 0x012719e1 | skor 0.215 tolak(ml) | dev 0x2b462f | penjual menit-1 5 | LP $16809 | skor ke-100
+[2026-11-02T16:49:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:49:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:49:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:50:06] SARING 0xfac93422 | skor 0.214 tolak(ml) | dev 0xa9ea15 | penjual menit-1 7 | LP $16898 | skor ke-100
+[2026-11-02T16:50:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:50:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:51:02] SARING 0x9d1db817 | skor 0.231 tolak(ml) | dev 0x89fcbc | penjual menit-1 5 | LP $16789 | skor ke-100
+[2026-11-02T16:51:02] SARING 0xfedc7f97 | skor 0.071 tolak(ml) | dev 0xeefb41 | penjual menit-1 0 | LP $1542 | skor ke-100
+[2026-11-02T16:51:20] SARING 0xb9fd6575 | skor 0.123 tolak(ml) | dev 0x651b5d | penjual menit-1 62 | LP $10425 | skor ke-100
+[2026-11-02T16:51:25] SARING 0xf2fc8835 | skor 0.207 tolak(ml) | dev 0x56e7cf | penjual menit-1 20 | LP $20767 | skor ke-100
+[2026-11-02T16:51:25] SARING 0xfac7f201 | skor 0.123 tolak(ml) | dev 0x44bdf0 | penjual menit-1 0 | LP $46719 | skor ke-100
+[2026-11-02T16:51:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:51:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:52:20] SARING 0xe522ad6b | skor 0.203 tolak(ml) | dev 0x076631 | penjual menit-1 21 | LP $19068 | skor ke-100
+[2026-11-02T16:52:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:52:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:53:09] SARING 0xbc7a1624 | skor 0.185 tolak(ml) | dev 0xa15db3 | penjual menit-1 0 | LP $10837 | skor ke-100
+[2026-11-02T16:53:32] SARING 0x0d81968d | skor 0.206 tolak(ml) | dev 0xf596cb | penjual menit-1 21 | LP $19020 | skor ke-100
+[2026-11-02T16:53:47] SARING 0xd42a9518 | skor 0.212 tolak(ml) | dev 0x2adf2c | penjual menit-1 10 | LP $16498 | skor ke-100
+[2026-11-02T16:53:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:54:19] SARING 0x34660e58 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6267 | skor ke-100
+[2026-11-02T16:54:35] SARING 0xa8728a76 | skor 0.223 tolak(ml) | dev 0x45a40c | penjual menit-1 8 | LP $17083 | skor ke-100
+[2026-11-02T16:54:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:54:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:55:00] SARING 0x08b8266a | skor 0.072 tolak(ml) | dev 0xc02626 | penjual menit-1 2 | LP $3630 | skor ke-100
+[2026-11-02T16:55:19] SARING 0x51b2d6ff | skor 0.207 tolak(ml) | dev 0xa770c8 | penjual menit-1 20 | LP $22584 | skor ke-100
+[2026-11-02T16:55:36] SARING 0x6ec0e69a | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6050 | skor ke-100
+[2026-11-02T16:55:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:55:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:56:07] SARING 0xcdecb47a | skor 0.180 tolak(ml) | dev 0xb3a8ba | penjual menit-1 8 | LP $7198 | skor ke-100
+[2026-11-02T16:56:23] SARING 0xa394068e | skor 0.081 tolak(ml) | dev 0xb8d519 | penjual menit-1 0 | LP $12072 | skor ke-100
+[2026-11-02T16:56:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:56:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:57:03] SARING 0xa54740d9 | skor 0.203 tolak(ml) | dev 0x6010c6 | penjual menit-1 19 | LP $19392 | skor ke-100
+[2026-11-02T16:57:18] SARING 0x23ed0256 | skor 0.180 tolak(ml) | dev 0x6b2730 | penjual menit-1 6 | LP $5732 | skor ke-100
+[2026-11-02T16:57:28] SARING 0xa3bb3e08 | skor 0.031 tolak(ml) | dev 0xc02626 | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T16:57:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:58:30] SARING 0x75205a8e | skor 0.175 tolak(ml) | dev 0x900983 | penjual menit-1 6 | LP $7223 | skor ke-100
+[2026-11-02T16:58:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:58:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:59:01] SARING 0xf06f5cc4 | skor 0.212 tolak(ml) | dev 0x68ce8e | penjual menit-1 18 | LP $20064 | skor ke-100
+[2026-11-02T16:59:12] SARING 0xfbb15675 | skor 0.198 tolak(ml) | dev 0xb9d97e | penjual menit-1 20 | LP $18557 | skor ke-100
+[2026-11-02T16:59:15] SARING 0xe30a98a0 | skor 0.170 tolak(ml) | dev 0x9c89bb | penjual menit-1 21 | LP $27571 | skor ke-100
+[2026-11-02T16:59:37] SARING 0x648d8eaa | skor 0.161 tolak(ml) | dev 0xea0b0a | penjual menit-1 7 | LP $6773 | skor ke-100
+[2026-11-02T16:59:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T16:59:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:00:04] SARING 0x80ce1bb5 | skor 0.031 tolak(ml) | dev 0xc02626 | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T17:00:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:00:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:01:02] SARING 0x2ba29023 | skor 0.126 tolak(ml) | dev 0x7a3f0d | penjual menit-1 0 | LP $10813 | skor ke-100
+[2026-11-02T17:01:03] SARING 0x608ebf21 | skor 0.171 tolak(ml) | dev 0xb48710 | penjual menit-1 6 | LP $5979 | skor ke-100
+[2026-11-02T17:01:15] SARING 0x9daa50a4 | skor 0.307 LOLOS | dev 0x0d9302 | penjual menit-1 0 | LP $14294 | skor ke-100
+[2026-11-02T17:01:17] SARING 0x2517fa05 | skor 0.180 tolak(ml) | dev 0x114794 | penjual menit-1 20 | LP $27655 | skor ke-100
+[2026-11-02T17:01:21] SARING 0x125c4d47 | skor 0.020 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7253 | skor ke-100
+[2026-11-02T17:01:36] SARING 0xf5611363 | skor 0.197 tolak(ml) | dev 0x3a2006 | penjual menit-1 21 | LP $18073 | skor ke-100
+[2026-11-02T17:01:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:01:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:02:17] SARING 0xace458ef | skor 0.123 tolak(ml) | dev 0xa3fa6c | penjual menit-1 61 | LP $11395 | skor ke-100
+[2026-11-02T17:02:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:03:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:04:15] SARING 0x32ff8e76 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6267 | skor ke-100
+[2026-11-02T17:04:31] SARING 0xb28ae2a3 | skor 0.213 tolak(ml) | dev 0x3c23b0 | penjual menit-1 21 | LP $19696 | skor ke-100
+[2026-11-02T17:04:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:05:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:05:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:05:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:06:01] SARING 0x1f51cdf7 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6053 | skor ke-100
+[2026-11-02T17:06:34] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:06:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:06:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:07:09] SARING 0xe911da3b | skor 0.151 tolak(ml) | dev 0xfdea5e | penjual menit-1 16 | LP $7564 | skor ke-100
+[2026-11-02T17:07:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:07:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:08:15] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:08:22] SARING 0x23418f68 | skor 0.094 tolak(ml) | dev 0x7ac2f2 | penjual menit-1 56 | LP $11143 | skor ke-100
+[2026-11-02T17:08:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:08:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:08:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:09:03] SARING 0x12573338 | skor 0.114 tolak(ml) | dev 0xf5a836 | penjual menit-1 0 | LP $11321 | skor ke-100
+[2026-11-02T17:09:03] SARING 0xe73d0ca1 | skor 0.210 tolak(ml) | dev 0x4daa65 | penjual menit-1 21 | LP $20874 | skor ke-100
+[2026-11-02T17:09:04] SARING 0x7afbab03 | skor 0.211 tolak(ml) | dev 0x882dfb | penjual menit-1 20 | LP $18555 | skor ke-100
+[2026-11-02T17:09:07] SARING 0x78db2d2e | skor 0.180 tolak(ml) | dev 0x7140fc | penjual menit-1 20 | LP $27015 | skor ke-100
+[2026-11-02T17:09:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:09:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:09:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:10:10] SARING 0x4c27cebe | skor 0.025 tolak(ml) | dev 0xd7e0ab | penjual menit-1 0 | LP $5557 | skor ke-100
+[2026-11-02T17:10:10] SARING 0x5c67211a | skor 0.177 tolak(ml) | dev 0xcfc1de | penjual menit-1 10 | LP $7179 | skor ke-100
+[2026-11-02T17:10:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:10:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:10:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:11:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:11:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:11:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:12:02] SARING 0xb44b0ab6 | skor 0.201 tolak(ml) | dev 0x0f90bb | penjual menit-1 19 | LP $28988 | skor ke-100
+[2026-11-02T17:12:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:12:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:12:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:13:02] SARING 0x90990de0 | skor 0.020 tolak(ml) | dev 0xb92447 | penjual menit-1 0 | LP $7231 | skor ke-100
+[2026-11-02T17:13:02] SARING 0xda3e16e0 | skor 0.067 tolak(ml) | dev 0xc6e7e1 | penjual menit-1 0 | LP $12129 | skor ke-100
+[2026-11-02T17:13:17] SARING 0x0621d80b | skor 0.171 tolak(ml) | dev 0x469950 | penjual menit-1 21 | LP $26402 | skor ke-100
+[2026-11-02T17:13:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:13:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:13:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:14:25] SARING 0x9dc0c0c7 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6257 | skor ke-100
+[2026-11-02T17:14:33] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:14:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:14:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:15:38] SARING 0xbfdbf9db | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6046 | skor ke-100
+[2026-11-02T17:15:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:16:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:17:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:18:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:18:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:19:02] SARING 0x6212d562 | skor 0.062 tolak(ml) | dev 0xe98a37 | penjual menit-1 0 | LP $14328 | skor ke-100
+[2026-11-02T17:19:02] SARING 0xde5c52c0 | skor 0.223 LOLOS | dev 0xa61264 | penjual menit-1 10 | LP $17204 | skor ke-100
+[2026-11-02T17:19:08] SARING 0x5d56367f | skor 0.083 tolak(ml) | dev 0xda46b7 | penjual menit-1 5 | LP $11361 | skor ke-100
+[2026-11-02T17:19:14] SARING 0xf60a3c3d | skor 0.204 tolak(ml) | dev 0x08698a | penjual menit-1 20 | LP $18788 | skor ke-100
+[2026-11-02T17:19:25] SARING 0xee91eba7 | skor 0.170 tolak(ml) | dev 0x9451d2 | penjual menit-1 19 | LP $27727 | skor ke-100
+[2026-11-02T17:19:28] SARING 0xdae025f0 | skor 0.387 LOLOS | dev 0x466d30 | penjual menit-1 44 | LP $18459 | skor ke-100
+[2026-11-02T17:19:32] SARING 0x5aa161d6 | skor 0.095 tolak(ml) | dev 0x8c2ea6 | penjual menit-1 2 | LP $11391 | skor ke-100
+[2026-11-02T17:19:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:19:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:20:02] SARING 0x753c8219 | skor 0.072 tolak(ml) | dev 0x9a7c1c | penjual menit-1 2 | LP $11376 | skor ke-100
+[2026-11-02T17:20:02] SARING 0xcf99749b | skor 0.229 LOLOS | dev 0x0352f6 | penjual menit-1 8 | LP $16700 | skor ke-100
+[2026-11-02T17:20:35] SARING 0x65b1d6b0 | skor 0.210 tolak(ml) | dev 0xd41a93 | penjual menit-1 20 | LP $20315 | skor ke-100
+[2026-11-02T17:20:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:21:15] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:21:17] SARING 0xbd89d35b | skor 0.173 tolak(ml) | dev 0x7b5391 | penjual menit-1 20 | LP $26844 | skor ke-100
+[2026-11-02T17:21:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:21:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:21:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:21:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:22:09] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:22:19] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:22:31] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:22:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:22:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:23:07] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:23:25] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:23:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:23:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:23:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:24:11] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:24:29] SARING 0x80fdde21 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6243 | skor ke-100
+[2026-11-02T17:24:37] SARING 0x954334a3 | skor 0.035 tolak(ml) | dev 0xec58d1 | penjual menit-1 0 | LP $956933 | skor ke-100
+[2026-11-02T17:24:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:24:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:25:03] SARING 0x1f0c4149 | skor 0.221 LOLOS | dev 0x2eee23 | penjual menit-1 5 | LP $19408 | skor ke-100
+[2026-11-02T17:25:38] SARING 0x7ffa5f1f | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6028 | skor ke-100
+[2026-11-02T17:25:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:26:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:27:28] SARING 0x54221fc4 | skor 0.155 tolak(ml) | dev 0x9cf0a1 | penjual menit-1 0 | LP $3420 | skor ke-100
+[2026-11-02T17:27:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:28:11] SARING 0xde48daf3 | skor 0.117 tolak(ml) | dev 0xa2d2c4 | penjual menit-1 1 | LP $11553 | skor ke-100
+[2026-11-02T17:28:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:29:03] SARING 0xc09893b2 | skor 0.203 tolak(ml) | dev 0xcc78a2 | penjual menit-1 20 | LP $18975 | skor ke-100
+[2026-11-02T17:29:05] SARING 0x476f9f87 | skor 0.189 tolak(ml) | dev 0x598b44 | penjual menit-1 21 | LP $17565 | skor ke-100
+[2026-11-02T17:29:07] SARING 0x73dfe369 | skor 0.201 tolak(ml) | dev 0x2a78bb | penjual menit-1 20 | LP $28327 | skor ke-100
+[2026-11-02T17:29:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:29:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:30:32] SARING 0x9f034997 | skor 0.032 tolak(ml) | dev 0xc2e6b2 | penjual menit-1 1 | LP $11299 | skor ke-100
+[2026-11-02T17:30:39] SARING 0x4d21f028 | skor 0.097 tolak(ml) | dev 0x98c23c | penjual menit-1 3 | LP $11304 | skor ke-100
+[2026-11-02T17:30:41] SARING 0x6fb2c07e | skor 0.503 LOLOS | dev ? | penjual menit-1 3 | LP $19326 | skor ke-100
+[2026-11-02T17:30:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:30:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:31:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:32:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:33:08] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:33:18] SARING 0x8c8bc629 | skor 0.114 tolak(ml) | dev 0xf5c7e0 | penjual menit-1 1 | LP $45049 | skor ke-100
+[2026-11-02T17:33:25] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:33:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:33:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:33:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:34:14] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:34:25] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:34:35] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:34:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:34:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:35:07] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:35:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:35:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:35:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:35:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:36:03] SARING 0x459a6cf6 | skor 0.169 tolak(ml) | dev 0xde936b | penjual menit-1 2 | LP $62936 | skor ke-100
+[2026-11-02T17:36:03] SARING 0x19c4db10 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6006 | skor ke-100
+[2026-11-02T17:36:18] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:36:37] SARING 0x7c150cb5 | skor 0.669 LOLOS | dev 0x66718b | penjual menit-1 11 | LP $42105 | skor ke-100
+[2026-11-02T17:36:38] EXEC: BELI DILEWATI 0x7c150cb5: cek jual: jual gagal di simulasi, koin dilewati
+[2026-11-02T17:36:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:37:41] SARING 0xbb5ea4f1 | skor 0.054 tolak(ml) | dev 0x387174 | penjual menit-1 0 | LP $16244 | skor ke-100
+[2026-11-02T17:37:45] SARING 0xe055ecc3 | skor 0.170 tolak(ml) | dev 0x9740be | penjual menit-1 22 | LP $26034 | skor ke-100
+[2026-11-02T17:37:47] SARING 0xce7f1a61 | skor 0.133 tolak(ml) | dev 0x92b75d | penjual menit-1 1 | LP $49222 | skor ke-100
+[2026-11-02T17:37:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:38:20] SARING 0x380d967a | skor 0.031 tolak(ml) | dev 0x6a97df | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T17:38:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:39:12] SARING 0x01726beb | skor 0.207 tolak(ml) | dev 0x1fa012 | penjual menit-1 21 | LP $19734 | skor ke-100
+[2026-11-02T17:39:12] SARING 0xb42fa854 | skor 0.195 tolak(ml) | dev 0x7869c9 | penjual menit-1 20 | LP $17712 | skor ke-100
+[2026-11-02T17:39:18] SARING 0x14acedf1 | skor 0.173 tolak(ml) | dev 0x58d380 | penjual menit-1 20 | LP $28011 | skor ke-100
+[2026-11-02T17:39:20] SARING 0xa1496a43 | skor 0.103 tolak(ml) | dev 0x571795 | penjual menit-1 0 | LP $23460 | skor ke-100
+[2026-11-02T17:39:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:40:00] TUTUP 0xdae025f0 -104% | akun $1.60 -> $0.00 (-1.60) | 20 mnt | dump >=5% LP
+[2026-11-02T17:40:38] SARING 0x22c13c4e | skor 0.206 tolak(ml) | dev 0x4836de | penjual menit-1 20 | LP $19019 | skor ke-100
+[2026-11-02T17:40:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:41:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:42:05] SARING 0x99dcefb8 | skor 0.202 tolak(ml) | dev 0x776e7e | penjual menit-1 20 | LP $18369 | skor ke-100
+[2026-11-02T17:42:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:42:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:42:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:43:02] SARING 0x6bbb3879 | skor 0.031 tolak(ml) | dev 0x6a97df | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T17:43:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:43:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:43:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:44:03] SARING 0xcd12c6ef | skor 0.203 tolak(ml) | dev 0xa4d1ce | penjual menit-1 22 | LP $19555 | skor ke-100
+[2026-11-02T17:44:18] SARING 0xf1af7f3e | skor 0.184 tolak(ml) | dev 0xf6ec07 | penjual menit-1 1 | LP $49794 | skor ke-100
+[2026-11-02T17:44:27] SARING 0x8771de2c | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6226 | skor ke-100
+[2026-11-02T17:44:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:44:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:44:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:45:01] TUTUP 0x7c150cb5 +84% | akun $1.60 -> $2.94 (+1.35) | 8 mnt | tanda pucuk
+[2026-11-02T17:45:02] SARING 0xa592a886 | skor 0.206 tolak(ml) | dev 0x797f5b | penjual menit-1 21 | LP $21548 | skor ke-100
+[2026-11-02T17:45:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:45:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:45:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:46:01] SARING 0x98c9144e | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $5999 | skor ke-100
+[2026-11-02T17:46:06] SARING 0x5e4b4ff3 | skor 0.057 tolak(ml) | dev 0x6a97df | penjual menit-1 0 | LP $3620 | skor ke-100
+[2026-11-02T17:46:26] SARING 0x349e6007 | skor 0.187 tolak(ml) | dev 0x489aeb | penjual menit-1 21 | LP $18272 | skor ke-100
+[2026-11-02T17:46:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:46:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:46:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:47:31] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:47:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:47:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:48:02] SARING 0xa9af991c | skor 0.212 LOLOS | dev 0x60b97e | penjual menit-1 16 | LP $18296 | skor ke-100
+[2026-11-02T17:48:22] SARING 0x15d877cc | skor 0.162 tolak(ml) | dev 0x639100 | penjual menit-1 3 | LP $59860 | skor ke-100
+[2026-11-02T17:48:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:48:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:48:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:49:09] SARING 0x06625c7a | skor 0.211 LOLOS | dev 0xef4e3f | penjual menit-1 20 | LP $18198 | skor ke-100
+[2026-11-02T17:49:09] SARING 0x6a215a1e | skor 0.211 LOLOS | dev 0x91a87d | penjual menit-1 0 | LP $14040 | skor ke-100
+[2026-11-02T17:49:15] SARING 0x50e69444 | skor 0.198 tolak(ml) | dev 0xbe9b16 | penjual menit-1 22 | LP $28182 | skor ke-100
+[2026-11-02T17:49:22] SARING 0x8564d5a3 | skor 0.049 tolak(ml) | dev 0x6a97df | penjual menit-1 0 | LP $3609 | skor ke-100
+[2026-11-02T17:49:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:49:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:49:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:50:02] SARING 0xfad80529 | skor 0.241 LOLOS | dev 0xecd979 | penjual menit-1 0 | LP $14261 | skor ke-100
+[2026-11-02T17:50:02] SARING 0x6fc668ba | skor 0.211 LOLOS | dev 0x6f1ee1 | penjual menit-1 0 | LP $14038 | skor ke-100
+[2026-11-02T17:50:21] SARING 0x70957c49 | skor 0.241 LOLOS | dev 0x400a4a | penjual menit-1 0 | LP $14267 | skor ke-100
+[2026-11-02T17:50:31] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:50:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:50:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:51:01] SARING 0xf042589e | skor 0.225 LOLOS | dev 0x8a5ee8 | penjual menit-1 0 | LP $14250 | skor ke-100
+[2026-11-02T17:51:12] SARING 0xa827a706 | skor 0.190 tolak(ml) | dev 0xba13c6 | penjual menit-1 0 | LP $13986 | skor ke-100
+[2026-11-02T17:51:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:51:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:51:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:52:02] SARING 0x83c16a24 | skor 0.237 LOLOS | dev 0x9d772f | penjual menit-1 0 | LP $14391 | skor ke-100
+[2026-11-02T17:52:02] SARING 0x523764eb | skor 0.184 tolak(ml) | dev 0xb1133e | penjual menit-1 0 | LP $13960 | skor ke-100
+[2026-11-02T17:52:02] SARING 0x0f16870f | skor 0.066 tolak(ml) | dev 0x4525fe | penjual menit-1 18 | LP $4446 | skor ke-100
+[2026-11-02T17:52:23] SARING 0x495c9b59 | skor 0.212 LOLOS | dev 0xdbe95a | penjual menit-1 20 | LP $19983 | skor ke-100
+[2026-11-02T17:52:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:52:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:52:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:53:03] TUTUP 0x495c9b59 -41% | akun $1.53 -> $0.90 (-0.63) | 0 mnt | rug terdeteksi
+[2026-11-02T17:53:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:53:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:53:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:54:11] SARING 0x7e74fb26 | skor 0.215 LOLOS | dev 0xe6d05a | penjual menit-1 20 | LP $21007 | skor ke-100
+[2026-11-02T17:54:20] TUTUP 0x7e74fb26 -120% | akun $0.74 -> $0.00 (-0.74) | 0 mnt | rug terdeteksi
+[2026-11-02T17:54:27] SARING 0x1c61ea75 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6215 | skor ke-100
+[2026-11-02T17:54:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:54:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:54:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:55:03] SARING 0x3ddbb1f4 | skor 0.069 tolak(ml) | dev 0x4e6023 | penjual menit-1 0 | LP $15720 | skor ke-100
+[2026-11-02T17:55:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:55:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:55:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:56:00] TUTUP 0x06625c7a +81% | akun $1.53 -> $2.77 (+1.24) | 6 mnt | tanda pucuk
+[2026-11-02T17:56:00] SARING 0x7bba4e79 | skor 0.209 tolak(ml) | dev 0x7589c8 | penjual menit-1 20 | LP $20472 | skor ke-100
+[2026-11-02T17:56:01] SARING 0xbfef7821 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6009 | skor ke-100
+[2026-11-02T17:56:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:56:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:56:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:57:12] SARING 0x3b6141c7 | skor 0.210 tolak(ml) | dev 0x911356 | penjual menit-1 20 | LP $22054 | skor ke-100
+[2026-11-02T17:57:12] SARING 0x5c43cbba | skor 0.185 tolak(ml) | dev 0x3206e4 | penjual menit-1 1 | LP $39247 | skor ke-100
+[2026-11-02T17:57:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:57:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:57:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:58:31] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:58:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:58:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:59:02] SARING 0x2a782b52 | skor 0.216 LOLOS | dev 0x314fc5 | penjual menit-1 1 | LP $13953 | skor ke-100
+[2026-11-02T17:59:06] SARING 0xbeb1f23a | skor 0.205 tolak(ml) | dev 0x2f51e6 | penjual menit-1 21 | LP $18857 | skor ke-100
+[2026-11-02T17:59:06] SARING 0x98a4734d | skor 0.202 tolak(ml) | dev 0x3cccfd | penjual menit-1 20 | LP $18803 | skor ke-100
+[2026-11-02T17:59:12] SARING 0x76d8f5fd | skor 0.175 tolak(ml) | dev 0x9e755a | penjual menit-1 19 | LP $26693 | skor ke-100
+[2026-11-02T17:59:33] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:59:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T17:59:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:00:38] SARING 0xf0603e31 | skor 0.222 LOLOS | dev 0x728063 | penjual menit-1 2 | LP $14898 | skor ke-100
+[2026-11-02T18:00:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:00:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:01:06] SARING 0xd9f4f5f2 | skor 0.024 tolak(ml) | dev 0x3eb415 | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T18:01:15] SARING 0x13658d59 | skor 0.213 LOLOS | dev 0xdb7c9b | penjual menit-1 14 | LP $19627 | skor ke-100
+[2026-11-02T18:01:26] TUTUP 0x13658d59 -110% | akun $1.43 -> $0.00 (-1.43) | 0 mnt | rug terdeteksi
+[2026-11-02T18:01:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:02:46] SARING 0x8332d575 | skor 0.212 LOLOS | dev 0x759ef8 | penjual menit-1 19 | LP $19874 | skor ke-100
+[2026-11-02T18:02:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:03:03] SARING 0x89c5c0e0 | skor 0.195 tolak(ml) | dev 0x0243b4 | penjual menit-1 20 | LP $28046 | skor ke-100
+[2026-11-02T18:03:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:04:26] SARING 0x6e53d962 | skor 0.018 tolak(ml) | dev 0x5458b6 | penjual menit-1 0 | LP $6254 | skor ke-100
+[2026-11-02T18:04:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:05:37] SARING 0xa1342e95 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6038 | skor ke-100
+[2026-11-02T18:05:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:06:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:06:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:07:05] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:07:18] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:07:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:07:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:07:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:08:02] TUTUP 0x8332d575 -58% | akun $0.64 -> $0.27 (-0.37) | 5 mnt | rug terdeteksi
+[2026-11-02T18:08:09] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:08:23] SARING 0x72fd1278 | skor 0.231 LOLOS | dev 0x38c80c | penjual menit-1 12 | LP $17043 | skor ke-100
+[2026-11-02T18:08:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:09:11] SARING 0xd3f1acd9 | skor 0.201 tolak(ml) | dev 0xa19fe6 | penjual menit-1 21 | LP $18312 | skor ke-100
+[2026-11-02T18:09:11] SARING 0x6a1cb6f7 | skor 0.207 tolak(ml) | dev 0x18b542 | penjual menit-1 20 | LP $20837 | skor ke-100
+[2026-11-02T18:09:15] SARING 0x85d8aa9a | skor 0.176 tolak(ml) | dev 0xa5836e | penjual menit-1 20 | LP $26984 | skor ke-100
+[2026-11-02T18:09:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:10:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:11:23] SARING 0xc4736dcb | skor 0.189 tolak(ml) | dev 0x442e63 | penjual menit-1 20 | LP $28193 | skor ke-100
+[2026-11-02T18:11:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:12:45] SARING 0x9480a225 | skor 0.031 tolak(ml) | dev 0x6a97df | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T18:12:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:13:25] SARING 0x3a538465 | skor 0.200 tolak(ml) | dev 0x0e26fb | penjual menit-1 20 | LP $27916 | skor ke-100
+[2026-11-02T18:13:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:14:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:15:38] SARING 0x3cba3bdd | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6026 | skor ke-100
+[2026-11-02T18:15:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:16:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:17:35] SARING 0x443eb05a | skor 0.056 tolak(ml) | dev 0xda269e | penjual menit-1 0 | LP $14227 | skor ke-100
+[2026-11-02T18:17:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:18:15] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:18:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:18:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:19:02] SARING 0x2a5f2fca | skor 0.019 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7209 | skor ke-100
+[2026-11-02T18:19:03] SARING 0x56ac6194 | skor 0.208 tolak(ml) | dev 0x023a37 | penjual menit-1 21 | LP $20073 | skor ke-100
+[2026-11-02T18:19:05] SARING 0xf6cbe8a1 | skor 0.019 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7206 | skor ke-100
+[2026-11-02T18:19:06] SARING 0x4d9636a7 | skor 0.208 tolak(ml) | dev 0x2052c5 | penjual menit-1 18 | LP $20160 | skor ke-100
+[2026-11-02T18:19:10] SARING 0xfc364577 | skor 0.019 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7206 | skor ke-100
+[2026-11-02T18:19:11] SARING 0x0f24d96c | skor 0.178 tolak(ml) | dev 0x3e09f0 | penjual menit-1 19 | LP $26849 | skor ke-100
+[2026-11-02T18:19:16] SARING 0xe8c001b3 | skor 0.019 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7205 | skor ke-100
+[2026-11-02T18:19:22] SARING 0xd3e86520 | skor 0.019 tolak(ml) | dev 0xcb978f | penjual menit-1 0 | LP $7207 | skor ke-100
+[2026-11-02T18:19:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:19:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:20:03] SARING 0x6153abc2 | skor 0.025 tolak(ml) | dev 0xd7e0ab | penjual menit-1 0 | LP $5532 | skor ke-100
+[2026-11-02T18:20:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:21:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:22:13] SARING 0xa729e5a0 | skor 0.223 LOLOS | dev 0x12e63d | penjual menit-1 7 | LP $19672 | skor ke-100
+[2026-11-02T18:22:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:23:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:24:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:25:05] SARING 0x852ff75e | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6228 | skor ke-100
+[2026-11-02T18:25:35] SARING 0xf22d850f | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6014 | skor ke-100
+[2026-11-02T18:25:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:26:04] TUTUP 0xa729e5a0 -9% | akun $0.62 -> $0.57 (-0.06) | 4 mnt | model bahaya
+[2026-11-02T18:26:52] TUTUP 0x6fb2c07e -1% | akun $1.60 -> $1.58 (-0.01) | 55 mnt | dump >=5% LP
+[2026-11-02T18:26:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:27:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:28:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:29:07] SARING 0xb992fc63 | skor 0.187 tolak(ml) | dev 0xbbddf9 | penjual menit-1 22 | LP $17117 | skor ke-100
+[2026-11-02T18:29:08] SARING 0xbdb94983 | skor 0.210 tolak(ml) | dev 0x0070da | penjual menit-1 20 | LP $21166 | skor ke-100
+[2026-11-02T18:29:18] SARING 0x8f5142f6 | skor 0.176 tolak(ml) | dev 0xe8f903 | penjual menit-1 22 | LP $27157 | skor ke-100
+[2026-11-02T18:29:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:30:01] SARING 0x690e16b2 | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7189 | skor ke-100
+[2026-11-02T18:30:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:31:01] SARING 0xdc336b9d | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7194 | skor ke-100
+[2026-11-02T18:31:46] SARING 0x8b8a1637 | skor 0.209 tolak(ml) | dev 0x1063fa | penjual menit-1 19 | LP $19931 | skor ke-100
+[2026-11-02T18:31:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:32:13] SARING 0xee3b4e18 | skor 0.167 tolak(ml) | dev 0xd27f24 | penjual menit-1 22 | LP $26654 | skor ke-100
+[2026-11-02T18:32:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:33:45] SARING 0x93a00aa5 | skor 0.173 tolak(ml) | dev 0xe53822 | penjual menit-1 21 | LP $27175 | skor ke-100
+[2026-11-02T18:33:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:34:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:35:06] SARING 0xa02eb33a | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6215 | skor ke-100
+[2026-11-02T18:35:45] SARING 0x2ebbe0a6 | skor 0.171 tolak(ml) | dev 0x36576c | penjual menit-1 19 | LP $27425 | skor ke-100
+[2026-11-02T18:35:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:36:10] SARING 0xc3b9f160 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6008 | skor ke-100
+[2026-11-02T18:37:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:38:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:39:03] SARING 0x1cdd5eb5 | skor 0.205 tolak(ml) | dev 0xfedf2d | penjual menit-1 21 | LP $20563 | skor ke-100
+[2026-11-02T18:39:03] SARING 0x1bc990fb | skor 0.200 tolak(ml) | dev 0x2835f0 | penjual menit-1 20 | LP $19591 | skor ke-100
+[2026-11-02T18:39:05] SARING 0xa70def5a | skor 0.173 tolak(ml) | dev 0xbb9dd7 | penjual menit-1 21 | LP $27864 | skor ke-100
+[2026-11-02T18:39:22] SARING 0xc0929199 | skor 0.271 LOLOS | dev 0xd627c9 | penjual menit-1 3 | LP $20410 | skor ke-100
+[2026-11-02T18:39:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:40:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:41:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:42:36] TUTUP 0xc0929199 +18% | akun $0.62 -> $0.73 (+0.11) | 3 mnt | model bahaya
+[2026-11-02T18:42:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:43:43] SARING 0x4a114357 | skor 0.031 tolak(ml) | dev ? | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T18:43:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:44:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:45:05] SARING 0x83110c18 | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6210 | skor ke-100
+[2026-11-02T18:45:38] SARING 0x8118f9e1 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6004 | skor ke-100
+[2026-11-02T18:45:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:46:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:47:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:48:20] SARING 0xe35ceb3f | skor 0.350 LOLOS | dev 0x0f074e | penjual menit-1 0 | LP $7901 | skor ke-100
+[2026-11-02T18:48:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:49:08] SARING 0xc5ac84f5 | skor 0.210 tolak(ml) | dev 0x0c7257 | penjual menit-1 20 | LP $20372 | skor ke-100
+[2026-11-02T18:49:10] SARING 0x86585a5b | skor 0.207 tolak(ml) | dev 0x854402 | penjual menit-1 21 | LP $18262 | skor ke-100
+[2026-11-02T18:49:11] SARING 0xd9dbbac6 | skor 0.170 tolak(ml) | dev 0x7a9200 | penjual menit-1 23 | LP $27405 | skor ke-100
+[2026-11-02T18:49:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:50:39] SARING 0x307e8fd3 | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7192 | skor ke-100
+[2026-11-02T18:50:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:51:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:52:17] SARING 0x39646289 | skor 0.061 tolak(ml) | dev 0xb51926 | penjual menit-1 20 | LP $4447 | skor ke-100
+[2026-11-02T18:52:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:53:02] SARING 0x98d61cbb | skor 0.102 tolak(ml) | dev 0xfd229f | penjual menit-1 0 | LP $28318 | skor ke-100
+[2026-11-02T18:53:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:54:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:55:06] SARING 0xc898ead6 | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6220 | skor ke-100
+[2026-11-02T18:55:39] SARING 0x74c668f6 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6009 | skor ke-100
+[2026-11-02T18:55:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:56:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:57:32] SARING 0xd1a92e4d | skor 0.031 tolak(ml) | dev 0x0f074e | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T18:57:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:58:16] SARING 0x7081cf91 | skor 0.210 LOLOS | dev 0x044766 | penjual menit-1 11 | LP $24529 | skor ke-100
+[2026-11-02T18:58:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T18:58:54] SARING 0xffc6f21d | skor 0.026 tolak(ml) | dev 0x04d414 | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T18:59:06] SARING 0x6f64ac31 | skor 0.202 tolak(ml) | dev 0xd7f5b2 | penjual menit-1 20 | LP $18450 | skor ke-100
+[2026-11-02T18:59:10] SARING 0x2450c49f | skor 0.206 tolak(ml) | dev 0x1b8727 | penjual menit-1 20 | LP $20576 | skor ke-100
+[2026-11-02T18:59:20] SARING 0x12fe8060 | skor 0.171 tolak(ml) | dev 0x2403c1 | penjual menit-1 19 | LP $27268 | skor ke-100
+[2026-11-02T18:59:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:00:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:01:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:02:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:03:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:04:20] SARING 0x432d9685 | skor 0.196 tolak(ml) | dev 0x6826dd | penjual menit-1 20 | LP $28011 | skor ke-100
+[2026-11-02T19:04:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:04:54] SARING 0xa2c22af6 | skor 0.030 DIKECUALIKAN | dev ? | penjual menit-1 0 | LP $NaN | skor ke-100 | dev tidak diketahui (net: http 429 )
+[2026-11-02T19:04:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:05:05] SARING 0x2068d87d | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6214 | skor ke-100
+[2026-11-02T19:05:40] SARING 0xb71f1334 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $5998 | skor ke-100
+[2026-11-02T19:05:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:06:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:07:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:08:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:09:11] SARING 0x5318aa25 | skor 0.185 tolak(ml) | dev 0x7826c2 | penjual menit-1 21 | LP $17288 | skor ke-100
+[2026-11-02T19:09:13] SARING 0x60e9be60 | skor 0.206 tolak(ml) | dev 0xf8cc13 | penjual menit-1 19 | LP $20432 | skor ke-100
+[2026-11-02T19:09:17] SARING 0x4b9ddd0a | skor 0.171 tolak(ml) | dev 0x1a7aae | penjual menit-1 22 | LP $26499 | skor ke-100
+[2026-11-02T19:09:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:10:05] SARING 0x887ababf | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7177 | skor ke-100
+[2026-11-02T19:10:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:11:54] SARING 0xa267f94c | skor 0.202 tolak(ml) | dev 0x13e725 | penjual menit-1 18 | LP $17855 | skor ke-100
+[2026-11-02T19:11:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:12:19] SARING 0x1556d5c8 | skor 0.091 tolak(ml) | dev 0x7ad186 | penjual menit-1 0 | LP $76638 | skor ke-100
+[2026-11-02T19:12:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:13:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:14:32] SARING 0xad9e9ec6 | skor 0.333 LOLOS | dev 0x71e5bb | penjual menit-1 14 | LP $98010 | skor ke-100
+[2026-11-02T19:14:34] SARING 0x22e65c01 | skor 0.133 tolak(ml) | dev 0x8c2d3e | penjual menit-1 2 | LP $50632 | skor ke-100
+[2026-11-02T19:14:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:15:08] SARING 0xbf57dfb3 | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6212 | skor ke-100
+[2026-11-02T19:15:40] SARING 0x08bb36eb | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6002 | skor ke-100
+[2026-11-02T19:15:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:16:05] SARING 0x572545a4 | skor 0.252 LOLOS | dev 0x58b0ec | penjual menit-1 4 | LP $21489 | skor ke-100
+[2026-11-02T19:16:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:17:22] SARING 0x71a6f9b5 | skor 0.335 LOLOS | dev 0x0f074e | penjual menit-1 0 | LP $7443 | skor ke-100
+[2026-11-02T19:17:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:18:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:19:11] SARING 0xd8466c78 | skor 0.198 tolak(ml) | dev 0x2b11bc | penjual menit-1 20 | LP $18773 | skor ke-100
+[2026-11-02T19:19:15] SARING 0xe3eb6146 | skor 0.202 tolak(ml) | dev 0xf8c44b | penjual menit-1 20 | LP $17360 | skor ke-100
+[2026-11-02T19:19:18] SARING 0x7090bb43 | skor 0.158 tolak(ml) | dev 0x5fa79b | penjual menit-1 20 | LP $27591 | skor ke-100
+[2026-11-02T19:19:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:20:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:20:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:21:15] SARING 0x3ff8acba | skor 0.024 tolak(ml) | dev 0xc97796 | penjual menit-1 0 | LP $NaN | skor ke-100
+[2026-11-02T19:21:16] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:21:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:21:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:21:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:22:12] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:22:25] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:22:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:22:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:22:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:23:11] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:23:24] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:23:34] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:23:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:23:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:24:08] TUTUP 0x572545a4 -8% | akun $0.62 -> $0.57 (-0.05) | 8 mnt | model bahaya
+[2026-11-02T19:24:22] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:24:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:24:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:25:15] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:25:24] SARING 0x9fe70bc2 | skor 0.018 DIKECUALIKAN | dev ? | penjual menit-1 0 | LP $6210 | skor ke-100 | dev tidak diketahui (net: http 429 )
+[2026-11-02T19:25:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:25:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:25:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:25:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:26:03] SARING 0x0a1798e6 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $5998 | skor ke-100
+[2026-11-02T19:26:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:26:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:26:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:26:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:27:20] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:27:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:27:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:27:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:28:08] SARING 0x2b35465c | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7182 | skor ke-100
+[2026-11-02T19:28:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:28:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:29:08] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:29:20] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:29:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:29:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:29:47] CEK GAGAL 0xc8f0eafd dilewati (net: http 429 )
+[2026-11-02T19:29:47] CEK GAGAL 0xe81805a8 dilewati (net: http 429 )
+[2026-11-02T19:29:47] CEK GAGAL 0x1cf0a96a dilewati (net: http 429 )
+[2026-11-02T19:29:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:30:09] SARING 0x6dbba21a | skor 0.053 tolak(ml) | dev 0x2541a9 | penjual menit-1 1 | LP $5 | skor ke-100
+[2026-11-02T19:30:16] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:30:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:30:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:30:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:31:22] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:31:34] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:31:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:31:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:32:27] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:32:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:32:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:33:21] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:33:33] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:33:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:33:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:34:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:34:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:34:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:35:17] SARING 0x8cba0111 | skor 0.039 tolak(ml) | dev 0x3ba62b | penjual menit-1 1 | LP $6212 | skor ke-100
+[2026-11-02T19:35:31] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:35:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:35:48] SARING 0x1efc3895 | skor 0.035 tolak(ml) | dev 0xea209a | penjual menit-1 1 | LP $5998 | skor ke-100
+[2026-11-02T19:35:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:36:12] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:36:24] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:36:34] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:36:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:36:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:37:19] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:37:32] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:37:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:37:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:38:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:38:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:38:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:38:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:39:12] SARING 0x22e830b8 | skor 0.201 tolak(ml) | dev 0x645e74 | penjual menit-1 21 | LP $18931 | skor ke-100
+[2026-11-02T19:39:14] SARING 0x9f761b74 | skor 0.195 tolak(ml) | dev 0xa379e1 | penjual menit-1 20 | LP $18029 | skor ke-100
+[2026-11-02T19:39:21] SARING 0x4599e13b | skor 0.177 tolak(ml) | dev 0x97dcfa | penjual menit-1 20 | LP $27373 | skor ke-100
+[2026-11-02T19:39:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:40:07] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:40:20] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:40:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:40:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:40:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:41:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:41:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:41:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:41:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:42:15] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:42:27] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:42:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:42:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:42:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:43:10] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:43:21] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:43:31] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:43:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:43:51] radar: 9728 meta pool v4 dimuat sekaligus
+[2026-11-02T19:43:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:44:23] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:44:35] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:44:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:44:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:45:12] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:45:24] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:45:35] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:45:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:45:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:46:03] SARING 0x7e566080 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $5973 | skor ke-100
+[2026-11-02T19:46:03] SARING 0x400986e6 | skor 0.076 tolak(ml) | dev ? | penjual menit-1 0 | LP $14 | skor ke-100
+[2026-11-02T19:46:30] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:46:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:46:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:47:05] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:47:18] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:47:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:47:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:47:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:47:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:48:23] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:48:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:48:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:48:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:49:11] SARING 0xa865a5f4 | skor 0.207 tolak(ml) | dev 0x78ebe1 | penjual menit-1 20 | LP $19541 | skor ke-100
+[2026-11-02T19:49:11] SARING 0xb9e58f2c | skor 0.208 LOLOS | dev 0xc0ad2b | penjual menit-1 20 | LP $20480 | skor ke-100
+[2026-11-02T19:49:12] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:49:25] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:49:35] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:49:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:49:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:50:03] TUTUP 0xb9e58f2c -16% | akun $0.62 -> $0.52 (-0.10) | 1 mnt | model bahaya
+[2026-11-02T19:50:10] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:50:23] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:50:33] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:50:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:50:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:51:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:51:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:51:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:52:03] TUTUP 0xad9e9ec6 +43% | akun $0.62 -> $0.89 (+0.27) | 37 mnt | tanda pucuk
+[2026-11-02T19:52:05] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:52:17] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:52:28] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:52:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:52:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:52:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:53:20] SARING 0x9c192abf | skor 0.512 LOLOS | dev 0xabd8ed | penjual menit-1 4 | LP $20560 | skor ke-100
+[2026-11-02T19:53:24] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:53:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:53:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:53:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:54:13] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:54:25] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:54:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:54:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:54:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:55:07] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:55:18] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:55:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:55:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:55:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:56:02] SARING 0x29e3c62c | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $5988 | skor ke-100
+[2026-11-02T19:56:24] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:56:37] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:56:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:56:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:57:13] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:57:26] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:57:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:57:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:57:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:58:01] SARING 0x07cbc5ab | skor 0.204 tolak(ml) | dev 0xa9d429 | penjual menit-1 12 | LP $17526 | skor ke-100
+[2026-11-02T19:58:07] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:58:19] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:58:29] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:58:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:58:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:59:01] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:59:01] SARING 0x523cd0b2 | skor 0.202 tolak(ml) | dev 0x37de03 | penjual menit-1 20 | LP $21474 | skor ke-100
+[2026-11-02T19:59:09] SARING 0x3f9a6107 | skor 0.186 tolak(ml) | dev 0x635522 | penjual menit-1 18 | LP $18888 | skor ke-100
+[2026-11-02T19:59:18] SARING 0xa0e28465 | skor 0.187 tolak(ml) | dev 0x1bdea7 | penjual menit-1 19 | LP $28133 | skor ke-100
+[2026-11-02T19:59:25] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:59:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:59:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T19:59:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:00:15] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:00:27] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:00:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:00:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:00:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:01:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:01:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:02:11] SARING 0xc1cae30e | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7188 | skor ke-100
+[2026-11-02T20:02:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:03:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:04:02] SARING 0x31f58c55 | skor 0.027 tolak(ml) | dev 0x6371b8 | penjual menit-1 1 | LP $11299 | skor ke-100
+[2026-11-02T20:04:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:04:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:05:25] SARING 0x8fe8d7bc | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6222 | skor ke-100
+[2026-11-02T20:05:41] SARING 0xc8596719 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6010 | skor ke-100
+[2026-11-02T20:05:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:05:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:06:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:07:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:08:38] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:08:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:09:12] SARING 0xe9a80d5d | skor 0.182 tolak(ml) | dev 0x5161a9 | penjual menit-1 20 | LP $18738 | skor ke-100
+[2026-11-02T20:09:14] SARING 0xd4cbd69f | skor 0.208 LOLOS | dev 0xc73543 | penjual menit-1 20 | LP $19818 | skor ke-100
+[2026-11-02T20:09:15] SARING 0x8c3bb74c | skor 0.175 tolak(ml) | dev 0x515793 | penjual menit-1 19 | LP $27397 | skor ke-100
+[2026-11-02T20:09:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:09:40] SARING 0x059c9581 | skor 0.027 tolak(ml) | dev 0x6fb350 | penjual menit-1 1 | LP $11285 | skor ke-100
+[2026-11-02T20:09:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:10:26] SARING 0xd6e52cd1 | skor 0.203 tolak(ml) | dev 0xa45698 | penjual menit-1 21 | LP $20561 | skor ke-100
+[2026-11-02T20:10:33] SARING 0x357cdb2c | skor 0.027 tolak(ml) | dev 0x6371b8 | penjual menit-1 1 | LP $11286 | skor ke-100
+[2026-11-02T20:10:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:11:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:11:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:12:29] SARING 0x77746265 | skor 0.029 tolak(ml) | dev ? | penjual menit-1 0 | LP $110 | skor ke-100
+[2026-11-02T20:12:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:12:56] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:13:30] SARING 0xf26dabc7 | skor 0.027 tolak(ml) | dev 0x6371b8 | penjual menit-1 1 | LP $11270 | skor ke-100
+[2026-11-02T20:13:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:13:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:14:12] TUTUP 0xd4cbd69f +69% | akun $0.62 -> $1.05 (+0.43) | 5 mnt | tanda pucuk
+[2026-11-02T20:14:39] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:14:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:15:20] TUTUP 0x9c192abf +75% | akun $0.62 -> $1.09 (+0.47) | 22 mnt | tanda pucuk
+[2026-11-02T20:15:25] SARING 0x8207cfa1 | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6212 | skor ke-100
+[2026-11-02T20:15:33] SARING 0x1536779d | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6000 | skor ke-100
+[2026-11-02T20:15:40] SARING 0xd9a63eb6 | skor 0.031 tolak(ml) | dev 0x133fe4 | penjual menit-1 1 | LP $11276 | skor ke-100
+[2026-11-02T20:15:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:15:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:16:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:17:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:17:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:18:03] SARING 0xe50c3a77 | skor 0.035 tolak(ml) | dev 0xab2904 | penjual menit-1 1 | LP $11285 | skor ke-100
+[2026-11-02T20:18:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:18:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:18:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:19:09] SARING 0xa8d99258 | skor 0.083 tolak(ml) | dev 0x047da3 | penjual menit-1 0 | LP $13510 | skor ke-100
+[2026-11-02T20:19:10] SARING 0x36c0cff3 | skor 0.203 tolak(ml) | dev 0x3d5bb8 | penjual menit-1 19 | LP $19606 | skor ke-100
+[2026-11-02T20:19:22] SARING 0x9a9130e1 | skor 0.173 tolak(ml) | dev 0xc24968 | penjual menit-1 21 | LP $25773 | skor ke-100
+[2026-11-02T20:19:28] SARING 0x3acdf1fd | skor 0.206 LOLOS | dev 0x4cc23b | penjual menit-1 21 | LP $19160 | skor ke-100
+[2026-11-02T20:19:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:19:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:20:03] SARING 0xc304fd1b | skor 0.018 tolak(ml) | dev 0x6371b8 | penjual menit-1 0 | LP $11302 | skor ke-100
+[2026-11-02T20:20:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:20:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:21:17] SARING 0x4c7fbb79 | skor 0.206 LOLOS | dev 0x072643 | penjual menit-1 19 | LP $21095 | skor ke-100
+[2026-11-02T20:21:30] SARING 0xb2c6a8ba | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7203 | skor ke-100
+[2026-11-02T20:21:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:21:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:22:03] SARING 0x9563bfda | skor 0.198 tolak(ml) | dev 0x928c7a | penjual menit-1 12 | LP $25634 | skor ke-100
+[2026-11-02T20:22:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:23:03] SARING 0x04c7caf7 | skor 0.179 tolak(ml) | dev 0x7402d3 | penjual menit-1 19 | LP $27481 | skor ke-100
+[2026-11-02T20:23:11] TUTUP 0x4c7fbb79 +19% | akun $0.67 -> $0.80 (+0.13) | 2 mnt | dump >=5% LP
+[2026-11-02T20:23:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:24:18] TUTUP 0x3acdf1fd +50% | akun $0.67 -> $1.01 (+0.34) | 5 mnt | tanda pucuk
+[2026-11-02T20:24:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:24:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:25:25] SARING 0xbdf98356 | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6235 | skor ke-100
+[2026-11-02T20:25:38] SARING 0x65700069 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6020 | skor ke-100
+[2026-11-02T20:25:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:25:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:26:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:27:27] SARING 0x2fd776f7 | skor 0.196 tolak(ml) | dev 0x16a354 | penjual menit-1 20 | LP $27224 | skor ke-100
+[2026-11-02T20:27:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:28:43] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:28:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:29:04] SARING 0x7aa249e9 | skor 0.205 LOLOS | dev 0x5d0f00 | penjual menit-1 21 | LP $27920 | skor ke-100
+[2026-11-02T20:29:11] SARING 0x8e34e4a0 | skor 0.207 LOLOS | dev 0xa7ca13 | penjual menit-1 21 | LP $18432 | skor ke-100
+[2026-11-02T20:29:12] SARING 0x849a4385 | skor 0.204 tolak(ml) | dev 0x15f355 | penjual menit-1 22 | LP $19411 | skor ke-100
+[2026-11-02T20:29:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:30:23] TUTUP 0x7aa249e9 +17% | akun $1.38 -> $1.62 (+0.23) | 1 mnt | model bahaya
+[2026-11-02T20:30:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:30:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:31:23] SARING 0xf83b5af9 | skor 0.588 LOLOS | dev 0xf2ebb6 | penjual menit-1 2 | LP $50955 | skor ke-100
+[2026-11-02T20:31:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:32:44] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:32:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:33:11] SARING 0x62f23e44 | skor 0.018 tolak(ml) | dev 0x0312f7 | penjual menit-1 0 | LP $11253 | skor ke-100
+[2026-11-02T20:33:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:34:36] TUTUP 0xf83b5af9 -111% | akun $1.40 -> $0.00 (-1.40) | 3 mnt | rug terdeteksi
+[2026-11-02T20:34:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:34:55] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:35:35] SARING 0xa3590056 | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6203 | skor ke-100
+[2026-11-02T20:35:36] TUTUP 0x8e34e4a0 +71% | akun $1.38 -> $2.36 (+0.98) | 6 mnt | tanda pucuk
+[2026-11-02T20:35:39] SARING 0x9c409c67 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $5991 | skor ke-100
+[2026-11-02T20:35:41] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:35:53] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:36:14] SARING 0xa26a7e24 | skor 0.022 tolak(ml) | dev 0x5d88b4 | penjual menit-1 0 | LP $10030 | skor ke-100
+[2026-11-02T20:36:45] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:36:57] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:37:01] SARING 0x812a9faf | skor 0.019 tolak(ml) | dev 0x504d3e | penjual menit-1 0 | LP $7177 | skor ke-100
+[2026-11-02T20:37:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:38:40] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:38:52] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:39:03] SARING 0xe5f19430 | skor 0.570 LOLOS | dev 0x9a6dfa | penjual menit-1 1 | LP $32737 | skor ke-100
+[2026-11-02T20:39:12] SARING 0xed264223 | skor 0.566 LOLOS | dev 0x25d57b | penjual menit-1 17 | LP $20311 | skor ke-100
+[2026-11-02T20:39:12] SARING 0x66b24bc8 | skor 0.588 LOLOS | dev 0x2bce0e | penjual menit-1 19 | LP $19830 | skor ke-100
+[2026-11-02T20:39:13] SARING 0x4ea066b4 | skor 0.622 LOLOS | dev 0xcccf24 | penjual menit-1 19 | LP $26654 | skor ke-100
+[2026-11-02T20:39:47] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:39:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:40:23] SARING 0xb3de5f41 | skor 0.576 LOLOS | dev 0xa16956 | penjual menit-1 21 | LP $19308 | skor ke-100
+[2026-11-02T20:40:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:41:03] TUTUP 0xb3de5f41 -8% | akun $0.66 -> $0.61 (-0.05) | 1 mnt | model bahaya
+[2026-11-02T20:41:51] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:42:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:43:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:44:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:44:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:45:16] TUTUP 0x4ea066b4 +29% | akun $0.66 -> $0.86 (+0.19) | 6 mnt | model bahaya
+[2026-11-02T20:45:34] LATIH ULANG ML mulai (kinerja pilihan terakhir turun): 2822 baris (25 hasil koin live)
+[2026-11-02T20:45:34] SARING 0x22166b39 | skor 0.018 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6207 | skor ke-100
+[2026-11-02T20:45:34] SARING 0x3b2228b8 | skor 0.017 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $5995 | skor ke-100
+[2026-11-02T20:45:35] MODEL ML BARU dipasang (latih ulang #1, kinerja pilihan terakhir turun): 200 pohon, 25 hasil koin live, Rust = CatBoost (selisih 5.0e-11)
+[2026-11-02T20:45:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:45:58] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:46:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:47:02] TUTUP 0x66b24bc8 +59% | akun $0.66 -> $1.05 (+0.39) | 8 mnt | model bahaya
+[2026-11-02T20:47:48] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:48:36] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:48:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:48:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:49:12] SARING 0x1275dba5 | skor 0.118 tolak(ml) | dev 0x4e8a8d | penjual menit-1 0 | LP $13497 | skor ke-100
+[2026-11-02T20:49:13] SARING 0xeb183feb | skor 0.797 LOLOS | dev 0x023a28 | penjual menit-1 21 | LP $20642 | skor ke-100
+[2026-11-02T20:49:16] SARING 0x1d9b8abf | skor 0.645 LOLOS | dev 0xf4925a | penjual menit-1 21 | LP $25892 | skor ke-100
+[2026-11-02T20:49:32] SARING 0xd5799687 | skor 0.660 LOLOS | dev 0xcd5fa8 | penjual menit-1 21 | LP $20496 | skor ke-100
+[2026-11-02T20:49:49] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:50:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:51:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:52:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:53:50] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:54:42] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:54:54] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:55:16] TUTUP 0xd5799687 +80% | akun $1.38 -> $2.49 (+1.11) | 6 mnt | tanda pucuk
+[2026-11-02T20:55:18] TUTUP 0x1d9b8abf +60% | akun $1.38 -> $2.21 (+0.83) | 6 mnt | model bahaya
+[2026-11-02T20:55:34] SARING 0xdc947e79 | skor 0.006 tolak(ml) | dev 0xea209a | penjual menit-1 0 | LP $6001 | skor ke-100
+[2026-11-02T20:55:36] SARING 0x247e980e | skor 0.006 tolak(ml) | dev 0x3ba62b | penjual menit-1 0 | LP $6213 | skor ke-100
+[2026-11-02T20:55:46] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:55:59] error: edge.goldsky.com: net: http 429 
+[2026-11-02T20:56:42] TUTUP 0xeb183feb +63% | akun $1.38 -> $2.26 (+0.88) | 7 mnt | model bahaya
+[2026-11-02T20:56:51] error: edge.goldsky.com: net: http 429 

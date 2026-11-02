@@ -159,7 +159,11 @@ pub struct PlanCfg {
 pub const PLAN_NAMES: [&str; 3] = ["v4", "v3", "v2"];
 pub fn config(name: &str, th: &Thresholds) -> Option<PlanCfg> {
     match name {
-        "v4" => Some(PlanCfg { tp: 1.2, frac: 0.6, pre_hard40: true, run_danger: true, th: th.danger_th }),
+        "v4" => Some(PlanCfg {
+            // bawaan 1.2 / 0.6 = persis seperti backtest; TP1/TP1_FRAC hanya untuk riset
+            tp: std::env::var("TP1").ok().and_then(|x| x.parse().ok()).unwrap_or(1.2),
+            frac: std::env::var("TP1_FRAC").ok().and_then(|x| x.parse().ok()).unwrap_or(0.6),
+            pre_hard40: true, run_danger: true, th: th.danger_th }),
         "v3" => Some(PlanCfg { tp: 1.2, frac: 0.85, pre_hard40: true, run_danger: false, th: f64::NAN }),
         "v2" => Some(PlanCfg { tp: f64::INFINITY, frac: 0.0, pre_hard40: false, run_danger: false, th: f64::NAN }),
         _ => None,

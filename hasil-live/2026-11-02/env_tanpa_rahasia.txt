@@ -1,0 +1,111 @@
+# rhc-trader settings. Copy to /opt/rhc/bot/.env (chmod 600). Never commit the real file.
+
+# ---------------------------------------------------------------- network
+# Put your private RPC first (measured: ~7 ms per request vs ~115 ms on the public RPC). The public RPC stays as a
+# fallback. Its nodes can lag behind each other and answer outside the requested block range; the log gate
+# (crates/trader/src/loggate.rs) makes the event stream exact on both, and wide getLogs ranges are split automatically.
+# To change RPC: edit this line (and EXEC_RPC_URLS) and restart the service. No code change is needed.
+RPC_URLS=https://edge.goldsky.com/standard/evm/4663?key=gs_edge_cmvdgvs273nwr01zf7v4h9sn0
+DOH_URL=
+POLL_MS=300
+CHUNK=1000
+
+# ---------------------------------------------------------------- strategy (System A, as backtested)
+# Changing any value below means running a strategy that was NOT backtested.
+FILTER=1
+QTHR=0.80
+HONEYPOT=1
+DEV_RULE=1
+START_USD=40
+# owner: at most 6 open positions (backtest used 10)
+MAX_POS=6
+EXP_MAX=0.5
+LP_CAP=0.01
+KELLY_MAKS=0.15
+KELLY_MIN=0.02
+
+# ---------------------------------------------------------------- owner's live sizing (differs from the backtest)
+# Quarter Kelly from the FIRST trade: the Kelly history starts with the backtest's last 100 trades (~13% per trade)
+# instead of the backtested 2% (trades 1-30) and 9.4% (31-100). Remove both lines for the backtested schedule.
+KELLY_SEED=/opt/rhc/bot/kelly_seed_backtest_last100.json
+KELLY_SEED_FROM=0
+# At most 4 open positions until the strategy account's equity reaches $10,000, then MAX_POS (6).
+# The account starts at START_USD: set START_USD to what you deposit so its equity follows the real wallet.
+MAX_POS_AWAL=4
+MAX_POS_AWAL_SAMPAI=10000
+# Blocks (0.1 s each) between the minute-1 decision and the buy. The live bot sends its buy when the account's entry
+# happens, so this is also how long it waits. The backtest assumed 30 (~3 s, behind every other bot in those blocks);
+# the owner wants no such wait: 3 (~0.3 s). Measured in the simulator, 18 Sep-16 Oct: 30 -> $194,241, 3 -> $199,482.
+LAT_BLOCKS=3
+KILL_DD=0.60
+REM=1
+HZ_LIVE=324000
+DANGER_TH=0.5
+UP_TH=0.5
+TP_UP=0.5
+TUTUP_SAAT_RUG=1
+TRAIL_PUNCAK=0.40
+DUMP_FRAC=0.05
+# Pool fee cap in ppm. Backtest used 5000 (0.5%); the owner chose 10000 (reject only fees above 1%).
+MAX_FEE=10000
+# cost model of the paper account (real execution pays real costs)
+GAS_USD=0.06
+APPROVE_USD=0.03
+FAIL_BUY=0.0185
+FAIL_SELL=0.0054
+
+# ---------------------------------------------------------------- learning / operations
+LABEL=1
+# adaptive entry filter (crates/trader/src/belajar.rs): ML CatBoost retrained by the official CatBoost program
+# (C++) + a deep-learning network in Rust that learns from every coin's outcome. 0 = the shipped model, frozen.
+BELAJAR=1
+CATBOOST_BIN=/opt/rhc/bin/catboost
+CHECKPOINT_BLOK=36000
+KOMPAKSI_MB=300
+TELEGRAM_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# ---------------------------------------------------------------- execution
+# off    = paper only (default)
+# shadow = build, sign and SIMULATE every order against live chain state; nothing is broadcast
+EXEC_MODE=shadow
+# File with your private key (64 hex chars, optional 0x). Must be chmod 600. You create it yourself.
+# Must be exactly this text before live transactions are sent:
+EXEC_LIVE_CONFIRM=I_ACCEPT_REAL_MONEY_RISK
+# Endpoints used for execution (default: RPC_URLS). Reads (nonce, receipts, quotes) go to the first one (the next
+# one after repeated errors); signed transactions go to all of them at once. Private RPC first.
+# Sizing: real_equity = the strategy's quarter-Kelly fraction applied to the REAL wallet equity (compounds on real
+# money); model = the paper account's dollar size.
+EXEC_SIZING=real_equity
+EXEC_SIZE_SCALE=1.0
+# Optional hard cap per buy in USD (0 = off). Recommended during the first weeks, e.g. 5.
+EXEC_MAX_ORDER_USD=0
+EXEC_MIN_ORDER_USD=0.25
+# Bug guard: a single buy never exceeds this fraction of real equity (strategy Kelly cap is 0.15).
+EXEC_MAX_POSITION_FRAC=0.20
+# ETH always kept for gas.
+EXEC_GAS_RESERVE_ETH=0.002
+# Stop new buys for the rest of the UTC day after this realized loss (0 = off).
+EXEC_DAILY_LOSS_LIMIT_USD=0
+EXEC_MAX_OPEN_POSITIONS=6
+# Slippage tolerance. Calibrated on the backtest: price moves within 1 s after a signal are below 7.9% (buy) and
+# 8.8% (sell) in 99.5% of trades. Sells widen per retry; the last tier repeats; 10000 = accept any output.
+EXEC_BUY_SLIPPAGE_BPS=1000
+EXEC_SELL_SLIPPAGE_BPS=1500,5000,10000
+EXEC_MAX_BUY_DELAY_MS=1500
+# Before every buy, simulate buy + approvals + sell through the bot's router. Some pool hooks refuse that router: the
+# coin trades for others but this bot could never sell it. A failed check, or no answer, skips the coin.
+EXEC_CEK_JUAL=1
+EXEC_MAX_BASE_FEE_GWEI=1.0
+EXEC_GAS_LIMIT_BUY=600000
+EXEC_GAS_LIMIT_SELL=600000
+EXEC_GAS_LIMIT_APPROVE=150000
+EXEC_DEADLINE_SECS=60
+EXEC_PERMIT2_EXPIRY_DAYS=30
+EXEC_RECEIPT_TIMEOUT_SECS=20
+EXEC_MAX_SELL_ATTEMPTS=8
+
+# Emergency stops (files in <bot>/rust_live/exec/, no restart needed):
+#   STOP_BUYING  -> no new buys, open positions keep being managed
+#   FLATTEN_ALL  -> sell every open position now and stop buying (remove the file to trade again)
+AMBANG_MIN=0.0

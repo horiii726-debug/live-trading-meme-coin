@@ -13,6 +13,12 @@ pub struct Cfg {
     // masuk
     pub filter: bool,
     pub qthr: f64,
+    /// Lantai ambang skor: ambang tidak pernah turun di bawah ini.
+    /// 0 = mati, perilaku persis seperti backtest lama.
+    pub ambang_min: f64,
+    /// Tunda beli sampai kolam berumur sekian BLOK, lalu beli hanya jika likuiditasnya
+    /// masih ada. 0 = mati, perilaku persis seperti backtest lama (beli di detik ke-60).
+    pub umur_min_blok: f64,
     pub honeypot: bool,
     pub dev_rule: bool,
     pub larang_pemanasan: bool,
@@ -119,6 +125,8 @@ impl Cfg {
             fresh_blocks: num("FRESH_BLOCKS", 300.0),
             filter: on("FILTER", true),
             qthr: num("QTHR", 0.90),
+            ambang_min: num("AMBANG_MIN", 0.0),
+            umur_min_blok: num("UMUR_MIN_BLOK", 0.0),
             honeypot: on("HONEYPOT", true),
             dev_rule: on("DEV_RULE", true),
             larang_pemanasan: on("LARANG_PEMANASAN", false),

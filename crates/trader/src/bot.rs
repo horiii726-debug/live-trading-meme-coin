@@ -183,7 +183,7 @@ impl Akun {
             if self.recent.len() > 100 {
                 self.recent.pop_front();
             }
-            let thr = if self.recent.len() < 30 { self.thr0 } else { Self::kuantil(&self.recent, self.cfg.qthr) };
+            let thr = (if self.recent.len() < 30 { self.thr0 } else { Self::kuantil(&self.recent, self.cfg.qthr) }).max(self.cfg.ambang_min);
             k.ml_ok = k.score >= thr;
         } else {
             k.ml_ok = false;
@@ -230,6 +230,16 @@ impl Akun {
                 if self.dev_hist.get(d).map_or(false, |h| h.iter().any(|r| *r < 0.3)) {
                     return self.tolak("dev pernah rug");
                 }
+            }
+        }
+        // UMUR_MIN_BLOK: tunggu sampai kolam cukup tua sebelum membeli. Kolam yang di-rug
+        // selama menunggu kehilangan likuiditasnya, jadi tidak pernah dibeli.
+        if self.cfg.umur_min_blok > 0.0 {
+            if self.tip < sim.m.init + self.cfg.umur_min_blok {
+                return None; // belum waktunya: tunggu, jangan tolak
+            }
+            if sim.lp.last().copied().unwrap_or(0.0) <= 0.0 {
+                return self.tolak("likuiditas habis saat menunggu");
             }
         }
         if self.cfg.honeypot && k.jual_m1 == 0 {

@@ -73,7 +73,7 @@ pub(crate) fn batch(rpc: &Rpc, calls: &[(&str, Value)]) -> Result<Vec<Value>, St
 /// eth_getLogs that halves the block range when the RPC 10,000-log cap is hit, so no logs are dropped.
 fn logs_split(rpc: &Rpc, params: &Value) -> Result<Value, String> {
     match panggil(rpc, "eth_getLogs", params.clone()) {
-        Err(e) if e.contains("exceeds limit") => {
+        Err(e) if e.contains("exceeds limit") || e.contains("exceeded max allowed range") => {
             let f = &params[0];
             let num = |k: &str| u64::from_str_radix(f[k].as_str().unwrap_or("0x0").trim_start_matches("0x"), 16).unwrap_or(0);
             let (a, b) = (num("fromBlock"), num("toBlock"));
@@ -100,7 +100,7 @@ fn segmen(rpc: &Rpc, dari: u64, akhir: u64, sampai: u64, t0: Instant) -> Result<
     let mut lahir: HashSet<String> = HashSet::new();
     let mut swaps: Baris = Vec::new();
     let mut liq: Baris = Vec::new();
-    let (mut b, mut lebar) = (dari, 3000u64);
+    let (mut b, mut lebar) = (dari, 800u64);
     let mut n_req = 0u64;
     while b <= akhir {
         let e = (b + lebar - 1).min(akhir);
@@ -140,7 +140,7 @@ fn segmen(rpc: &Rpc, dari: u64, akhir: u64, sampai: u64, t0: Instant) -> Result<
                 }
             }
             Ok(_) => b = e + 1,
-            Err(er) if er.contains("exceeds") || er.contains("limit") => lebar = (lebar / 2).max(50),
+            Err(er) if er.contains("exceeds") || er.contains("exceeded") || er.contains("limit") || er.contains("range") => lebar = (lebar / 2).max(50),
             Err(er) => return Err(er),
         }
     }
@@ -223,7 +223,7 @@ pub fn menit1(rpc: &Rpc, dir: &str) -> Result<(), String> {
         let Some(&i0) = init.get(id) else { continue };
         let p: Vec<&str> = l.split(',').collect();
         let blk: u64 = p[1].parse().unwrap_or(0);
-        if blk > i0 + 600 {
+        if blk < i0 || blk > i0 + 600 {
             continue;
         }
         m1.entry(id.to_string()).or_default().push(json!([blk, p[2].parse::<u64>().unwrap_or(0), p[4], p[5], p[6], p[7], p[9].trim().parse::<f64>().unwrap_or(0.0)]));
@@ -257,7 +257,7 @@ pub fn menit1(rpc: &Rpc, dir: &str) -> Result<(), String> {
                 .unwrap_or_default();
             tf.insert(p.clone(), json!({"token": t, "tr": tr}));
         }
-        let calls: Vec<(&str, Value)> = part.iter().map(|(_, t, i)| ("eth_getLogs", json!([{"address": t, "topics": [T_TRANSFER, ZERO32], "fromBlock": hx(i.saturating_sub(36000)), "toBlock": hx(i + 600)}]))).collect();
+        let calls: Vec<(&str, Value)> = part.iter().map(|(_, t, i)| ("eth_getLogs", json!([{"address": t, "topics": [T_TRANSFER, ZERO32], "fromBlock": hx(i.saturating_sub(150)), "toBlock": hx(i + 600)}]))).collect();
         let mint = batch(rpc, &calls)?;
         let perlu: Vec<(usize, String)> = mint.iter().enumerate().filter_map(|(j, r)| r.as_array()?.first()?["transactionHash"].as_str().map(|h| (j, h.to_string()))).collect();
         let txs = if perlu.is_empty() { Vec::new() } else { batch(rpc, &perlu.iter().map(|(_, h)| ("eth_getTransactionByHash", json!([h]))).collect::<Vec<_>>())? };
