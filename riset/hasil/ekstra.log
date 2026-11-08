@@ -1,0 +1,19 @@
+C10_jadwal_2persen_asli p=0 beli=72 win=75.0% PF=3.32 akhir=$1961.75 DD=33.5% menang=+185% kalah=-89% impas=32%
+C10_jadwal_2persen_asli p=1 beli=86 win=70.9% PF=6.90 akhir=$7182.32 DD=16.7% menang=+193% kalah=-77% impas=29%
+C10_jadwal_2persen_asli p=2 beli=62 win=54.8% PF=2.76 akhir=$534.56 DD=29.9% menang=+200% kalah=-77% impas=28%
+C10_jadwal_2persen_asli p=3 beli=72 win=77.8% PF=12.63 akhir=$5827.10 DD=17.9% menang=+184% kalah=-99% impas=35%
+C10_jadwal_2persen_asli p=total beli=334 win=68.9% PF=4.14 akhir=$57886.12 DD=33.5% menang=+189% kalah=-85% impas=31%
+C10_jadwal_2persen_asli p=2nov beli=14 win=21.4% PF=0.53 akhir=$37.37 DD=8.9% menang=+131% kalah=-76% impas=37%
+C12_tanpa_pnaik p=0 beli=72 win=75.0% PF=4.87 akhir=$11686.92 DD=27.8% menang=+188% kalah=-86% impas=31%
+C12_tanpa_pnaik p=1 beli=85 win=69.4% PF=6.79 akhir=$13546.08 DD=23.3% menang=+196% kalah=-73% impas=27%
+C12_tanpa_pnaik p=2 beli=61 win=59.0% PF=2.94 akhir=$4080.55 DD=25.4% menang=+192% kalah=-78% impas=29%
+C12_tanpa_pnaik p=3 beli=71 win=76.1% PF=6.86 akhir=$10921.45 DD=28.3% menang=+184% kalah=-96% impas=34%
+C12_tanpa_pnaik p=total beli=334 win=68.9% PF=4.30 akhir=$68069.29 DD=27.8% menang=+190% kalah=-85% impas=31%
+C12_tanpa_pnaik p=2nov beli=14 win=21.4% PF=0.29 akhir=$28.50 DD=31.2% menang=+138% kalah=-67% impas=33%
+C12_pnaik_tak_dipakai p=0 beli=72 win=75.0% PF=4.87 akhir=$11686.92 DD=27.8% menang=+188% kalah=-86% impas=31%
+C12_pnaik_tak_dipakai p=1 beli=85 win=69.4% PF=6.79 akhir=$13546.08 DD=23.3% menang=+196% kalah=-73% impas=27%
+C12_pnaik_tak_dipakai p=2 beli=61 win=59.0% PF=2.94 akhir=$4080.55 DD=25.4% menang=+192% kalah=-78% impas=29%
+C12_pnaik_tak_dipakai p=3 beli=71 win=76.1% PF=6.86 akhir=$10921.45 DD=28.3% menang=+184% kalah=-96% impas=34%
+C12_pnaik_tak_dipakai p=total beli=334 win=68.9% PF=4.30 akhir=$68069.29 DD=27.8% menang=+190% kalah=-85% impas=31%
+C12_pnaik_tak_dipakai p=2nov beli=14 win=21.4% PF=0.29 akhir=$28.50 DD=31.2% menang=+138% kalah=-67% impas=33%
+EKSTRA_SELESAI
