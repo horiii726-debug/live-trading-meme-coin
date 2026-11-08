@@ -36,7 +36,7 @@ const USAGE: &str = "usage:
 
 /// Settings read from the process environment only (not from the .env parser). They are exported from
 /// `--env FILE` at startup so a value written in the file is never silently ignored. The environment wins.
-const PROCESS_ENV_KEYS: [&str; 4] = ["MAX_FEE", "DS", "RADAR_BOOT_HARI", "START_BLOCK"];
+const PROCESS_ENV_KEYS: [&str; 6] = ["MAX_FEE", "DS", "RADAR_BOOT_HARI", "START_BLOCK", "TP1", "TP1_FRAC"];
 
 fn env_file_map(path: &str) -> std::collections::HashMap<String, String> {
     let mut m = std::collections::HashMap::new();

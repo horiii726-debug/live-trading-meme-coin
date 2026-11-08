@@ -547,3 +547,25 @@ fn graph_features(nodes: &[&str], edges: &[(&str, &str, f64)], f: &mut [f64; 35]
     }
     f[G_P2P_FRAC] = if js_truthy(tot) { p2p / tot } else { 0.0 };
 }
+
+/// Wallets active in a pool's first minute, read from its token transfers (the same transfers the features use).
+/// A buy is a transfer out of the PoolManager, a sell a transfer into it; a router hop (the router passes the same
+/// amount on in the same block) is followed to the real wallet. Transfers in the pool's own block (the liquidity
+/// deposit) are skipped. Returns (every buyer and seller, the wallets that both bought and sold).
+pub fn dompet_menit1(tr: &[Transfer], init: f64) -> (Vec<String>, Vec<String>) {
+    use std::collections::BTreeSet;
+    let mut beli: BTreeSet<String> = BTreeSet::new();
+    let mut jual: BTreeSet<String> = BTreeSet::new();
+    for t in tr.iter().filter(|t| t.blk > init) {
+        let sama = |a: &Transfer| a.blk == t.blk && a.amt == t.amt;
+        if t.from == PM && t.to != NATIVE {
+            let u = tr.iter().find(|a| sama(a) && a.from == t.to && a.to != PM).map_or(&t.to, |a| &a.to);
+            beli.insert(u.clone());
+        } else if t.to == PM && t.from != NATIVE {
+            let u = tr.iter().find(|a| sama(a) && a.to == t.from && a.from != PM).map_or(&t.from, |a| &a.from);
+            jual.insert(u.clone());
+        }
+    }
+    let flip = beli.intersection(&jual).cloned().collect();
+    (beli.union(&jual).cloned().collect(), flip)
+}

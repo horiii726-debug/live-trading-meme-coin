@@ -137,7 +137,11 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
         if !metas.contains_key(&j.pool) {
             continue;
         }
-        let fe = port_features::features(&j.meta, &j.swaps, &j.transfers, j.eth_usd);
+        // datasets without ethUsd per coin (e.g. the 23.6 h set): use the ETH/USDG price at the pool's birth, as live does.
+        // Without it every USD feature and lp_m1 were NaN (the LP cap was skipped and the ML saw -1 for them).
+        let eth_j = if j.eth_usd.is_finite() && j.eth_usd > 0.0 { j.eth_usd } else { eth_at(j.meta.init) };
+        let fe = port_features::features(&j.meta, &j.swaps, &j.transfers, eth_j);
+        let (dompet, flip) = port_features::dompet_menit1(&j.transfers, j.meta.init);
         let x: Vec<f64> = cat.feats.iter().map(|k| fe.get(k).filter(|v| v.is_finite()).unwrap_or(-1.0)).collect();
         let score = match (&skor_luar, &pemb) {
             (Some(m), _) => m.get(&j.pool).cloned().unwrap_or(f64::NAN),
@@ -150,7 +154,7 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
         if pemb.is_none() {
             skor_out.push_str(&format!("{},{}\n", j.pool, score));
         }
-        kep.push((j.meta.init + 600.0, j.pool.clone(), Keputusan { score, ml_ok: false, dev, jual_m1: jual, lp_m1: fe.get("lp_m1").unwrap_or(f64::NAN), feats: x.clone(), dikecualikan: None }));
+        kep.push((j.meta.init + 600.0, j.pool.clone(), Keputusan { score, ml_ok: false, dev, jual_m1: jual, lp_m1: fe.get("lp_m1").unwrap_or(f64::NAN), feats: x.clone(), dikecualikan: None, dompet, flip }));
     }
     kep.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap());
 
@@ -309,6 +313,8 @@ pub fn jalan(cfg: Cfg, a: SimArg) -> Result<(), String> {
         t0.elapsed().as_secs_f64()
     );
     println!("tolak: {:?}", ak.tolak);
+    let n_flip = ak.kep.values().filter(|k| !k.flip.is_empty()).count();
+    eprintln!("dompet menit-1: {} keputusan punya dompet flip, daftar perug {} dompet, rug tanpa keputusan {}", n_flip, ak.dompet_rug.len(), ak.rug_tanpa_kep.len());
     if let Some(p) = &a.akun_out {
         std::fs::write(p, ak.ke_json().to_string()).map_err(|e| e.to_string())?;
     }

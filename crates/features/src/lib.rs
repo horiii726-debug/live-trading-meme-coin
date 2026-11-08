@@ -7,4 +7,4 @@ pub mod features;
 pub mod jsnum;
 pub mod orderflow;
 
-pub use features::{features, Features, Meta, Swap, Transfer, KEYS, NATIVE, PM};
+pub use features::{dompet_menit1, features, Features, Meta, Swap, Transfer, KEYS, NATIVE, PM};

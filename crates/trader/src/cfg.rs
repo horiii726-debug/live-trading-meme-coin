@@ -20,6 +20,8 @@ pub struct Cfg {
     /// masih ada. 0 = mati, perilaku persis seperti backtest lama (beli di detik ke-60).
     pub umur_min_blok: f64,
     pub honeypot: bool,
+    /// DOMPET_RUG: tolak koin bila dompet menit-1-nya pernah beli-lalu-jual di kolam yang kemudian rug
+    pub dompet_rug: bool,
     pub dev_rule: bool,
     pub larang_pemanasan: bool,
     // ukuran & risiko (aturan arena.js yang teruji)
@@ -53,6 +55,11 @@ pub struct Cfg {
     pub rug_exit: bool,
     pub trail: f64,
     pub dump_frac: f64,
+    /// MOM_MENIT: exit when buyers in the last N minutes fall to half of the N minutes before AND sell flow >= buy
+    /// flow (engine "momentum melemah"). 0 = off (old behaviour)
+    pub mom_menit: f64,
+    /// TRAIL_PRE: drop from the peak that exits before TP1 (engine default 0.40 when 0). 0 = old behaviour
+    pub trail_pre: f64,
     /// our own sells move the pool price: "0" off (old behaviour), "1" on, "full" also counts the entry
     pub sell_impact: String,
     /// execution latency in blocks for entry and exit (0.1 s blocks); 30 = 3 s (old behaviour)
@@ -128,6 +135,7 @@ impl Cfg {
             ambang_min: num("AMBANG_MIN", 0.0),
             umur_min_blok: num("UMUR_MIN_BLOK", 0.0),
             honeypot: on("HONEYPOT", true),
+            dompet_rug: on("DOMPET_RUG", false),
             dev_rule: on("DEV_RULE", true),
             larang_pemanasan: on("LARANG_PEMANASAN", false),
             start_usd: num("START_USD", 100.0),
@@ -152,6 +160,8 @@ impl Cfg {
             rug_exit: on("TUTUP_SAAT_RUG", false),
             trail: num("TRAIL_PUNCAK", 0.0),
             dump_frac: num("DUMP_FRAC", 0.05),
+            mom_menit: num("MOM_MENIT", 0.0),
+            trail_pre: num("TRAIL_PRE", 0.0),
             sell_impact: get("SELL_IMPACT").unwrap_or("0".into()),
             lat_blocks: num("LAT_BLOCKS", 30.0),
             gas_usd: num("GAS_USD", 0.06),

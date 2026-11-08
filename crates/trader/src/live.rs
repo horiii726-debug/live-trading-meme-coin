@@ -431,6 +431,7 @@ fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, pra: DevPra
     let fm = port_features::Meta { c0: meta.c0.clone(), c1: meta.c1.clone(), fee: meta.fee, hooks: meta.hooks.clone(), init };
     let fsw: Vec<port_features::Swap> = sw.iter().filter(|x| x.blk <= init + 600.0).map(|x| port_features::Swap { blk: x.blk, li: x.li, a0: x.a0, a1: x.a1, sqrt_p: x.sqrt_p, l: x.l }).collect();
     let fe = port_features::features(&fm, &fsw, &tr, eth);
+    let (dompet, flip) = port_features::dompet_menit1(&tr, init);
     // WAJIB -1 untuk nilai hilang (model dilatih dengan fillna(-1))
     let x: Vec<f64> = cat.feats.iter().map(|k| fe.get(k).filter(|v| v.is_finite()).unwrap_or(-1.0)).collect();
     let score = cat.predict(&x);
@@ -442,7 +443,7 @@ fn cek_koin(rpc: &Rpc, cat: &CatModel, kc: Arc<Mutex<kelas::Cache>>, pra: DevPra
         Ok(d) => (d, dikecualikan),
         Err(e) => (None, dikecualikan.or(Some(format!("dev tidak diketahui ({})", e.chars().take(60).collect::<String>())))),
     };
-    Ok(Keputusan { score, ml_ok: false, dev, jual_m1: jual, lp_m1: fe.get("lp_m1").unwrap_or(f64::NAN), feats: x, dikecualikan })
+    Ok(Keputusan { score, ml_ok: false, dev, jual_m1: jual, lp_m1: fe.get("lp_m1").unwrap_or(f64::NAN), feats: x, dikecualikan, dompet, flip })
 }
 
 fn muat_model_filter(bot_dir: &str) -> Result<(CatModel, f64), String> {
@@ -620,7 +621,7 @@ impl Live {
         let n = a.recent.len();
         drop(a);
         if !self.replaying {
-            let d = json!({"pool": pool, "pada": blk, "score": k.score, "ml_ok": ok, "dev": k.dev, "jual_m1": k.jual_m1, "lp_m1": k.lp_m1, "feats": k.feats, "dikecualikan": k.dikecualikan, "t": sekarang_iso()});
+            let d = json!({"pool": pool, "pada": blk, "score": k.score, "ml_ok": ok, "dev": k.dev, "jual_m1": k.jual_m1, "lp_m1": k.lp_m1, "feats": k.feats, "dikecualikan": k.dikecualikan, "dompet": k.dompet, "flip": k.flip, "t": sekarang_iso()});
             tambah(&self.dir.join("decisions.jsonl"), &d.to_string());
             self.log.tulis(&format!(
                 "SARING {} | skor {:.3} {} | dev {} | penjual menit-1 {} | LP ${:.0} | skor ke-{}{}",
@@ -740,7 +741,7 @@ impl Live {
                     per.entry(id.clone()).or_default().1.push(Swap { blk, li: *li, tx: tx.clone(), a0: big_f64(a0), a1: big_f64(a1), sqrt_p: big_f64(sp) / Q96, l: big_f64(l), fee: *fee });
                 }
                 Ev::Mod { id, d, .. } => {
-                    if !self.m.sims.contains_key(id) {
+                    if !self.m.sims.contains_key(id) && !self.m.dipantau(id) {
                         continue;
                     }
                     self.simpan_event(e);
@@ -760,6 +761,8 @@ impl Live {
                     lp_m1: v["lp_m1"].as_f64().unwrap_or(f64::NAN),
                     feats: v["feats"].as_array().map(|a| a.iter().map(|x| x.as_f64().unwrap_or(-1.0)).collect()).unwrap_or_default(),
                     dikecualikan: v["dikecualikan"].as_str().map(|s| s.to_string()),
+                    dompet: v["dompet"].as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()).unwrap_or_default(),
+                    flip: v["flip"].as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()).unwrap_or_default(),
                 };
                 self.terapkan(blk, &pool, k);
             }

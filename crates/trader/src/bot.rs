@@ -8,7 +8,8 @@ use crate::cfg::Cfg;
 use port_engine::engine::{self as eng, Event, PoolMeta, PoolSim, SimOpts, Swap, Thresholds, Trade};
 use port_engine::model::Model;
 use num_bigint::BigInt;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use num_traits::ToPrimitive;
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 /// Hasil pengecekan menit-1 untuk satu koin.
@@ -23,6 +24,10 @@ pub struct Keputusan {
     pub feats: Vec<f64>,
     /// Some(alasan) = aset bukan meme coin (mis. saham ter-tokenisasi) atau gagal diklasifikasi -> TIDAK BOLEH dibeli
     pub dikecualikan: Option<String>,
+    /// dompet yang beli atau jual di menit-1 (port_features::dompet_menit1)
+    pub dompet: Vec<String>,
+    /// dompet yang beli LALU jual di menit-1: masuk daftar perug kalau kolam ini rug
+    pub flip: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -58,6 +63,10 @@ pub struct Akun {
     pub log: Vec<String>,
     pub hari: Option<(i64, f64)>,
     pub eq_curve: Vec<(f64, f64)>,
+    /// DOMPET_RUG: dompet yang beli-lalu-jual di menit-1 kolam yang kemudian rug (hanya rug yang SUDAH terjadi)
+    pub dompet_rug: BTreeSet<String>,
+    /// kolam yang sudah rug tapi keputusan menit-1-nya belum tiba
+    pub rug_tanpa_kep: BTreeSet<String>,
 }
 
 impl Akun {
@@ -86,6 +95,8 @@ impl Akun {
             log: Vec::new(),
             hari: None,
             eq_curve: Vec::new(),
+            dompet_rug: BTreeSet::new(),
+            rug_tanpa_kep: BTreeSet::new(),
         }
     }
     /// = q() arena.js: s[min(len-1, floor(p*len))] dari salinan terurut
@@ -145,7 +156,7 @@ impl Akun {
             "cash": self.cash, "peak": self.peak, "dd_max": self.dd_max, "killed": self.killed,
             "rets": self.rets, "recent": self.recent.iter().cloned().collect::<Vec<f64>>(),
             "dev_hist": self.dev_hist, "n_beli": self.n_beli, "n_tutup": self.n_tutup, "n_menang": self.n_menang,
-            "open": self.open.len(),
+            "open": self.open.len(), "dompet_rug": self.dompet_rug,
         })
     }
     pub fn dari_json(&mut self, j: &serde_json::Value) {
@@ -165,6 +176,18 @@ impl Akun {
         self.n_beli = fl("n_beli", 0.0) as u64;
         self.n_tutup = fl("n_tutup", 0.0) as u64;
         self.n_menang = fl("n_menang", 0.0) as u64;
+        if let Some(a) = j.get("dompet_rug").and_then(|v| v.as_array()) {
+            self.dompet_rug.extend(a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())));
+        }
+    }
+    /// Kolam rug (likuiditas ditarik >80%): dompet flip menit-1-nya masuk daftar perug.
+    pub fn catat_rug(&mut self, pool: &str) {
+        match self.kep.get(pool) {
+            Some(k) => self.dompet_rug.extend(k.flip.iter().cloned()),
+            None => {
+                self.rug_tanpa_kep.insert(pool.to_string());
+            }
+        }
     }
     pub fn ekuitas_beli(&self) -> f64 {
         self.cash + self.open.values().map(|p| p.pos).sum::<f64>()
@@ -187,6 +210,9 @@ impl Akun {
             k.ml_ok = k.score >= thr;
         } else {
             k.ml_ok = false;
+        }
+        if self.rug_tanpa_kep.remove(pool) {
+            self.dompet_rug.extend(k.flip.iter().cloned());
         }
         self.kep.insert(pool.to_string(), k);
     }
@@ -242,6 +268,9 @@ impl Akun {
                 return self.tolak("likuiditas habis saat menunggu");
             }
         }
+        if self.cfg.dompet_rug && k.dompet.iter().any(|d| self.dompet_rug.contains(d)) {
+            return self.tolak("dompet perug");
+        }
         if self.cfg.honeypot && k.jual_m1 == 0 {
             return self.tolak("honeypot (belum ada penjual)");
         }
@@ -280,7 +309,11 @@ impl Akun {
             mult = if dd > 0.30 { 0.25 } else if dd > 0.20 { 0.5 } else if dd > 0.10 { 0.75 } else { 1.0 };
         }
         let mut pos = (frac * eq * mult).min(self.cash - g);
-        if self.cfg.lp_cap > 0.0 && k.lp_m1 > 0.0 {
+        if self.cfg.lp_cap > 0.0 {
+            // LP unknown (NaN/0) must not silently lift the 1%-of-liquidity cap
+            if !(k.lp_m1 > 0.0) {
+                return self.tolak("LP tidak diketahui");
+            }
             pos = pos.min(self.cfg.lp_cap * k.lp_m1);
         }
         if pos < self.cfg.min_pos {
@@ -371,6 +404,8 @@ pub struct Mesin {
     /// live execution only: collect `orders` for the executor
     pub emit_orders: bool,
     pub orders: Vec<ModelOrder>,
+    /// rug watch of every tracked pool for HZ blocks, also after its PoolSim is gone: (init, added, removed, rugged)
+    pantau: HashMap<String, (f64, f64, f64, bool)>,
 }
 
 impl Mesin {
@@ -388,6 +423,7 @@ impl Mesin {
             event_log: Vec::new(),
             emit_orders: false,
             orders: Vec::new(),
+            pantau: HashMap::new(),
         }
     }
     /// Opsi mesin = AUDIT realistis uji maju (latb 30, entryLat 30, worstOrder, gas nyata, transaksi gagal, ...).
@@ -415,6 +451,8 @@ impl Mesin {
             rug_exit: c.rug_exit,
             trail: c.trail,
             dump_frac: c.dump_frac,
+            mom_min: c.mom_menit,
+            trail_pre: c.trail_pre,
             sell_impact: match c.sell_impact.as_str() {
                 "1" => port_engine::engine::SellImpact::On,
                 "full" => port_engine::engine::SellImpact::Full,
@@ -462,6 +500,7 @@ impl Mesin {
         if !eng::safe(&m).unwrap_or(false) || !eth.is_finite() {
             return false;
         }
+        self.pantau.insert(m.id.clone(), (m.init, 0.0, 0.0, false));
         let o = self.opsi(eth);
         match PoolSim::new(m.clone(), o) {
             Ok(s) => {
@@ -539,6 +578,10 @@ impl Mesin {
             self.selesai.push((t, r));
         }
     }
+    /// Is this pool's liquidity still watched for a rug? (live passes its liquidity events on even after its PoolSim is gone)
+    pub fn dipantau(&self, id: &str) -> bool {
+        self.pantau.contains_key(id)
+    }
     /// Satu blok: (1) pesanan yang jatuh tempo diisi (tick), (2) event likuiditas+swap per pool, (3) pool selesai dibuang.
     pub fn blok(&mut self, blk: f64, per_pool: &BTreeMap<String, (Vec<BigInt>, Vec<Swap>)>) {
         let ids: Vec<String> = self.sims.keys().cloned().collect();
@@ -570,7 +613,21 @@ impl Mesin {
                 }
             }
         }
+        // rug watch: same rule as the engine (removed > 80% of added)
+        for (id, (l, _)) in per_pool {
+            if let Some(p) = self.pantau.get_mut(id) {
+                for d in l {
+                    let v = d.to_f64().unwrap_or(0.0);
+                    if v > 0.0 { p.1 += v } else { p.2 -= v }
+                }
+                if !p.3 && p.1 > 0.0 && p.2 > 0.8 * p.1 {
+                    p.3 = true;
+                    self.akun.lock().unwrap().catat_rug(id);
+                }
+            }
+        }
         let hz = self.hz_c;
+        self.pantau.retain(|_, p| blk < p.0 + hz);
         let habis: Vec<String> = self.sims.iter().filter(|(_, s)| blk >= s.m.init + hz || s.all_done()).map(|(k, _)| k.clone()).collect();
         for id in habis {
             if let Some(s) = self.sims.get_mut(&id) {
@@ -651,7 +708,7 @@ mod tests {
             let m = PoolMeta { id: id.into(), c0: "0x0000000000000000000000000000000000000000".into(), c1: "0x00000000000000000000000000000000000000ab".into(), fee: 3000.0, hooks: "0x0000000000000000000000000000000000000000".into(), init: 1000.0 };
             PoolSim::new(m, SimOpts::default()).unwrap()
         };
-        let kep = |dev: Option<&str>, ex: Option<&str>| Keputusan { score: 0.9, ml_ok: true, dev: dev.map(|s| s.into()), jual_m1: 3, lp_m1: 50_000.0, feats: vec![], dikecualikan: ex.map(|s| s.into()) };
+        let kep = |dev: Option<&str>, ex: Option<&str>| Keputusan { score: 0.9, ml_ok: true, dev: dev.map(|s| s.into()), jual_m1: 3, lp_m1: 50_000.0, feats: vec![], dikecualikan: ex.map(|s| s.into()), dompet: vec![], flip: vec![] };
         a.dev_hist.insert("0xrug".into(), vec![1.4, 0.12]);
         a.dev_hist.insert("0xbaik".into(), vec![1.4, 2.0]);
         a.kep.insert("p_rug".into(), kep(Some("0xrug"), None));
