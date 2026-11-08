@@ -133,6 +133,38 @@ pump sebelum rug, jadi model belajar "keramaian", bukan "keamanan".
 Ablasi (setelan pemilik, 23 jam / 2 Nov): tanpa ML $94,65 / $39,21; ML beku $33.326 / $28,50; adaptif $68.069 / $28,50.
 Satu dari 7 run adaptif identik memberi hasil lain ($29.350 vs $24.788): sebab belum diketahui.
 
+### K6a. Rumus lengkap ML (CatBoost, `catmodel.rs`)
+
+- Model = 200 pohon *oblivious* (kedalaman 6: tiap level satu fitur + satu batas untuk semua simpul).
+- Indeks daun pohon t: `idx = Σ_{k=0..5} 2^k · [ float32(x[fitur_k]) > batas_k ]`.
+- `s = Σ_t daun_t[idx_t]`; `p_ML = 1 / (1 + e^-(scale·s + bias))`.
+- Fitur NaN diisi −1 sebelum masuk model (`sim.rs`, `live.rs`).
+- Latih ulang: `catboost fit --loss-function Logloss --iterations 200 --depth 6 --learning-rate 0.08
+  --random-seed 1 --boosting-type Plain --border-count 32 --thread-count 4`, baris berbobot `w`
+  (dasar 0,3; label baru `0,5^(umur_hari/3)`). Pemasangan hanya bila `max |p_Rust − p_CatBoost| ≤ 1e-5` di 500 baris.
+
+### K6b. Rumus lengkap DL (`belajar.rs`, setara sklearn `MLPClassifier`)
+
+1. **Normalisasi kuantil** per fitur j (200 titik dari data dasar Ags–Sep, dibuat monoton):
+   `u = ½·(interp(v, q_j, ref) − interp(−v, −q_j terbalik, −ref terbalik))`;
+   `u = 1` bila `v > q_max`, `u = 0` bila `v < q_min`; `z = Φ⁻¹(u)` dijepit ke `[Φ⁻¹(1e-7), Φ⁻¹(1−1e-7)]` (±5,2).
+2. **Maju**: `h1 = ReLU(W1·z + b1)` (128), `h2 = ReLU(W2·h1 + b2)` (64), `h3 = ReLU(W3·h2 + b3)` (32),
+   `p_DL = σ(W4·h3 + b4)`. Inisialisasi Glorot: `U(−√(6/(n_in+n_out)), +√(6/(n_in+n_out)))`.
+3. **Rugi**: `L = rata(−[y·ln p + (1−y)·ln(1−p)]) + α/2·‖W‖²/n`, α = 1e-3.
+4. **Adam** (lr 1e-3, β1 0,9, β2 0,999, ε 1e-8): `g = (∇W + α·W)/n`; `m = β1·m + (1−β1)·g`; `v = β2·v + (1−β2)·g²`;
+   `W −= lr · m̂ / (√v̂ + ε)` dengan `m̂ = m/(1−β1^t)`, `v̂ = v/(1−β2^t)`.
+5. **Belajar awal**: 30 epoch, batch 128 di data dasar. **Belajar daring**: tiap hasil koin = 1 langkah Adam pada
+   koin itu + 32 koin acak dari 500 hasil terakhir.
+6. **Penjaga**: tiap koin diprediksi ML dan DL SEBELUM dipelajari → simpan `(p_DL, p_ML, y)` 500 terakhir;
+   `AUC_DL < 0,52` → skor = p_ML saja; `AUC_DL > 0,55` → skor = (p_ML + p_DL)/2 lagi (diperiksa mulai 100 hasil).
+
+### K6c. Model bahaya & p_naik (`crates/engine/src/model.rs`)
+
+- Jenis: HistGradientBoosting (pohon biner biasa, bukan oblivious). Tiap simpul: `x[fitur] ≤ ambang` → kiri;
+  NaN → arah `missing_go_to_left`.
+- `p = 1 / (1 + e^-(baseline + Σ nilai_daun))`, penjumlahan urut pohon (identik bit dengan versi JS lama).
+- Masukan: 27 fitur potret di K12. Dipakai hanya di mesin keluar (K11 no. 7–8).
+
 ## K7. Ambang relatif (`bot.rs` `terima_skor`)
 
 **Rumus.** `thr = kuantil(100 skor terakhir, QTHR)` (30 skor pertama: `thr0` = 0,747), lalu `max(thr, AMBANG_MIN)`.
